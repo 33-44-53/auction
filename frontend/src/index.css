@@ -1,0 +1,238 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Ethiopic:wght@400;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --primary: #2563eb;
+  --primary-light: #3b82f6;
+  --success: #059669;
+  --warning: #d97706;
+  --danger: #dc2626;
+}
+
+body {
+  font-family: 'Inter', 'Noto Sans Ethiopic', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: linear-gradient(135deg, #f8fafc 0%, #e0e7ff 100%);
+  min-height: 100vh;
+}
+
+/* Glassmorphism utility classes */
+.glass {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.glass-dark {
+  background: rgba(30, 41, 59, 0.8);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(241, 245, 249, 0.5);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, #3b82f6, #6366f1);
+  border-radius: 10px;
+  border: 2px solid rgba(241, 245, 249, 0.5);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, #2563eb, #4f46e5);
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-20px);
+  }
+}
+
+.fade-in {
+  animation: fadeIn 0.5s ease-out;
+}
+
+.slide-in {
+  animation: slideIn 0.5s ease-out;
+}
+
+/* Card hover effects */
+.card-hover {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.card-hover:hover {
+  transform: translateY(-8px) scale(1.02);
+  box-shadow: 0 25px 50px -12px rgba(59, 130, 246, 0.25);
+}
+
+/* Button styles */
+.btn-primary {
+  @apply bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-4 py-2 rounded-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 text-sm;
+}
+
+.btn-secondary {
+  @apply bg-white/80 backdrop-blur-sm text-gray-700 px-4 py-2 rounded-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-200/50 text-sm;
+}
+
+.btn-success {
+  @apply bg-gradient-to-r from-green-500 to-emerald-500 text-white px-4 py-2 rounded-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 text-sm;
+}
+
+.btn-danger {
+  @apply bg-gradient-to-r from-red-500 to-pink-500 text-white px-4 py-2 rounded-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 text-sm;
+}
+
+/* Status badges */
+.status-badge {
+  @apply px-3 py-1 rounded-lg text-xs font-semibold backdrop-blur-sm;
+}
+
+.status-open {
+  @apply bg-green-100/80 text-green-700 border border-green-200/50;
+}
+
+.status-sold {
+  @apply bg-blue-100/80 text-blue-700 border border-blue-200/50;
+}
+
+.status-split {
+  @apply bg-yellow-100/80 text-yellow-700 border border-yellow-200/50;
+}
+
+.status-closed {
+  @apply bg-gray-100/80 text-gray-700 border border-gray-200/50;
+}
+
+/* Round indicators */
+.round-indicator {
+  @apply px-3 py-1 rounded-lg font-bold text-center backdrop-blur-sm text-sm;
+}
+
+.round-cif {
+  @apply bg-blue-100/80 text-blue-700 border border-blue-200/50;
+}
+
+.round-fob {
+  @apply bg-purple-100/80 text-purple-700 border border-purple-200/50;
+}
+
+.round-tax {
+  @apply bg-orange-100/80 text-orange-700 border border-orange-200/50;
+}
+
+/* Winner highlight */
+.winner-row {
+  @apply bg-gradient-to-r from-green-50/80 to-emerald-50/80 border-l-4 border-green-500 backdrop-blur-sm;
+}
+
+/* Form inputs */
+input, select, textarea {
+  @apply bg-white/80 backdrop-blur-sm border border-gray-200/50 rounded-lg px-3 py-2 text-sm transition-all duration-300;
+}
+
+input:focus, select:focus, textarea:focus {
+  @apply outline-none ring-2 ring-blue-500/50 border-blue-500/50 bg-white;
+}
+
+/* Table styles */
+.table-container {
+  @apply overflow-x-auto rounded-xl shadow-lg;
+}
+
+table {
+  @apply w-full text-xs;
+}
+
+thead {
+  @apply bg-gradient-to-r from-blue-600 to-indigo-600 text-white;
+}
+
+th {
+  @apply px-4 py-2 font-semibold text-left;
+}
+
+td {
+  @apply px-4 py-2;
+}
+
+tbody tr {
+  @apply border-b border-gray-100/50 backdrop-blur-sm;
+}
+
+tbody tr:hover {
+  @apply bg-blue-50/50;
+}
+
+/* Modal backdrop */
+.modal-backdrop {
+  @apply fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50;
+}
+
+.modal-content {
+  @apply bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/20;
+}
+
+/* Gradient text */
+.gradient-text {
+  @apply bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent;
+}
+
+/* Glow effect */
+.glow {
+  box-shadow: 0 0 20px rgba(59, 130, 246, 0.5);
+}
+
+.glow-green {
+  box-shadow: 0 0 20px rgba(16, 185, 129, 0.5);
+}
+
+.glow-purple {
+  box-shadow: 0 0 20px rgba(139, 92, 246, 0.5);
+}

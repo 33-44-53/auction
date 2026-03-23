@@ -1,0 +1,150 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id        Int        @id @default(autoincrement())
+  name      String
+  email     String     @unique
+  password  String
+  role      String     @default("VIEWER") // ADMIN | STAFF | VIEWER
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  auditLogs AuditLog[]
+}
+
+model Tender {
+  id             Int        @id @default(autoincrement())
+  title          String?
+  tenderNumber   String
+  date           DateTime?  // የተያዘበት ቀን - Catched Date
+  location       String?   // የተያዘበት ቦታ - Catched Location
+  responsibleBody String?  // ያዥው አካል - Responsible body
+  vehiclePlate   String?   // የተሸከርካሪ ሰሌዳ - Vehicle plate
+  exchangeRate   Float
+  status         String     @default("OPEN") // OPEN | CLOSED | COMPLETED
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+  groups         Group[]
+  files          File[]
+}
+
+model Group {
+  id               Int        @id @default(autoincrement())
+  tenderId         Int
+  code             String     // "ኮድ-10"
+  name             String?
+  parentGroupId    Int?
+  basePrice        Float?
+  currentRound     String     @default("CIF") // CIF | FOB | TAX
+  roundNumber      Int         @default(1)    // 1, 2, 3
+  status           String     @default("OPEN") // OPEN | SOLD | SPLIT | CANCELLED
+  winnerBidderId   Int?
+  winnerPrice      Float?
+  soldPrice        Float?
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+  
+  tender           Tender     @relation(fields: [tenderId], references: [id], onDelete: Cascade)
+  parentGroup      Group?     @relation("GroupSplit", fields: [parentGroupId], references: [id])
+  childGroups      Group[]    @relation("GroupSplit")
+  items            Item[]
+  bids             Bid[]
+  bidders          BidderGroup[]
+}
+
+model Item {
+  id          Int       @id @default(autoincrement())
+  groupId     Int
+  itemCode    String    // 52155
+  serialNumber String?   // ተ.ቁ - Serial Number
+  name        String
+  itemType    String?   // የእቃው አይነት - Item Type
+  brand       String?   // ማርክ - Brand
+  country     String?   // ስሪት ሀገር - Country of Origin
+  unit        String    // መለኪያ - Unit
+  warehouse1  Int       @default(0)  // መጋዘን 1
+  warehouse2  Int       @default(0)  // መጋዘን 2
+  warehouse3  Int       @default(0)  // መጋዘን 3
+  totalQuantity Int     // ጠቅላላ ድምር - Total Quantity
+  fob         Float
+  cif         Float
+  tax         Float
+  unitPrice   Float?
+  totalPrice  Float?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  group       Group     @relation(fields: [groupId], references: [id], onDelete: Cascade)
+}
+
+model Bidder {
+  id           Int            @id @default(autoincrement())
+  name         String
+  companyName  String
+  phone        String
+  email        String?
+  address      String?
+  tin          String?         // Tax Identification Number
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  bids         Bid[]
+  groups       BidderGroup[]
+}
+
+model BidderGroup {
+  id        Int      @id @default(autoincrement())
+  bidderId  Int
+  groupId   Int
+  
+  bidder    Bidder   @relation(fields: [bidderId], references: [id], onDelete: Cascade)
+  group     Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  
+  @@unique([bidderId, groupId])
+}
+
+model Bid {
+  id         Int      @id @default(autoincrement())
+  groupId    Int
+  bidderId   Int
+  bidPrice   Float
+  round      String   // CIF | FOB | TAX
+  roundNumber Int     @default(1)  // 1, 2, 3 for tracking multiple rounds
+  isWinner   Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  
+  group      Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  bidder     Bidder   @relation(fields: [bidderId], references: [id], onDelete: Cascade)
+  
+  @@unique([groupId, bidderId, round])
+}
+
+model File {
+  id         Int       @id @default(autoincrement())
+  tenderId   Int
+  filename   String
+  path       String
+  mimeType   String?
+  size       Int?
+  createdAt  DateTime  @default(now())
+  
+  tender     Tender    @relation(fields: [tenderId], references: [id], onDelete: Cascade)
+}
+
+model AuditLog {
+  id        Int       @id @default(autoincrement())
+  userId    Int
+  action    String    // LOGIN, UPLOAD, BID, SELECT_WINNER, SPLIT_GROUP, etc.
+  entity    String    // Tender, Group, Bid, etc.
+  entityId  Int?
+  details   String?   // JSON string for additional details
+  ipAddress String?
+  timestamp DateTime  @default(now())
+  
+  user      User      @relation(fields: [userId], references: [id])
+}
