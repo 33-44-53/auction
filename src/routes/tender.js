@@ -117,7 +117,7 @@ router.post(
           return res.status(400).json({ errors: errors.array() });
         }
 
-        const { tenderNumber, exchangeRate, location, date, title, responsibleBody, vehiclePlate } = req.body;
+        const { tenderNumber, exchangeRate, location, date, title, responsibleBody } = req.body;
 
         // Create tender
         const tender = await tx.tender.create({
@@ -128,7 +128,6 @@ router.post(
             date: date ? new Date(date) : null,
             title,
             responsibleBody,
-            vehiclePlate,
             status: 'OPEN'
           }
         });
@@ -244,7 +243,7 @@ router.patch(
   authorize('ADMIN', 'STAFF'),
   async (req, res, next) => {
     try {
-      const { title, tenderNumber, exchangeRate, location, date, status, responsibleBody, vehiclePlate } = req.body;
+      const { title, tenderNumber, exchangeRate, location, date, status, responsibleBody } = req.body;
 
       const tender = await prisma.tender.update({
         where: { id: parseInt(req.params.id) },
@@ -255,8 +254,7 @@ router.patch(
           ...(location && { location }),
           ...(date && { date: new Date(date) }),
           ...(status && { status }),
-          ...(responsibleBody && { responsibleBody }),
-          ...(vehiclePlate && { vehiclePlate })
+          ...(responsibleBody && { responsibleBody })
         }
       });
 

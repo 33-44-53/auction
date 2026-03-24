@@ -25,7 +25,6 @@ model Tender {
   date           DateTime?  // የተያዘበት ቀን - Catched Date
   location       String?   // የተያዘበት ቦታ - Catched Location
   responsibleBody String?  // ያዥው አካል - Responsible body
-  vehiclePlate   String?   // የተሸከርካሪ ሰሌዳ - Vehicle plate
   exchangeRate   Float
   status         String     @default("OPEN") // OPEN | CLOSED | COMPLETED
   createdAt      DateTime   @default(now())
@@ -39,6 +38,7 @@ model Group {
   tenderId         Int
   code             String     // "ኮድ-10"
   name             String?
+  vehiclePlate     String?    // የተሸከርካሪ ሰሌዳ - Vehicle plate
   parentGroupId    Int?
   basePrice        Float?
   currentRound     String     @default("CIF") // CIF | FOB | TAX

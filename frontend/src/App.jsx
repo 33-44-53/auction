@@ -485,7 +485,7 @@ function TenderDetailPage() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('groups');
   const [showGroupModal, setShowGroupModal] = useState(false);
-  const [groupFormData, setGroupFormData] = useState({ code: '', name: '' });
+  const [groupFormData, setGroupFormData] = useState({ code: '', name: '', vehiclePlate: '' });
 
   const { id: tenderId } = useParams();
 
@@ -514,10 +514,11 @@ function TenderDetailPage() {
       await api.post('/groups', {
         tenderId: parseInt(tenderId),
         code: groupFormData.code,
-        name: groupFormData.name
+        name: groupFormData.name,
+        vehiclePlate: groupFormData.vehiclePlate
       });
       setShowGroupModal(false);
-      setGroupFormData({ code: '', name: '' });
+      setGroupFormData({ code: '', name: '', vehiclePlate: '' });
       loadTender();
     } catch (error) {
       alert(error.response?.data?.error || 'Failed to create group');
@@ -571,11 +572,6 @@ function TenderDetailPage() {
             <span className="font-medium">Responsible Body:</span> {tender.responsibleBody}
           </div>
         )}
-        {tender.vehiclePlate && (
-          <div className="mt-2 text-sm text-gray-600">
-            <span className="font-medium">Vehicle Plate:</span> {tender.vehiclePlate}
-          </div>
-        )}
       </div>
 
       {/* Tabs */}
@@ -614,6 +610,9 @@ function TenderDetailPage() {
                 </span>
               </div>
               <p className="text-sm text-gray-600 mb-3">{group.name}</p>
+              {group.vehiclePlate && (
+                <p className="text-xs text-gray-500 mb-3">Vehicle: {group.vehiclePlate}</p>
+              )}
               <div className="grid grid-cols-3 gap-2 text-sm mb-3">
                 <div>
                   <span className="text-gray-500">Round</span>
@@ -674,6 +673,16 @@ function TenderDetailPage() {
                   onChange={(e) => setGroupFormData({ ...groupFormData, name: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded"
                   placeholder="e.g., Contraband materials from location X"
+                />
+              </div>
+              <div className="mb-4">
+                <label className="block text-gray-700 text-sm font-bold mb-2">Vehicle Plate</label>
+                <input
+                  type="text"
+                  value={groupFormData.vehiclePlate}
+                  onChange={(e) => setGroupFormData({ ...groupFormData, vehiclePlate: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded"
+                  placeholder="e.g., Aw 034 B/2018"
                 />
               </div>
               <div className="flex space-x-2">
@@ -941,6 +950,9 @@ function GroupDetailPage() {
           <div>
             <h2 className="text-2xl font-bold text-gray-800">{group.code}</h2>
             <p className="text-gray-600">{group.name}</p>
+            {group.vehiclePlate && (
+              <p className="text-sm text-gray-500 mt-1">Vehicle Plate: {group.vehiclePlate}</p>
+            )}
           </div>
           <div className="flex items-center space-x-4">
             <div className="text-center">
@@ -1579,8 +1591,7 @@ function NewTenderPage() {
     location: '',
     exchangeRate: 1,
     date: '',
-    responsibleBody: '',
-    vehiclePlate: ''
+    responsibleBody: ''
   });
   const [file, setFile] = useState(null);
   const [submitting, setSubmitting] = useState(false);
@@ -1627,8 +1638,7 @@ function NewTenderPage() {
         location: '',
         exchangeRate: 1,
         date: '',
-        responsibleBody: '',
-        vehiclePlate: ''
+        responsibleBody: ''
       });
       setFile(null);
       loadTenders();
@@ -1726,15 +1736,6 @@ function NewTenderPage() {
                   type="text"
                   value={formData.responsibleBody}
                   onChange={(e) => setFormData({ ...formData, responsibleBody: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded"
-                />
-              </div>
-              <div>
-                <label className="block text-gray-700 text-sm font-bold mb-2">Vehicle Plate</label>
-                <input
-                  type="text"
-                  value={formData.vehiclePlate}
-                  onChange={(e) => setFormData({ ...formData, vehiclePlate: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded"
                 />
               </div>

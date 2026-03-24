@@ -151,10 +151,10 @@ router.patch('/:id/items/:itemId', authorize('ADMIN', 'STAFF'), async (req, res,
 // Create new group in a tender
 router.post('/', authorize('ADMIN', 'STAFF'), async (req, res, next) => {
   try {
-    const { tenderId, code, name } = req.body;
+    const { tenderId, code, name, vehiclePlate } = req.body;
     if (!tenderId || !code) return res.status(400).json({ error: 'tenderId and code required' });
     const group = await prisma.group.create({
-      data: { tenderId: parseInt(tenderId), code, name, currentRound: 'CIF', status: 'OPEN', basePrice: 0 }
+      data: { tenderId: parseInt(tenderId), code, name, vehiclePlate, currentRound: 'CIF', status: 'OPEN', basePrice: 0 }
     });
     res.status(201).json(group);
   } catch (error) {
@@ -573,7 +573,7 @@ router.post('/:id/split', authorize('ADMIN'), async (req, res, next) => {
 router.patch('/:id', authorize('ADMIN', 'STAFF'), async (req, res, next) => {
   try {
     const groupId = parseInt(req.params.id);
-    const { code, name, status, basePrice } = req.body;
+    const { code, name, status, basePrice, vehiclePlate } = req.body;
 
     const group = await prisma.group.update({
       where: { id: groupId },
@@ -581,7 +581,8 @@ router.patch('/:id', authorize('ADMIN', 'STAFF'), async (req, res, next) => {
         ...(code && { code }),
         ...(name && { name }),
         ...(status && { status }),
-        ...(basePrice !== undefined && { basePrice: parseFloat(basePrice) })
+        ...(basePrice !== undefined && { basePrice: parseFloat(basePrice) }),
+        ...(vehiclePlate !== undefined && { vehiclePlate })
       }
     });
 
