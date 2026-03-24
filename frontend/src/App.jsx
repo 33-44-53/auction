@@ -701,7 +701,7 @@ function TenderDetailPage() {
           <table>
             <thead>
               <tr>
-                <th>Code</th>
+                <th>Model</th>
                 <th>Serial</th>
                 <th>Name</th>
                 <th>Type</th>
@@ -1124,7 +1124,7 @@ function GroupDetailPage() {
         <table>
           <thead>
             <tr>
-              <th>Code</th>
+              <th>Model</th>
               <th>Serial</th>
               <th>Name</th>
               <th>Type</th>
@@ -1184,7 +1184,7 @@ function GroupDetailPage() {
             <form onSubmit={handleUpdateItem}>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-gray-700 text-sm font-semibold mb-2">Item Code *</label>
+                  <label className="block text-gray-700 text-sm font-semibold mb-2">Item Model *</label>
                   <input
                     type="text"
                     value={itemFormData.itemCode}
@@ -1351,7 +1351,7 @@ function GroupDetailPage() {
             <form onSubmit={handleAddItem}>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-gray-700 text-sm font-semibold mb-2">Item Code *</label>
+                  <label className="block text-gray-700 text-sm font-semibold mb-2">Item Model *</label>
                   <input
                     type="text"
                     value={itemFormData.itemCode}
