@@ -28,9 +28,9 @@ const ModernLanding = () => {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 overflow-hidden font-['Inter']">
       {/* Animated Background Blobs */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-0 -left-40 w-96 h-96 bg-gradient-to-br from-blue-400/30 to-purple-400/30 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute top-1/3 -right-40 w-96 h-96 bg-gradient-to-br from-indigo-400/30 to-pink-400/30 rounded-full blur-3xl animate-pulse delay-1000"></div>
-        <div className="absolute bottom-0 left-1/3 w-96 h-96 bg-gradient-to-br from-cyan-400/30 to-blue-400/30 rounded-full blur-3xl animate-pulse delay-2000"></div>
+        <div className="absolute top-0 -left-40 w-96 h-96 bg-gradient-to-br from-blue-400/20 to-yellow-400/20 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute top-1/3 -right-40 w-96 h-96 bg-gradient-to-br from-blue-600/20 to-yellow-500/20 rounded-full blur-3xl animate-pulse delay-1000"></div>
+        <div className="absolute bottom-0 left-1/3 w-96 h-96 bg-gradient-to-br from-blue-800/20 to-yellow-600/20 rounded-full blur-3xl animate-pulse delay-2000"></div>
       </div>
 
       {/* Navbar */}
@@ -49,20 +49,18 @@ const ModernLanding = () => {
               whileHover={{ scale: 1.05 }}
               className="flex items-center space-x-3"
             >
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
-                <BarChart3 className="w-6 h-6 text-white" />
-              </div>
+              <img src="/src/logo.jpg" alt="Dire Dawa Customs" className="w-12 h-12 rounded-xl shadow-lg" />
               <div>
-                <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                  DireDawa Customs
+                <span className="text-xl font-bold bg-gradient-to-r from-blue-800 to-blue-600 bg-clip-text text-transparent">
+                  Dire Dawa Customs Commission
                 </span>
               </div>
             </motion.div>
 
             <div className="hidden md:flex items-center space-x-8">
-              <a href="#features" className="text-gray-700 hover:text-blue-600 transition font-medium">Features</a>
-              <a href="#stats" className="text-gray-700 hover:text-blue-600 transition font-medium">Stats</a>
-              <a href="#contact" className="text-gray-700 hover:text-blue-600 transition font-medium">Contact</a>
+              <a href="#features" className="text-gray-700 hover:text-blue-800 transition font-medium">Features</a>
+              <a href="#stats" className="text-gray-700 hover:text-blue-800 transition font-medium">Stats</a>
+              <a href="#contact" className="text-gray-700 hover:text-blue-800 transition font-medium">Contact</a>
             </div>
 
             <div className="flex items-center space-x-4">
@@ -70,15 +68,15 @@ const ModernLanding = () => {
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 href="/login"
-                className="text-gray-700 hover:text-blue-600 transition font-semibold"
+                className="text-gray-700 hover:text-blue-800 transition font-semibold"
               >
                 Login
               </motion.a>
               <motion.a
-                whileHover={{ scale: 1.05, boxShadow: "0 20px 40px rgba(59, 130, 246, 0.3)" }}
+                whileHover={{ scale: 1.05, boxShadow: "0 20px 40px rgba(30, 64, 175, 0.3)" }}
                 whileTap={{ scale: 0.95 }}
                 href="/login"
-                className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-2.5 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all"
+                className="bg-gradient-to-r from-blue-800 to-blue-600 text-white px-6 py-2.5 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all"
               >
                 Get Started
               </motion.a>
@@ -97,7 +95,7 @@ const ModernLanding = () => {
             className="max-w-5xl mx-auto text-center"
           >
             <motion.div variants={fadeInUp} className="inline-block mb-6">
-              <span className="px-4 py-2 bg-blue-100/80 backdrop-blur-sm text-blue-700 rounded-full text-sm font-semibold border border-blue-200/50">
+              <span className="px-4 py-2 bg-yellow-100/80 backdrop-blur-sm text-blue-800 rounded-full text-sm font-semibold border border-yellow-200/50">
                 🚀 Modern Tender Management
               </span>
             </motion.div>
@@ -108,7 +106,7 @@ const ModernLanding = () => {
             >
               Smart Tender
               <br />
-              <span className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 bg-clip-text text-transparent">
+              <span className="bg-gradient-to-r from-blue-800 via-blue-600 to-yellow-500 bg-clip-text text-transparent">
                 Management System
               </span>
             </motion.h1>
@@ -126,10 +124,10 @@ const ModernLanding = () => {
               className="flex flex-col sm:flex-row gap-4 justify-center"
             >
               <motion.a
-                whileHover={{ scale: 1.05, boxShadow: "0 25px 50px rgba(59, 130, 246, 0.4)" }}
+                whileHover={{ scale: 1.05, boxShadow: "0 25px 50px rgba(30, 64, 175, 0.4)" }}
                 whileTap={{ scale: 0.95 }}
                 href="/login"
-                className="group bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-8 py-4 rounded-2xl font-semibold text-lg shadow-2xl hover:shadow-blue-500/50 transition-all flex items-center justify-center gap-2"
+                className="group bg-gradient-to-r from-blue-800 to-blue-600 text-white px-8 py-4 rounded-2xl font-semibold text-lg shadow-2xl hover:shadow-blue-800/50 transition-all flex items-center justify-center gap-2"
               >
                 Get Started Free
                 <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
@@ -150,11 +148,8 @@ const ModernLanding = () => {
               className="mt-16 relative"
             >
               <div className="relative rounded-3xl overflow-hidden shadow-2xl border border-white/20 bg-white/50 backdrop-blur-sm p-2">
-                <div className="aspect-video bg-gradient-to-br from-blue-100 to-indigo-100 rounded-2xl flex items-center justify-center">
-                  <div className="text-center">
-                    <BarChart3 className="w-24 h-24 text-blue-600 mx-auto mb-4" />
-                    <p className="text-gray-600 font-medium">Dashboard Preview</p>
-                  </div>
+                <div className="aspect-video bg-gradient-to-br from-blue-100 to-yellow-100 rounded-2xl flex items-center justify-center">
+                  <img src="/src/logo.jpg" alt="Logo" className="w-32 h-32 object-contain" />
                 </div>
               </div>
               {/* Floating Elements */}
@@ -360,10 +355,8 @@ const ModernLanding = () => {
           <div className="grid md:grid-cols-4 gap-8 mb-8">
             <div>
               <div className="flex items-center space-x-2 mb-4">
-                <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center">
-                  <BarChart3 className="w-6 h-6 text-white" />
-                </div>
-                <span className="text-xl font-bold text-gray-900">DireDawa Customs</span>
+                <img src="/src/logo.jpg" alt="Logo" className="w-10 h-10 rounded-xl" />
+                <span className="text-xl font-bold text-gray-900">Dire Dawa Customs Commission</span>
               </div>
               <p className="text-gray-600">
                 Modern tender management for customs procurement

@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { Menu, X, Upload, BarChart3, Users, Calculator, FolderOpen, Printer, CheckCircle, ArrowRight, Zap, Shield, TrendingUp, Mail, Phone, MapPin, Github, Twitter, Linkedin, LayoutDashboard, FileText, UserCircle, ClipboardList, Settings } from 'lucide-react';
+import { Menu, X, Upload, BarChart3, Users, Calculator, FolderOpen, Printer, CheckCircle, ArrowRight, Zap, Shield, TrendingUp, Mail, Phone, MapPin, Github, Twitter, Linkedin, LayoutDashboard, FileText, UserCircle, ClipboardList, Settings, ChevronLeft, ChevronRight } from 'lucide-react';
 import ModernLanding from './components/ModernLanding';
 
 // Context for auth
@@ -112,20 +112,20 @@ function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 relative overflow-hidden">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-white via-blue-50 to-yellow-50 relative overflow-hidden">
       {/* Background Blobs */}
-      <div className="absolute top-0 -left-40 w-96 h-96 bg-gradient-to-br from-blue-400/30 to-purple-400/30 rounded-full blur-3xl animate-pulse"></div>
-      <div className="absolute bottom-0 -right-40 w-96 h-96 bg-gradient-to-br from-indigo-400/30 to-pink-400/30 rounded-full blur-3xl animate-pulse"></div>
+      <div className="absolute top-0 -left-40 w-96 h-96 bg-gradient-to-br from-blue-400/20 to-yellow-400/20 rounded-full blur-3xl animate-pulse"></div>
+      <div className="absolute bottom-0 -right-40 w-96 h-96 bg-gradient-to-br from-blue-600/20 to-yellow-500/20 rounded-full blur-3xl animate-pulse"></div>
       
       <div className="glass p-10 rounded-3xl shadow-2xl w-full max-w-md relative z-10 fade-in">
         <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
-            <BarChart3 className="w-8 h-8 text-white" />
+          <div className="w-20 h-20 mx-auto mb-4">
+            <img src="/src/logo.jpg" alt="Dire Dawa Customs" className="w-full h-full rounded-2xl shadow-lg" />
           </div>
           <h1 className="text-3xl font-bold gradient-text mb-2">
             Welcome Back
           </h1>
-          <p className="text-gray-600">Tender Management System</p>
+          <p className="text-gray-600">Dire Dawa Customs Commission</p>
         </div>
         
         {error && (
@@ -186,6 +186,7 @@ function LoginPage() {
 // Dashboard Layout
 function DashboardLayout({ children }) {
   const { user, logout } = useAuth();
+  const [sidebarExpanded, setSidebarExpanded] = useState(true);
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
@@ -198,12 +199,10 @@ function DashboardLayout({ children }) {
       <header className="glass-dark text-white shadow-2xl relative z-10">
         <div className="container mx-auto px-4 py-3 flex justify-between items-center">
           <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-lg flex items-center justify-center shadow-lg">
-              <BarChart3 className="w-4 h-4 text-white" />
-            </div>
+            <img src="/src/logo.jpg" alt="Dire Dawa Customs" className="w-10 h-10 rounded-lg shadow-lg" />
             <div>
-              <h1 className="text-lg font-bold">Tender Management</h1>
-              <span className="text-xs text-blue-200">Auction System</span>
+              <h1 className="text-lg font-bold">Dire Dawa Customs Commission</h1>
+              <span className="text-xs text-blue-200">Tender Management System</span>
             </div>
           </div>
           
@@ -225,42 +224,48 @@ function DashboardLayout({ children }) {
       </header>
 
       <div className="flex flex-1 relative z-10">
-        <aside className="w-56 glass shadow-xl p-3">
+        <aside className={`${sidebarExpanded ? 'w-56' : 'w-16'} glass shadow-xl p-3 transition-all duration-300 relative`}>
+          <button
+            onClick={() => setSidebarExpanded(!sidebarExpanded)}
+            className="absolute -right-3 top-6 w-6 h-6 bg-gradient-to-r from-blue-800 to-blue-600 text-white rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform z-10"
+          >
+            {sidebarExpanded ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+          </button>
           <nav>
             <ul className="space-y-1">
               <li>
-                <a href="/dashboard" className="flex items-center space-x-3 px-3 py-2 rounded-lg hover:bg-gradient-to-r hover:from-blue-500 hover:to-indigo-500 hover:text-white transition-all text-sm font-medium text-gray-700">
-                  <LayoutDashboard className="w-5 h-5" />
-                  <span>Dashboard</span>
+                <a href="/dashboard" className="flex items-center space-x-3 px-3 py-2 rounded-lg hover:bg-gradient-to-r hover:from-blue-800 hover:to-blue-600 hover:text-white transition-all text-sm font-medium text-gray-700">
+                  <LayoutDashboard className="w-5 h-5 flex-shrink-0" />
+                  {sidebarExpanded && <span>Dashboard</span>}
                 </a>
               </li>
               <li>
-                <a href="/tenders" className="flex items-center space-x-3 px-3 py-2 rounded-lg hover:bg-gradient-to-r hover:from-blue-500 hover:to-indigo-500 hover:text-white transition-all text-sm font-medium text-gray-700">
-                  <FileText className="w-5 h-5" />
-                  <span>Tenders</span>
+                <a href="/tenders" className="flex items-center space-x-3 px-3 py-2 rounded-lg hover:bg-gradient-to-r hover:from-blue-800 hover:to-blue-600 hover:text-white transition-all text-sm font-medium text-gray-700">
+                  <FileText className="w-5 h-5 flex-shrink-0" />
+                  {sidebarExpanded && <span>Tenders</span>}
                 </a>
               </li>
               {user?.role === 'ADMIN' && (
                 <li>
-                  <a href="/bidders" className="flex items-center space-x-3 px-3 py-2 rounded-lg hover:bg-gradient-to-r hover:from-blue-500 hover:to-indigo-500 hover:text-white transition-all text-sm font-medium text-gray-700">
-                    <Users className="w-5 h-5" />
-                    <span>Bidders</span>
+                  <a href="/bidders" className="flex items-center space-x-3 px-3 py-2 rounded-lg hover:bg-gradient-to-r hover:from-blue-800 hover:to-blue-600 hover:text-white transition-all text-sm font-medium text-gray-700">
+                    <Users className="w-5 h-5 flex-shrink-0" />
+                    {sidebarExpanded && <span>Bidders</span>}
                   </a>
                 </li>
               )}
               {user?.role === 'ADMIN' && (
                 <li>
-                  <a href="/audit" className="flex items-center space-x-3 px-3 py-2 rounded-lg hover:bg-gradient-to-r hover:from-blue-500 hover:to-indigo-500 hover:text-white transition-all text-sm font-medium text-gray-700">
-                    <ClipboardList className="w-5 h-5" />
-                    <span>Audit Logs</span>
+                  <a href="/audit" className="flex items-center space-x-3 px-3 py-2 rounded-lg hover:bg-gradient-to-r hover:from-blue-800 hover:to-blue-600 hover:text-white transition-all text-sm font-medium text-gray-700">
+                    <ClipboardList className="w-5 h-5 flex-shrink-0" />
+                    {sidebarExpanded && <span>Audit Logs</span>}
                   </a>
                 </li>
               )}
               {user?.role === 'ADMIN' && (
                 <li>
-                  <a href="/users" className="flex items-center space-x-3 px-3 py-2 rounded-lg hover:bg-gradient-to-r hover:from-blue-500 hover:to-indigo-500 hover:text-white transition-all text-sm font-medium text-gray-700">
-                    <UserCircle className="w-5 h-5" />
-                    <span>Users</span>
+                  <a href="/users" className="flex items-center space-x-3 px-3 py-2 rounded-lg hover:bg-gradient-to-r hover:from-blue-800 hover:to-blue-600 hover:text-white transition-all text-sm font-medium text-gray-700">
+                    <UserCircle className="w-5 h-5 flex-shrink-0" />
+                    {sidebarExpanded && <span>Users</span>}
                   </a>
                 </li>
               )}
