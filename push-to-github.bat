@@ -1,115 +1,110 @@
 @echo off
+setlocal enabledelayedexpansion
+
+title Push to GitHub - Auction Project
+
+color 0A
+cls
+
+echo.
 echo ========================================
-echo Push to GitHub
+echo   PUSH CHANGES TO GITHUB
 echo ========================================
 echo.
+echo Repository: https://github.com/33-44-53/auction
+echo.
+echo Press any key to start...
+pause >nul
 
-REM Check if git is installed
-git --version >nul 2>&1
-if errorlevel 1 (
-    echo ERROR: Git is not installed!
+set GIT="C:\Program Files\Git\bin\git.exe"
+
+if not exist %GIT% (
+    color 0C
+    echo.
+    echo ERROR: Git not found at: %GIT%
+    echo.
     echo Please install Git from: https://git-scm.com/download/win
+    echo.
     pause
     exit /b 1
 )
 
-echo Git is installed. Proceeding...
 echo.
-
-REM Get GitHub username and repo name
-set /p GITHUB_USERNAME="Enter your GitHub username: "
-set /p REPO_NAME="Enter repository name (default: tender-management-system): "
-
-if "%REPO_NAME%"=="" set REPO_NAME=tender-management-system
+echo [Step 1/4] Checking repository status...
+echo.
+%GIT% status
+if errorlevel 1 (
+    color 0C
+    echo.
+    echo ERROR: Not a git repository or git command failed
+    echo.
+    pause
+    exit /b 1
+)
 
 echo.
-echo Repository will be: https://github.com/%GITHUB_USERNAME%/%REPO_NAME%
+echo [Step 2/4] Adding all files...
 echo.
-set /p CONFIRM="Is this correct? (Y/N): "
+%GIT% add .
+if errorlevel 1 (
+    color 0C
+    echo ERROR: Failed to add files
+    pause
+    exit /b 1
+)
 
-if /i not "%CONFIRM%"=="Y" (
-    echo Cancelled.
+echo.
+echo [Step 3/4] Committing changes...
+echo.
+%GIT% commit -m "Add deployment configs: Vercel, Render, Neon PostgreSQL"
+if errorlevel 1 (
+    echo.
+    echo No changes to commit or commit failed
+    echo.
     pause
     exit /b 0
 )
 
 echo.
-echo ========================================
-echo Step 1: Initializing Git repository...
-echo ========================================
-git init
-
+echo [Step 4/4] Pushing to GitHub...
 echo.
-echo ========================================
-echo Step 2: Adding files...
-echo ========================================
-git add .
-
-echo.
-echo ========================================
-echo Step 3: Creating commit...
-echo ========================================
-git commit -m "Initial commit: Tender Management System with deployment configs"
-
-echo.
-echo ========================================
-echo Step 4: Adding remote repository...
-echo ========================================
-git remote remove origin 2>nul
-git remote add origin https://github.com/%GITHUB_USERNAME%/%REPO_NAME%.git
-
-echo.
-echo ========================================
-echo Step 5: Renaming branch to main...
-echo ========================================
-git branch -M main
-
-echo.
-echo ========================================
-echo Step 6: Pushing to GitHub...
-echo ========================================
-echo.
-echo You may be prompted for GitHub credentials:
-echo - Username: %GITHUB_USERNAME%
-echo - Password: Use Personal Access Token (not your password)
-echo.
-echo Generate token at: https://github.com/settings/tokens
-echo Required scope: repo (full control)
-echo.
-pause
-
-git push -u origin main
-
+%GIT% push origin main
 if errorlevel 1 (
+    color 0E
     echo.
-    echo ========================================
-    echo ERROR: Push failed!
-    echo ========================================
+    echo WARNING: Push failed. Trying to pull and push again...
     echo.
-    echo Common solutions:
-    echo 1. Make sure the repository exists on GitHub
-    echo 2. Check your credentials
-    echo 3. Use Personal Access Token instead of password
-    echo.
-    echo Create repository at: https://github.com/new
-    echo Generate token at: https://github.com/settings/tokens
-    echo.
-    pause
-    exit /b 1
+    %GIT% pull origin main --rebase
+    %GIT% push origin main
+    if errorlevel 1 (
+        color 0C
+        echo.
+        echo ERROR: Push still failed!
+        echo.
+        echo Please check:
+        echo - Internet connection
+        echo - GitHub credentials
+        echo - Repository access
+        echo.
+        pause
+        exit /b 1
+    )
 )
 
+color 0A
 echo.
 echo ========================================
-echo SUCCESS! Code pushed to GitHub
+echo   SUCCESS!
 echo ========================================
 echo.
-echo Repository URL: https://github.com/%GITHUB_USERNAME%/%REPO_NAME%
+echo Changes pushed to: https://github.com/33-44-53/auction
 echo.
 echo Next steps:
-echo 1. Visit your repository on GitHub
-echo 2. Deploy backend to Render
-echo 3. Deploy frontend to Vercel
+echo 1. Deploy to Neon (Database)
+echo 2. Deploy to Render (Backend)
+echo 3. Deploy to Vercel (Frontend)
 echo.
 echo See DEPLOYMENT.md for complete guide
 echo.
-pause
+echo Press any key to exit...
+pause >nul
