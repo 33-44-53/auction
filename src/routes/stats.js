@@ -1,8 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { PrismaClient } = require('@prisma/client');
-
-const prisma = new PrismaClient();
+const prisma = require('../prisma');
 
 router.get('/', async (req, res, next) => {
   try {
@@ -40,6 +38,7 @@ router.get('/', async (req, res, next) => {
     });
 
     res.json({
+      user: { id: req.user.id, name: req.user.name, role: req.user.role },
       totalTenders,
       openTenders,
       closedTenders: totalTenders - openTenders,

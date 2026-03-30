@@ -4,11 +4,9 @@ const multer = require('multer');
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
 const { body, validationResult } = require('express-validator');
-const { PrismaClient } = require('@prisma/client');
 const { authorize } = require('../middleware/auth');
 const { parseExcelFile } = require('../utils/excelParser');
-
-const prisma = new PrismaClient();
+const prisma = require('../prisma');
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
@@ -36,6 +34,30 @@ const upload = multer({
     }
   }
 });
+
+// Preview Excel metadata (tender info + group count) without saving
+router.post(
+  '/preview-excel',
+  authorize('ADMIN', 'STAFF'),
+  upload.single('file'),
+  async (req, res, next) => {
+    try {
+      if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+      const parsedData = await parseExcelFile(req.file.path, null);
+      // Clean up temp file
+      const fs = require('fs');
+      fs.unlink(req.file.path, () => {});
+      res.json({
+        tenderMeta: parsedData.tenderMeta,
+        groupCount: parsedData.groups.length,
+        itemCount: parsedData.groups.reduce((s, g) => s + g.items.length, 0),
+        groups: parsedData.groups.map(g => ({ code: g.code, name: g.name, itemCount: g.items.length }))
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
 
 // Get all tenders
 router.get('/', async (req, res, next) => {
@@ -110,31 +132,31 @@ router.post(
     body('date').optional()
   ],
   async (req, res, next) => {
-    const transaction = await prisma.$transaction(async (tx) => {
-      try {
-        const errors = validationResult(req);
-        if (!errors.isEmpty()) {
-          return res.status(400).json({ errors: errors.array() });
-        }
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+      }
 
-        const { tenderNumber, exchangeRate, location, date, title, responsibleBody } = req.body;
+      const { tenderNumber, exchangeRate, location, date, title, responsibleBody, tenderType, originalTenderId, harajRound } = req.body;
 
-        // Create tender
+      const result = await prisma.$transaction(async (tx) => {
         const tender = await tx.tender.create({
           data: {
             tenderNumber,
             exchangeRate: parseFloat(exchangeRate),
-            location,
+            location: location || null,
             date: date ? new Date(date) : null,
-            title,
-            responsibleBody,
+            title: title || null,
+            responsibleBody: responsibleBody || null,
+            tenderType: tenderType || 'AUCTION',
+            originalTenderId: originalTenderId ? parseInt(originalTenderId) : null,
+            harajRound: harajRound ? parseInt(harajRound) : 1,
             status: 'OPEN'
           }
         });
 
-        // Handle file upload and parsing
         if (req.file) {
-          // Save file record
           await tx.file.create({
             data: {
               tenderId: tender.id,
@@ -145,49 +167,78 @@ router.post(
             }
           });
 
-          // Parse Excel file
           const parsedData = await parseExcelFile(req.file.path, tender.id);
-          
-          // Create groups, items and calculate prices
+          const meta = parsedData.tenderMeta || {};
+
+          // Backfill tender fields from Excel metadata if not provided in form
+          const updates = {};
+          if (!title && meta.title)                       updates.title = meta.title;
+          if (!location && meta.location)                 updates.location = meta.location;
+          if (!responsibleBody && meta.responsibleBody)   updates.responsibleBody = meta.responsibleBody;
+          if (!date && meta.date)                         updates.date = new Date(meta.date);
+          if (Object.keys(updates).length > 0) {
+            await tx.tender.update({ where: { id: tender.id }, data: updates });
+          }
+
+          const effectiveExchangeRate = parseFloat(exchangeRate);
+
           for (const groupData of parsedData.groups) {
+            // Determine initial round from first item
+            let initialRound = 'CIF'; // default
+            if (tenderType === 'HARAJ') {
+              initialRound = 'HARAJ';
+            } else if (groupData.items.length > 0) {
+              const firstItem = groupData.items[0];
+              const prices = [
+                { name: 'CIF', value: firstItem.cif || 0 },
+                { name: 'FOB', value: firstItem.fob || 0 },
+                { name: 'TAX', value: firstItem.tax || 0 }
+              ];
+              prices.sort((a, b) => b.value - a.value);
+              initialRound = prices[0].name;
+            }
+
             const group = await tx.group.create({
               data: {
                 tenderId: tender.id,
                 code: groupData.code,
                 name: groupData.name,
-                currentRound: 'CIF',
+                currentRound: initialRound,
                 roundNumber: 1,
                 status: 'OPEN'
               }
             });
 
-            // Calculate base price and create items
             let groupBasePrice = 0;
             for (const itemData of groupData.items) {
-              // Price selection: MAX(CIF, FOB, TAX) - 3 Prices Logic
-              const selectedPrice = Math.max(itemData.cif, itemData.fob, itemData.tax);
-              
-              // Calculate unit price and total price
-              const unitPrice = selectedPrice * tender.exchangeRate;
-              const totalPrice = unitPrice * itemData.totalQuantity;
+              let unitPrice;
+              if (tenderType === 'HARAJ') {
+                // For Haraj: use LOWEST of CIF, FOB, TAX
+                const lowestPrice = Math.min(itemData.cif || 0, itemData.fob || 0, itemData.tax || 0);
+                unitPrice = lowestPrice * effectiveExchangeRate;
+              } else {
+                // For Auction: use HIGHEST of CIF, FOB, TAX (Round 1)
+                unitPrice = Math.max(itemData.cif || 0, itemData.fob || 0, itemData.tax || 0) * effectiveExchangeRate;
+              }
+              const totalPrice = unitPrice * (itemData.totalQuantity || 0);
 
               await tx.item.create({
                 data: {
                   groupId: group.id,
-                  itemCode: itemData.itemCode,
-                  serialNumber: itemData.serialNumber,
+                  itemCode: itemData.itemCode || '-',
+                  serialNumber: itemData.serialNumber || null,
                   name: itemData.name,
-                  itemType: itemData.itemType,
-                  brand: itemData.brand,
-                  country: itemData.country,
-                  unit: itemData.unit,
-                  warehouse1: itemData.warehouse1,
-                  warehouse2: itemData.warehouse2,
-                  warehouse3: itemData.warehouse3,
-                  totalQuantity: itemData.totalQuantity,
-                  fob: itemData.fob,
-                  cif: itemData.cif,
-                  tax: itemData.tax,
+                  itemType: itemData.itemType || null,
+                  brand: itemData.brand || null,
+                  country: itemData.country || null,
+                  unit: itemData.unit || 'EA',
+                  warehouse1: itemData.warehouse1 || 0,
+                  warehouse2: itemData.warehouse2 || 0,
+                  warehouse3: itemData.warehouse3 || 0,
+                  totalQuantity: itemData.totalQuantity || 0,
+                  fob: itemData.fob || 0,
+                  cif: itemData.cif || 0,
+                  tax: itemData.tax || 0,
                   unitPrice,
                   totalPrice
                 }
@@ -196,44 +247,37 @@ router.post(
               groupBasePrice += totalPrice;
             }
 
-            // Update group base price
             await tx.group.update({
               where: { id: group.id },
-              data: { basePrice: groupBasePrice }
+              data: { 
+                basePrice: groupBasePrice,
+                harajPrice: tenderType === 'HARAJ' ? groupBasePrice : null
+              }
             });
           }
 
-          // Log audit
           await tx.auditLog.create({
             data: {
               userId: req.userId,
               action: 'UPLOAD',
               entity: 'Tender',
               entityId: tender.id,
-              details: JSON.stringify({ 
-                tenderNumber,
-                file: req.file.originalname,
-                groupsCount: parsedData.groups.length
-              }),
+              details: JSON.stringify({ tenderNumber, file: req.file.originalname, groupsCount: parsedData.groups.length }),
               ipAddress: req.ip
             }
           });
         }
 
-        // Return created tender with relations
         return await tx.tender.findUnique({
           where: { id: tender.id },
-          include: {
-            groups: { include: { items: true } },
-            files: true
-          }
+          include: { groups: { include: { items: true } }, files: true }
         });
-      } catch (error) {
-        throw error;
-      }
-    });
+      });
 
-    res.status(201).json(transaction);
+      res.status(201).json(result);
+    } catch (error) {
+      next(error);
+    }
   }
 );
 

@@ -1,0 +1,154 @@
+╔══════════════════════════════════════════════════════════════════╗
+║          TENDER MANAGEMENT SYSTEM - DEPLOYMENT GUIDE             ║
+╚══════════════════════════════════════════════════════════════════╝
+
+📋 QUICK REFERENCE CARD
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🔹 STEP 1: PUSH TO GITHUB (5 minutes)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Option A - Automated (Recommended):
+  1. Double-click: push-to-github.bat
+  2. Follow prompts
+  3. Done!
+
+Option B - Manual:
+  1. Create repo: https://github.com/new
+  2. Run commands in PUSH_COMMANDS.txt
+  3. Done!
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🔹 STEP 2: NEON DATABASE (5 minutes)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  1. Sign up: https://neon.tech
+  2. Create project: tender-management-db
+  3. Copy connection string:
+     postgresql://user:pass@host.neon.tech/db?sslmode=require
+  4. Save for next step!
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🔹 STEP 3: RENDER BACKEND (10 minutes)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  1. Sign up: https://render.com (use GitHub)
+  2. New Web Service → Connect your repo
+  3. Settings:
+     • Name: tender-management-backend
+     • Build: npm install && npm run build
+     • Start: npm start
+  4. Environment Variables:
+     DATABASE_URL=<paste-neon-url>
+     JWT_SECRET=<random-32-chars>
+     NODE_ENV=production
+     PORT=3000
+  5. Deploy!
+  6. Copy URL: https://tender-backend-xxxx.onrender.com
+  7. In Shell tab, run:
+     npx prisma migrate deploy
+     npm run seed
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🔹 STEP 4: VERCEL FRONTEND (5 minutes)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  1. Update frontend/vercel.json:
+     Replace "your-backend.onrender.com" with your Render URL
+  2. Commit and push:
+     git add .
+     git commit -m "Update backend URL"
+     git push
+  3. Sign up: https://vercel.com (use GitHub)
+  4. Import project → Select your repo
+  5. Settings:
+     • Root Directory: frontend
+     • Framework: Vite
+  6. Environment Variable:
+     VITE_API_URL=https://tender-backend-xxxx.onrender.com
+  7. Deploy!
+  8. Copy URL: https://your-app.vercel.app
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🔹 STEP 5: FINAL CONFIGURATION (2 minutes)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  1. Go to Render → Environment Variables
+  2. Add: FRONTEND_URL=https://your-app.vercel.app
+  3. Redeploy backend
+  4. Done!
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✅ TEST YOUR DEPLOYMENT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  1. Visit: https://your-app.vercel.app
+  2. Click "Login"
+  3. Credentials:
+     Email: admin@tender.com
+     Password: admin123
+  4. Create a tender
+  5. Upload Excel file
+  6. Success! 🎉
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📚 DETAILED GUIDES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  • DEPLOYMENT.md - Complete step-by-step guide
+  • GITHUB_PUSH.md - GitHub push instructions
+  • PUSH_COMMANDS.txt - Manual commands
+  • README.md - Project overview
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🆘 TROUBLESHOOTING
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  CORS Error:
+    → Check FRONTEND_URL in Render
+    → Check VITE_API_URL in Vercel
+
+  Database Error:
+    → Verify DATABASE_URL has ?sslmode=require
+    → Run: npx prisma migrate deploy
+
+  Build Failed:
+    → Check logs in Render/Vercel dashboard
+    → Verify all environment variables set
+
+  Cold Start (Slow):
+    → Normal on free tier
+    → First request after 15min is slow
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+💰 COST: 100% FREE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ✓ Neon: Free tier (3GB storage)
+  ✓ Render: Free tier (750 hours/month)
+  ✓ Vercel: Free tier (unlimited bandwidth)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🔐 SECURITY REMINDER
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ⚠️  Change default password after first login!
+  ⚠️  Use strong JWT_SECRET (32+ characters)
+  ⚠️  Never commit .env files to GitHub
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Total Time: ~30 minutes
+Difficulty: Easy
+Cost: $0/month
+
+Good luck! 🚀

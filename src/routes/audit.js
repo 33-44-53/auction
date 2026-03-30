@@ -1,9 +1,7 @@
 const express = require('express');
 const router = express.Router();
-const { PrismaClient } = require('@prisma/client');
+const prisma = require('../prisma');
 const { authorize } = require('../middleware/auth');
-
-const prisma = new PrismaClient();
 
 // Get audit logs (admin only)
 router.get(

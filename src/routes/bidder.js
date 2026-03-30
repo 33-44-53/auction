@@ -1,10 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const { body, validationResult } = require('express-validator');
-const { PrismaClient } = require('@prisma/client');
+const prisma = require('../prisma');
 const { authorize } = require('../middleware/auth');
-
-const prisma = new PrismaClient();
 
 // Get all bidders
 router.get('/', async (req, res, next) => {

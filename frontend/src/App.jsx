@@ -1,15 +1,17 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { Menu, X, Upload, BarChart3, Users, Calculator, FolderOpen, Printer, CheckCircle, ArrowRight, Zap, Shield, TrendingUp, Mail, Phone, MapPin, Github, Twitter, Linkedin, LayoutDashboard, FileText, UserCircle, ClipboardList, Settings, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Menu, X, Upload, BarChart3, Users, Calculator, FolderOpen, Printer, CheckCircle, ArrowRight, Zap, Shield, TrendingUp, Mail, Phone, MapPin, Github, Twitter, Linkedin, LayoutDashboard, FileText, UserCircle, ClipboardList, Settings, ChevronLeft, ChevronRight, Eye, Trash2 } from 'lucide-react';
 import ModernLanding from './components/ModernLanding';
+import EnhancedModernLanding from './components/EnhancedModernLanding';
 
 // Context for auth
 const AuthContext = createContext(null);
+const ThemeContext = createContext(null);
 
 // API client
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: import.meta.env.VITE_API_URL || '/api',
 });
 
 api.interceptors.request.use((config) => {
@@ -70,6 +72,36 @@ function AuthProvider({ children }) {
 
 function useAuth() {
   return useContext(AuthContext);
+}
+
+// Theme Provider
+function ThemeProvider({ children }) {
+  const [isDark, setIsDark] = useState(() => {
+    const saved = localStorage.getItem('theme');
+    return saved === 'dark';
+  });
+
+  useEffect(() => {
+    if (isDark) {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+    }
+  }, [isDark]);
+
+  const toggleTheme = () => setIsDark(!isDark);
+
+  return (
+    <ThemeContext.Provider value={{ isDark, toggleTheme }}>
+      {children}
+    </ThemeContext.Provider>
+  );
+}
+
+function useTheme() {
+  return useContext(ThemeContext);
 }
 
 // Protected Route Component
@@ -186,10 +218,11 @@ function LoginPage() {
 // Dashboard Layout
 function DashboardLayout({ children }) {
   const { user, logout } = useAuth();
+  const { isDark, toggleTheme } = useTheme();
   const [sidebarExpanded, setSidebarExpanded] = useState(true);
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
+    <div className={`min-h-screen flex flex-col ${isDark ? 'bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900' : 'bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50'}`}>
       {/* Background Blobs */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-0 -left-40 w-96 h-96 bg-gradient-to-br from-blue-400/20 to-purple-400/20 rounded-full blur-3xl"></div>
@@ -207,6 +240,27 @@ function DashboardLayout({ children }) {
           </div>
           
           <div className="flex items-center space-x-3">
+            <button
+              onClick={toggleTheme}
+              className="bg-white/20 backdrop-blur-sm px-3 py-1.5 rounded-lg hover:bg-white/30 transition text-sm font-medium flex items-center space-x-2"
+              title={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+            >
+              {isDark ? (
+                <>
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clipRule="evenodd" />
+                  </svg>
+                  <span>Light</span>
+                </>
+              ) : (
+                <>
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
+                  </svg>
+                  <span>Dark</span>
+                </>
+              )}
+            </button>
             <div className="glass px-3 py-1.5 rounded-lg">
               <span className="text-sm font-medium">
                 {user?.name}
@@ -224,30 +278,34 @@ function DashboardLayout({ children }) {
       </header>
 
       <div className="flex flex-1 relative z-10">
-        <aside className={`${sidebarExpanded ? 'w-56' : 'w-16'} glass shadow-xl p-3 transition-all duration-300 relative`}>
+        <aside className={`${sidebarExpanded ? 'w-56' : 'w-16'} shadow-xl p-3 transition-all duration-300 relative ${
+          isDark 
+            ? 'bg-gradient-to-b from-gray-800 via-gray-700 to-gray-900' 
+            : 'bg-gradient-to-b from-blue-600 via-blue-400 to-white'
+        }`}>
           <button
             onClick={() => setSidebarExpanded(!sidebarExpanded)}
-            className="absolute -right-3 top-6 w-6 h-6 bg-gradient-to-r from-blue-800 to-blue-600 text-white rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform z-10"
+            className="absolute -right-3 top-6 w-6 h-6 bg-gradient-to-r from-blue-500 to-white text-blue-800 rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform z-10 border-2 border-blue-300"
           >
             {sidebarExpanded ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
           </button>
           <nav>
             <ul className="space-y-1">
               <li>
-                <a href="/dashboard" className="flex items-center space-x-3 px-3 py-2 rounded-lg hover:bg-gradient-to-r hover:from-blue-800 hover:to-blue-600 hover:text-white transition-all text-sm font-medium text-gray-700">
+                <a href="/dashboard" className="flex items-center space-x-3 px-3 py-2 rounded-lg hover:bg-white/40 backdrop-blur-sm hover:shadow-md transition-all text-sm font-medium text-white hover:text-blue-900">
                   <LayoutDashboard className="w-5 h-5 flex-shrink-0" />
                   {sidebarExpanded && <span>Dashboard</span>}
                 </a>
               </li>
               <li>
-                <a href="/tenders" className="flex items-center space-x-3 px-3 py-2 rounded-lg hover:bg-gradient-to-r hover:from-blue-800 hover:to-blue-600 hover:text-white transition-all text-sm font-medium text-gray-700">
+                <a href="/tenders" className="flex items-center space-x-3 px-3 py-2 rounded-lg hover:bg-white/40 backdrop-blur-sm hover:shadow-md transition-all text-sm font-medium text-white hover:text-blue-900">
                   <FileText className="w-5 h-5 flex-shrink-0" />
                   {sidebarExpanded && <span>Tenders</span>}
                 </a>
               </li>
               {user?.role === 'ADMIN' && (
                 <li>
-                  <a href="/bidders" className="flex items-center space-x-3 px-3 py-2 rounded-lg hover:bg-gradient-to-r hover:from-blue-800 hover:to-blue-600 hover:text-white transition-all text-sm font-medium text-gray-700">
+                  <a href="/bidders" className="flex items-center space-x-3 px-3 py-2 rounded-lg hover:bg-white/40 backdrop-blur-sm hover:shadow-md transition-all text-sm font-medium text-white hover:text-blue-900">
                     <Users className="w-5 h-5 flex-shrink-0" />
                     {sidebarExpanded && <span>Bidders</span>}
                   </a>
@@ -255,7 +313,7 @@ function DashboardLayout({ children }) {
               )}
               {user?.role === 'ADMIN' && (
                 <li>
-                  <a href="/audit" className="flex items-center space-x-3 px-3 py-2 rounded-lg hover:bg-gradient-to-r hover:from-blue-800 hover:to-blue-600 hover:text-white transition-all text-sm font-medium text-gray-700">
+                  <a href="/audit" className="flex items-center space-x-3 px-3 py-2 rounded-lg hover:bg-white/40 backdrop-blur-sm hover:shadow-md transition-all text-sm font-medium text-white hover:text-blue-900">
                     <ClipboardList className="w-5 h-5 flex-shrink-0" />
                     {sidebarExpanded && <span>Audit Logs</span>}
                   </a>
@@ -263,7 +321,7 @@ function DashboardLayout({ children }) {
               )}
               {user?.role === 'ADMIN' && (
                 <li>
-                  <a href="/users" className="flex items-center space-x-3 px-3 py-2 rounded-lg hover:bg-gradient-to-r hover:from-blue-800 hover:to-blue-600 hover:text-white transition-all text-sm font-medium text-gray-700">
+                  <a href="/users" className="flex items-center space-x-3 px-3 py-2 rounded-lg hover:bg-white/40 backdrop-blur-sm hover:shadow-md transition-all text-sm font-medium text-white hover:text-blue-900">
                     <UserCircle className="w-5 h-5 flex-shrink-0" />
                     {sidebarExpanded && <span>Users</span>}
                   </a>
@@ -273,7 +331,7 @@ function DashboardLayout({ children }) {
           </nav>
         </aside>
 
-        <main className="flex-1 p-4">
+        <main className="flex-1 p-4 min-w-0 overflow-hidden">
           <div className="fade-in">
             {children}
           </div>
@@ -439,6 +497,7 @@ function DashboardPage() {
           <h3 className="text-lg font-bold text-white">Recent Tenders</h3>
         </div>
         {stats?.recentTenders?.length > 0 ? (
+          <div className="overflow-x-auto">
           <table>
             <thead>
               <tr>
@@ -462,13 +521,14 @@ function DashboardPage() {
                   </td>
                   <td>
                     <a href={`/tenders/${tender.id}`} className="text-primary-600 hover:text-primary-800">
-                      View
+                      <Eye className="w-4 h-4 inline" />
                     </a>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
+          </div>
         ) : (
           <div className="p-8 text-center text-gray-500">
             No tenders yet
@@ -508,21 +568,12 @@ function TenderDetailPage() {
     return new Intl.NumberFormat('en-US', { minimumFractionDigits: 2 }).format(value || 0);
   };
 
-  const handleCreateGroup = async (e) => {
+  const handleCreateGroup = (e) => {
     e.preventDefault();
-    try {
-      await api.post('/groups', {
-        tenderId: parseInt(tenderId),
-        code: groupFormData.code,
-        name: groupFormData.name,
-        vehiclePlate: groupFormData.vehiclePlate
-      });
-      setShowGroupModal(false);
-      setGroupFormData({ code: '', name: '', vehiclePlate: '' });
-      loadTender();
-    } catch (error) {
-      alert(error.response?.data?.error || 'Failed to create group');
-    }
+    const data = { tenderId: parseInt(tenderId), ...groupFormData };
+    setShowGroupModal(false);
+    setGroupFormData({ code: '', name: '', vehiclePlate: '' });
+    api.post('/groups', data).then(() => loadTender()).catch(e => alert(e.response?.data?.error || 'Failed to create group'));
   };
 
   if (loading) {
@@ -535,16 +586,54 @@ function TenderDetailPage() {
 
   return (
     <div>
+      <div className="mb-4">
+        <button
+          onClick={() => window.history.back()}
+          className="flex items-center space-x-2 text-gray-600 hover:text-gray-800 font-medium"
+        >
+          <ChevronLeft className="w-5 h-5" />
+          <span>Back</span>
+        </button>
+      </div>
       <div className="bg-white rounded-lg shadow-md p-6 mb-6">
         <div className="flex justify-between items-start">
           <div>
             <h2 className="text-2xl font-bold text-gray-800">{tender.tenderNumber}</h2>
             <p className="text-gray-600">{tender.title || 'No title'}</p>
+            <div className="flex gap-2 mt-1">
+              <span className={`px-2 py-1 rounded text-xs font-semibold ${
+                tender.tenderType === 'HARAJ' ? 'bg-orange-100 text-orange-800' :
+                tender.tenderType === 'YASBELA' ? 'bg-purple-100 text-purple-800' :
+                'bg-blue-100 text-blue-800'
+              }`}>
+                {tender.tenderType === 'HARAJ' ? `🔨 Haraj${tender.harajRound > 1 ? ` Round ${tender.harajRound}` : ''}` :
+                 tender.tenderType === 'YASBELA' ? '↩ Yasbela' : '🏛 Auction'}
+              </span>
+              {tender.originalTenderId && (
+                <span className="text-xs text-gray-500">Ref: Tender #{tender.originalTenderId}</span>
+              )}
+            </div>
           </div>
-          <div className="text-right">
+          <div className="flex items-center space-x-2">
             <span className={`px-3 py-1 rounded text-sm ${tender.status === 'OPEN' ? 'bg-green-100 text-green-800' : tender.status === 'SOLD' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'}`}>
               {tender.status}
             </span>
+            <a
+              href={`/api/export/excel/${tender.id}`}
+              target="_blank"
+              rel="noreferrer"
+              className="btn-success text-xs"
+            >
+              ⬇ Excel
+            </a>
+            <a
+              href={`/api/export/pdf/${tender.id}`}
+              target="_blank"
+              rel="noreferrer"
+              className="btn-primary text-xs"
+            >
+              ⬇ PDF
+            </a>
           </div>
         </div>
 
@@ -605,7 +694,13 @@ function TenderDetailPage() {
             <div key={group.id} className="bg-white rounded-lg shadow p-4">
               <div className="flex justify-between items-start mb-2">
                 <h3 className="font-bold text-lg">{group.code}</h3>
-                <span className={`px-2 py-1 rounded text-xs ${group.status === 'OPEN' ? 'bg-green-100 text-green-800' : group.status === 'SOLD' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'}`}>
+                <span className={`px-2 py-1 rounded text-xs ${
+                  group.status === 'OPEN' ? 'bg-green-100 text-green-800' :
+                  group.status === 'SOLD' ? 'bg-blue-100 text-blue-800' :
+                  group.status === 'HARAJ' ? 'bg-orange-100 text-orange-800' :
+                  group.status === 'YASBELA' ? 'bg-purple-100 text-purple-800' :
+                  'bg-gray-100 text-gray-800'
+                }`}>
                   {group.status}
                 </span>
               </div>
@@ -707,6 +802,7 @@ function TenderDetailPage() {
 
       {activeTab === 'items' && (
         <div className="bg-white rounded-lg shadow overflow-hidden">
+          <div className="overflow-x-auto">
           <table>
             <thead>
               <tr>
@@ -747,6 +843,7 @@ function TenderDetailPage() {
               )}
             </tbody>
           </table>
+          </div>
         </div>
       )}
     </div>
@@ -758,12 +855,24 @@ function GroupDetailPage() {
   const [group, setGroup] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showBidModal, setShowBidModal] = useState(false);
-  const [showAddBidderModal, setShowAddBidderModal] = useState(false);
   const [showAddItemModal, setShowAddItemModal] = useState(false);
   const [showEditItemModal, setShowEditItemModal] = useState(false);
-  const [selectedBidder, setSelectedBidder] = useState('');
+  const [showHarajModal, setShowHarajModal] = useState(false);
+  const [showYasbelaModal, setShowYasbelaModal] = useState(false);
+  const [harajFormData, setHarajFormData] = useState({ harajPrice: '', harajRound: '1' });
+  const [yasbelaFormData, setYasbelaFormData] = useState({ reason: '', yasbelaTenderId: '' });
+  const [allTenders, setAllTenders] = useState([]);
+  const [selectedBidder, setSelectedBidder] = useState(null);
+  const [bidderSearch, setBidderSearch] = useState('');
   const [bidAmount, setBidAmount] = useState('');
-  const [availableBidders, setAvailableBidders] = useState([]);
+  const [allBidders, setAllBidders] = useState([]);
+  const [showBidderDropdown, setShowBidderDropdown] = useState(false);
+  const [useNewBidder, setUseNewBidder] = useState(false);
+  const [newBidderData, setNewBidderData] = useState({
+    name: '',
+    companyName: '',
+    phone: ''
+  });
   const [editingItem, setEditingItem] = useState(null);
   const [itemFormData, setItemFormData] = useState({
     itemCode: '',
@@ -785,7 +894,16 @@ function GroupDetailPage() {
 
   useEffect(() => {
     loadGroup();
+    loadAllBidders();
+    loadAllTenders();
   }, [groupId]);
+
+  const loadAllTenders = async () => {
+    try {
+      const res = await api.get('/tenders');
+      setAllTenders(res.data);
+    } catch (e) { console.error(e); }
+  };
 
   const loadGroup = async () => {
     try {
@@ -802,74 +920,288 @@ function GroupDetailPage() {
     return new Intl.NumberFormat('en-US', { minimumFractionDigits: 2 }).format(value || 0);
   };
 
+  const loadAllBidders = async () => {
+    try {
+      const response = await api.get('/bidders');
+      setAllBidders(response.data);
+    } catch (error) {
+      console.error('Failed to load bidders:', error);
+    }
+  };
+
+  const filteredBidders = allBidders.filter(bidder => {
+    const searchLower = bidderSearch.toLowerCase();
+    return (
+      bidder.name.toLowerCase().includes(searchLower) ||
+      bidder.companyName.toLowerCase().includes(searchLower) ||
+      bidder.phone.includes(searchLower)
+    );
+  });
+
+  const handleSelectBidder = (bidder) => {
+    setSelectedBidder(bidder);
+    setBidderSearch(`${bidder.name} - ${bidder.companyName}`);
+    setShowBidderDropdown(false);
+  };
+
+  const handleBidderSearchChange = (e) => {
+    setBidderSearch(e.target.value);
+    setSelectedBidder(null);
+    setShowBidderDropdown(true);
+  };
+
   const handleSubmitBid = async (e) => {
     e.preventDefault();
     try {
-      await api.post(`/groups/${groupId}/bids`, {
-        bidderId: selectedBidder,
-        bidPrice: parseFloat(bidAmount)
-      });
+      let bidderId;
+      if (useNewBidder) {
+        if (!newBidderData.name || !newBidderData.companyName || !newBidderData.phone) {
+          alert('Please fill in all bidder fields (Name, Company, Phone)');
+          return;
+        }
+        const bidderResponse = await api.post('/bidders', newBidderData);
+        bidderId = bidderResponse.data.id;
+      } else {
+        if (!selectedBidder) { alert('Please select a bidder'); return; }
+        bidderId = selectedBidder.id;
+      }
       setShowBidModal(false);
-      setSelectedBidder('');
-      setBidAmount('');
-      loadGroup();
+      setSelectedBidder(null); setBidderSearch(''); setBidAmount('');
+      setUseNewBidder(false); setNewBidderData({ name: '', companyName: '', phone: '' });
+      api.post(`/groups/${groupId}/bids`, { bidderId: parseInt(bidderId), bidPrice: parseFloat(bidAmount) })
+        .then(() => { loadGroup(); loadAllBidders(); })
+        .catch(e => { alert(e.response?.data?.error || 'Failed to submit bid'); loadGroup(); });
     } catch (error) {
       alert(error.response?.data?.error || 'Failed to submit bid');
     }
   };
 
-  const handleNextRound = async () => {
+  const handleDownloadBidsExcel = async () => {
     try {
-      await api.post(`/groups/${groupId}/next-round`);
-      loadGroup();
-    } catch (error) {
-      alert(error.response?.data?.error || 'Failed to advance round');
-    }
-  };
-
-  const handleSelectWinner = async (bidderId) => {
-    try {
-      await api.post(`/groups/${groupId}/select-winner`, { bidderId });
-      loadGroup();
-    } catch (error) {
-      alert(error.response?.data?.error || 'Failed to select winner');
-    }
-  };
-
-  const handleAddBidder = async (bidderId) => {
-    try {
-      await api.post(`/groups/${groupId}/bidders`, { bidderId });
-      setShowAddBidderModal(false);
-      loadGroup();
-    } catch (error) {
-      alert(error.response?.data?.error || 'Failed to add bidder');
-    }
-  };
-
-  const handleAddItem = async (e) => {
-    e.preventDefault();
-    try {
-      await api.post(`/groups/${groupId}/items`, itemFormData);
-      setShowAddItemModal(false);
-      setItemFormData({
-        itemCode: '',
-        serialNumber: '',
-        name: '',
-        itemType: '',
-        brand: '',
-        country: '',
-        unit: '',
-        warehouse1: 0,
-        warehouse2: 0,
-        warehouse3: 0,
-        fob: 0,
-        cif: 0,
-        tax: 0
+      const token = localStorage.getItem('token');
+      const response = await fetch(`/api/export/excel/group/${groupId}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
       });
-      loadGroup();
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Download failed' }));
+        throw new Error(errorData.error || 'Download failed');
+      }
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `group_${group.code}_bids.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      }, 100);
     } catch (error) {
-      alert(error.response?.data?.error || 'Failed to add item');
+      console.error('Download error:', error);
+      alert('Failed to download Excel file: ' + error.message);
     }
+  };
+
+  const handleDownloadClosedReport = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`/api/export/excel/group/${groupId}/closed`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Download failed' }));
+        throw new Error(errorData.error || 'Download failed');
+      }
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `group_${group.code}_closed_report.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      }, 100);
+    } catch (error) {
+      console.error('Download error:', error);
+      alert('Failed to download closed report: ' + error.message);
+    }
+  };
+
+  const handleDownloadWinnerLetter = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`/api/export/winner-letter/${groupId}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Download failed' }));
+        throw new Error(errorData.error || 'Download failed');
+      }
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `winner_letter_${group.code}.docx`;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      }, 100);
+    } catch (error) {
+      console.error('Download error:', error);
+      alert('Failed to download winner letter: ' + error.message);
+    }
+  };
+
+  const handleNextRound = () => {
+    api.post(`/groups/${groupId}/next-round`)
+      .then((res) => {
+        loadGroup();
+      })
+      .catch(e => {
+        alert(e.response?.data?.error || 'Failed to advance round');
+      });
+  };
+
+  const handlePrevRound = () => {
+    api.post(`/groups/${groupId}/prev-round`)
+      .then((res) => {
+        loadGroup();
+      })
+      .catch(e => {
+        alert(e.response?.data?.error || 'Failed to go back round');
+      });
+  };
+
+  // Determine if we can navigate rounds
+  const canNavigateRounds = () => {
+    if (!group || !group.items || group.items.length === 0) return { canNext: false, canPrev: false };
+    if (group.currentRound === 'HARAJ') return { canNext: false, canPrev: false };
+    const firstItem = group.items[0];
+    const prices = [
+      { name: 'CIF', value: firstItem.cif },
+      { name: 'FOB', value: firstItem.fob },
+      { name: 'TAX', value: firstItem.tax }
+    ];
+    prices.sort((a, b) => b.value - a.value);
+    const rounds = [prices[0].name, prices[1].name, prices[2].name];
+    const currentIndex = rounds.indexOf(group.currentRound);
+    return {
+      canNext: currentIndex < rounds.length - 1,
+      canPrev: currentIndex > 0
+    };
+  };
+
+  const { canNext, canPrev } = group ? canNavigateRounds() : { canNext: false, canPrev: false };
+
+  const handleCloseGroup = () => {
+    if (!confirm('Are you sure you want to close this group? The highest bidder will be selected as winner and the group will be marked as SOLD.')) return;
+    setGroup(g => ({ ...g, status: 'SOLD' }));
+    api.post(`/groups/${groupId}/close`).then(res => {
+      alert(`Winner: ${res.data.winner.bidderName} — ${formatCurrency(res.data.winner.price)}`);
+      loadGroup();
+    }).catch(e => {
+      alert(e.response?.data?.error || 'Failed to close group');
+      loadGroup();
+    });
+  };
+
+  const handleSendToHaraj = (e) => {
+    e.preventDefault();
+    setShowHarajModal(false);
+    api.post(`/groups/${groupId}/send-to-haraj`, {
+      harajPrice: parseFloat(harajFormData.harajPrice) || undefined,
+      harajRound: parseInt(harajFormData.harajRound)
+    }).then(() => { loadGroup(); alert('Group converted to Haraj successfully'); })
+      .catch(e => { alert(e.response?.data?.error || 'Failed to send to Haraj'); loadGroup(); });
+  };
+
+  const handleRevertFromHaraj = () => {
+    if (!confirm('Revert from Haraj back to normal rounds (CIF/FOB/TAX)?')) return;
+    api.post(`/groups/${groupId}/revert-from-haraj`)
+      .then(() => { loadGroup(); alert('Group reverted from Haraj successfully'); })
+      .catch(e => { alert(e.response?.data?.error || 'Failed to revert from Haraj'); loadGroup(); });
+  };
+
+  const handleReopenGroup = () => {
+    if (!confirm('Reopen this group? This will clear the winner and allow new bids.')) return;
+    api.post(`/groups/${groupId}/reopen`)
+      .then(() => { loadGroup(); alert('Group reopened successfully'); })
+      .catch(e => { alert(e.response?.data?.error || 'Failed to reopen group'); loadGroup(); });
+  };
+
+  const handleYasbela = (e) => {
+    e.preventDefault();
+    if (!confirm('Apply Yasbela? A 5% penalty will be deducted from the winner price and the group will be re-auctioned.')) return;
+    setShowYasbelaModal(false);
+    api.post(`/groups/${groupId}/yasbela`, {
+      reason: yasbelaFormData.reason,
+      yasbelaTenderId: yasbelaFormData.yasbelaTenderId ? parseInt(yasbelaFormData.yasbelaTenderId) : undefined
+    }).then(res => {
+      alert(`Yasbela applied. Penalty: ${formatCurrency(res.data.penalty)}. New group created in tender.`);
+      loadGroup();
+    }).catch(e => { alert(e.response?.data?.error || 'Failed to apply Yasbela'); loadGroup(); });
+  };
+
+
+
+  const blank = { itemCode:'',serialNumber:'',name:'',itemType:'',brand:'',country:'',unit:'',warehouse1:0,warehouse2:0,warehouse3:0,fob:0,cif:0,tax:0 };
+
+  const handleAddItem = (e) => {
+    e.preventDefault();
+    const data = { ...itemFormData };
+    setShowAddItemModal(false);
+    setItemFormData(blank);
+    api.post(`/groups/${groupId}/items`, data)
+      .then(() => loadGroup())
+      .catch(e => { alert(e.response?.data?.error || 'Failed to add item'); loadGroup(); });
+  };
+
+  const handleUpdateItem = (e) => {
+    e.preventDefault();
+    const id = editingItem.id;
+    const data = { ...itemFormData };
+    setShowEditItemModal(false);
+    setEditingItem(null);
+    setItemFormData(blank);
+    api.patch(`/groups/${groupId}/items/${id}`, data)
+      .then(() => loadGroup())
+      .catch(e => { alert(e.response?.data?.error || 'Failed to update item'); loadGroup(); });
+  };
+
+  const handleDeleteItem = (itemId) => {
+    if (!confirm('Are you sure you want to delete this item?')) return;
+    setGroup(g => ({ ...g, items: g.items.filter(i => i.id !== itemId) }));
+    api.delete(`/groups/${groupId}/items/${itemId}`)
+      .then(() => loadGroup())
+      .catch(e => { alert(e.response?.data?.error || 'Failed to delete item'); loadGroup(); });
+  };
+
+  const handleDeleteBid = (bidId) => {
+    if (!confirm('Are you sure you want to delete this bid?')) return;
+    setGroup(g => ({ ...g, bids: g.bids.filter(b => b.id !== bidId) }));
+    api.delete(`/groups/${groupId}/bids/${bidId}`)
+      .then(() => loadGroup())
+      .catch(e => { alert(e.response?.data?.error || 'Failed to delete bid'); loadGroup(); });
   };
 
   const handleEditItem = (item) => {
@@ -892,48 +1224,7 @@ function GroupDetailPage() {
     setShowEditItemModal(true);
   };
 
-  const handleUpdateItem = async (e) => {
-    e.preventDefault();
-    try {
-      await api.patch(`/groups/${groupId}/items/${editingItem.id}`, itemFormData);
-      setShowEditItemModal(false);
-      setEditingItem(null);
-      setItemFormData({
-        itemCode: '',
-        serialNumber: '',
-        name: '',
-        itemType: '',
-        brand: '',
-        country: '',
-        unit: '',
-        warehouse1: 0,
-        warehouse2: 0,
-        warehouse3: 0,
-        fob: 0,
-        cif: 0,
-        tax: 0
-      });
-      loadGroup();
-    } catch (error) {
-      alert(error.response?.data?.error || 'Failed to update item');
-    }
-  };
 
-  const loadAvailableBidders = async () => {
-    try {
-      const response = await api.get('/bidders');
-      const assignedIds = group.bidders?.map(bg => bg.bidder.id) || [];
-      setAvailableBidders(response.data.filter(b => !assignedIds.includes(b.id)));
-    } catch (error) {
-      console.error('Failed to load bidders:', error);
-    }
-  };
-
-  useEffect(() => {
-    if (showAddBidderModal && group) {
-      loadAvailableBidders();
-    }
-  }, [showAddBidderModal, group]);
 
   if (loading) {
     return <div className="text-center py-8">Loading...</div>;
@@ -945,8 +1236,17 @@ function GroupDetailPage() {
 
   return (
     <div>
+      <div className="mb-4">
+        <button
+          onClick={() => window.history.back()}
+          className="flex items-center space-x-2 text-gray-600 hover:text-gray-800 font-medium"
+        >
+          <ChevronLeft className="w-5 h-5" />
+          <span>Back</span>
+        </button>
+      </div>
       <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-        <div className="flex justify-between items-start">
+        <div className="flex justify-between items-start mb-4">
           <div>
             <h2 className="text-2xl font-bold text-gray-800">{group.code}</h2>
             <p className="text-gray-600">{group.name}</p>
@@ -954,10 +1254,43 @@ function GroupDetailPage() {
               <p className="text-sm text-gray-500 mt-1">Vehicle Plate: {group.vehiclePlate}</p>
             )}
           </div>
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-3">
+            <button
+              onClick={handleDownloadBidsExcel}
+              className="bg-green-600 text-white px-3 py-1.5 rounded-lg hover:bg-green-700 text-xs font-medium flex items-center space-x-1"
+              title="Download bids (without prices)"
+            >
+              <span>⬇</span>
+              <span>Bids Excel</span>
+            </button>
+            {group.status === 'SOLD' && (
+              <button
+                onClick={handleDownloadClosedReport}
+                className="bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700 text-xs font-medium flex items-center space-x-1"
+                title="Download closed group report with calculations"
+              >
+                <span>📊</span>
+                <span>Closed Report</span>
+              </button>
+            )}
+            {group.status === 'SOLD' && (
+              <button
+                onClick={handleDownloadWinnerLetter}
+                className="bg-purple-600 text-white px-3 py-1.5 rounded-lg hover:bg-purple-700 text-xs font-medium flex items-center space-x-1"
+                title="Download winner letter (የመሸኛ ደብደዳቤ)"
+              >
+                <span>📄</span>
+                <span>Winner Letter</span>
+              </button>
+            )}
             <div className="text-center">
               <span className="block text-sm text-gray-500">Round</span>
-              <span className={`round-indicator ${group.currentRound === 'CIF' ? 'round-cif' : group.currentRound === 'FOB' ? 'round-fob' : 'round-tax'}`}>
+              <span className={`round-indicator ${
+                group.currentRound === 'TAX' ? 'round-tax' :
+                group.currentRound === 'CIF' ? 'round-cif' :
+                group.currentRound === 'HARAJ' ? 'bg-orange-100/80 text-orange-700 border border-orange-200/50' :
+                'round-fob'
+              }`}>
                 {group.currentRound}
               </span>
             </div>
@@ -967,10 +1300,27 @@ function GroupDetailPage() {
                 {group.status}
               </span>
             </div>
+            {group.status === 'SOLD' && (() => {
+              const winnerBid = group.bids?.find(b => b.isWinner);
+              return winnerBid ? (
+                <div className="text-center bg-gradient-to-br from-yellow-50 to-amber-50 border-2 border-yellow-400 rounded-lg px-4 py-2">
+                  <span className="block text-xs font-semibold text-yellow-700 uppercase tracking-wide">🏆 Winner</span>
+                  <p className="text-sm font-bold text-gray-800 mt-1">{winnerBid.bidder.name}</p>
+                  <p className="text-lg font-bold text-green-600">{formatCurrency(winnerBid.bidPrice)}</p>
+                </div>
+              ) : null;
+            })()}
+            {group.status === 'YASBELA' && (
+              <div className="text-center bg-purple-50 border-2 border-purple-400 rounded-lg px-4 py-2">
+                <span className="block text-xs font-semibold text-purple-700 uppercase tracking-wide">↩ Yasbela</span>
+                <p className="text-sm text-gray-700 mt-1">Penalty: <strong className="text-red-600">{formatCurrency(group.yasbelaPenalty)}</strong></p>
+                {group.yasbelaReason && <p className="text-xs text-gray-500 mt-1">{group.yasbelaReason}</p>}
+              </div>
+            )}
           </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-4 mt-4 text-sm">
+        <div className="grid grid-cols-3 gap-4 text-sm">
           <div className="bg-gray-50 p-3 rounded">
             <span className="text-gray-500">Base Price</span>
             <p className="font-medium text-lg">{formatCurrency(group.basePrice)}</p>
@@ -987,138 +1337,123 @@ function GroupDetailPage() {
 
         {group.status === 'OPEN' && (
           <div className="flex space-x-2 mt-4">
-            <button
-              onClick={() => setShowBidModal(true)}
-              className="bg-primary-600 text-white px-4 py-2 rounded hover:bg-primary-700"
-            >
-              Add Bid
+            {group.currentRound === 'HARAJ' ? (
+              <button onClick={handleRevertFromHaraj} className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 font-semibold">
+                ← Revert from Haraj
+              </button>
+            ) : (
+              <>
+                {canPrev && (
+                  <button onClick={handlePrevRound} className="bg-orange-600 text-white px-4 py-2 rounded hover:bg-orange-700">
+                    ← Prev Round
+                  </button>
+                )}
+                {canNext && (
+                  <button onClick={handleNextRound} className="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700">
+                    Next Round →
+                  </button>
+                )}
+              </>
+            )}
+            <button onClick={handleCloseGroup} className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 font-semibold">
+              ✓ Close Group
             </button>
-            {group.currentRound !== 'TAX' && (
-              <button
-                onClick={handleNextRound}
-                className="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700"
-              >
-                Next Round
+            {group.tender?.tenderType !== 'HARAJ' && group.currentRound !== 'HARAJ' && (
+              <button onClick={() => setShowHarajModal(true)} className="bg-orange-500 text-white px-4 py-2 rounded hover:bg-orange-600 font-semibold">
+                🔨 Send to Haraj
               </button>
             )}
           </div>
         )}
-      </div>
-
-      {/* Assigned Bidders */}
-      <div className="bg-white rounded-lg shadow overflow-hidden mt-6">
-        <div className="px-4 py-3 border-b bg-gray-50 flex justify-between items-center">
-          <h3 className="font-bold">Bidders</h3>
-          <button
-            onClick={() => setShowAddBidderModal(true)}
-            className="text-sm bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700"
-          >
-            + Add Bidder
-          </button>
-        </div>
-        {group.bidders?.length > 0 ? (
-          <table>
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Company</th>
-                <th>Phone</th>
-                <th>Email</th>
-              </tr>
-            </thead>
-            <tbody>
-              {group.bidders.map((bg) => (
-                <tr key={bg.bidder.id}>
-                  <td className="font-medium">{bg.bidder.name}</td>
-                  <td>{bg.bidder.companyName}</td>
-                  <td>{bg.bidder.phone}</td>
-                  <td>{bg.bidder.email || '-'}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        ) : (
-          <div className="p-8 text-center text-gray-500">
-            No bidders assigned
+        {group.currentRound === 'HARAJ' && group.status !== 'OPEN' && (
+          <div className="flex space-x-2 mt-4">
+            <button onClick={handleRevertFromHaraj} className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 font-semibold">
+              ← Revert from Haraj
+            </button>
+          </div>
+        )}
+        {group.status === 'SOLD' && (
+          <div className="flex space-x-2 mt-4">
+            <button onClick={handleReopenGroup} className="bg-yellow-600 text-white px-4 py-2 rounded hover:bg-yellow-700 font-semibold">
+              🔓 Reopen Group
+            </button>
+            <button onClick={() => setShowYasbelaModal(true)} className="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700 font-semibold">
+              ↩ Apply Yasbela
+            </button>
           </div>
         )}
       </div>
 
-      {/* Add Bidder Modal */}
-      {showAddBidderModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <h3 className="text-xl font-bold mb-4">Add Bidder</h3>
-            <div className="max-h-64 overflow-y-auto">
-              {availableBidders.map((bidder) => (
-                <div
-                  key={bidder.id}
-                  onClick={() => handleAddBidder(bidder.id)}
-                  className="p-3 border-b hover:bg-gray-50 cursor-pointer"
-                >
-                  <p className="font-medium">{bidder.name}</p>
-                  <p className="text-sm text-gray-500">{bidder.companyName}</p>
-                </div>
-              ))}
-              {availableBidders.length === 0 && (
-                <div className="p-4 text-center text-gray-500">
-                  No available bidders
-                </div>
-              )}
-            </div>
-            <button
-              onClick={() => setShowAddBidderModal(false)}
-              className="mt-4 w-full bg-gray-300 text-gray-700 py-2 rounded hover:bg-gray-400"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
+
 
       {/* Bids Table */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
-        <div className="px-4 py-3 border-b bg-gray-50">
+      <div className="bg-white rounded-lg shadow overflow-hidden mb-6">
+        <div className="px-4 py-3 border-b bg-gray-50 flex justify-between items-center">
           <h3 className="font-bold">Bids</h3>
+          {group.status === 'OPEN' && (
+            <button onClick={() => setShowBidModal(true)} className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 text-sm font-medium">
+              + Add Bid
+            </button>
+          )}
         </div>
         {group.bids?.length > 0 ? (
-          <table>
-            <thead>
-              <tr>
-                <th>Bidder</th>
-                <th>Company</th>
-                <th>Price</th>
-                <th>Round</th>
-                <th>Winner</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {group.bids.map((bid) => (
-                <tr key={bid.id} className={bid.isWinner ? 'winner-row' : ''}>
-                  <td className="font-medium">{bid.bidder.name}</td>
-                  <td>{bid.bidder.companyName}</td>
-                  <td className="font-bold">{formatCurrency(bid.bidPrice)}</td>
-                  <td>{bid.round}</td>
-                  <td>{bid.isWinner ? '✓' : '-'}</td>
-                  <td>
-                    {group.status === 'OPEN' && !bid.isWinner && (
-                      <button
-                        onClick={() => handleSelectWinner(bid.bidderId)}
-                        className="text-green-600 hover:text-green-800 text-sm"
-                      >
-                        Select Winner
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        ) : (
-          <div className="p-8 text-center text-gray-500">
-            No bids yet
+          <div className="overflow-x-auto">
+            {(() => {
+              const rounds = [...new Set(group.bids.map(b => b.round))];
+              return rounds.map(round => (
+                <div key={round}>
+                  <div className={`px-4 py-2 text-xs font-bold uppercase tracking-wide ${
+                    round === 'TAX' ? 'bg-orange-50 text-orange-700' :
+                    round === 'CIF' ? 'bg-blue-50 text-blue-700' :
+                    round === 'HARAJ' ? 'bg-orange-50 text-orange-700' :
+                    'bg-purple-50 text-purple-700'
+                  }`}>
+                    Round: {round} {round === group.currentRound && group.status === 'OPEN' ? '(current)' : ''}
+                  </div>
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Bidder</th>
+                        <th>Company</th>
+                        <th>Price</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {group.bids.filter(b => b.round === round).map((bid) => (
+                        <tr key={bid.id}>
+                          <td className="font-medium">
+                            {bid.bidder.name}
+                          </td>
+                          <td>{bid.bidder.companyName}</td>
+                          <td className="font-bold">
+                            {formatCurrency(bid.bidPrice)}
+                          </td>
+                          <td>
+                            {bid.isWinner && group.status === 'SOLD' ? (
+                              <span className="px-3 py-1 bg-green-500 text-white rounded-full text-xs font-bold">✓ WINNER</span>
+                            ) : (
+                              <span className="text-gray-400 text-xs">-</span>
+                            )}
+                          </td>
+                          <td>
+                            {group.status === 'OPEN' && (
+                              <button onClick={() => handleDeleteBid(bid.id)} className="text-red-600 hover:text-red-800" title="Delete bid">
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ));
+            })()}
           </div>
+        ) : (
+          <div className="p-8 text-center text-gray-500">No bids yet</div>
         )}
       </div>
 
@@ -1133,6 +1468,7 @@ function GroupDetailPage() {
             + Add Item
           </button>
         </div>
+        <div className="overflow-x-auto">
         <table>
           <thead>
             <tr>
@@ -1146,10 +1482,14 @@ function GroupDetailPage() {
               <th>W1</th>
               <th>W2</th>
               <th>W3</th>
-              <th>Total</th>
-              <th>CIF</th>
-              <th>FOB</th>
-              <th>Tax</th>
+              <th>Qty</th>
+              {group.currentRound !== 'HARAJ' && (
+                <>
+                  <th>CIF</th>
+                  <th>FOB</th>
+                  <th>Tax</th>
+                </>
+              )}
               <th>Unit Price</th>
               <th>Total</th>
               <th>Actions</th>
@@ -1169,23 +1509,36 @@ function GroupDetailPage() {
                 <td>{item.warehouse2 || 0}</td>
                 <td>{item.warehouse3 || 0}</td>
                 <td>{item.totalQuantity}</td>
-                <td>{formatCurrency(item.cif)}</td>
-                <td>{formatCurrency(item.fob)}</td>
-                <td>{formatCurrency(item.tax)}</td>
+                {group.currentRound !== 'HARAJ' && (
+                  <>
+                    <td>{formatCurrency(item.cif)}</td>
+                    <td>{formatCurrency(item.fob)}</td>
+                    <td>{formatCurrency(item.tax)}</td>
+                  </>
+                )}
                 <td>{formatCurrency(item.unitPrice)}</td>
                 <td className="font-medium">{formatCurrency(item.totalPrice)}</td>
                 <td>
-                  <button
-                    onClick={() => handleEditItem(item)}
-                    className="text-blue-600 hover:text-blue-800 text-xs font-medium"
-                  >
-                    Edit
-                  </button>
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={() => handleEditItem(item)}
+                      className="text-blue-600 hover:text-blue-800 text-xs font-medium"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => handleDeleteItem(item.id)}
+                      className="text-red-600 hover:text-red-800 text-xs font-medium"
+                    >
+                      <Trash2 className="w-4 h-4 inline" />
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
+        </div>
       </div>
 
       {/* Edit Item Modal */}
@@ -1519,54 +1872,258 @@ function GroupDetailPage() {
         </div>
       )}
 
+      {/* Send to Haraj Modal */}
+      {showHarajModal && (
+        <div className="modal-backdrop">
+          <div className="modal-content p-6 w-full max-w-md">
+            <h3 className="text-xl font-bold gradient-text mb-1">🔨 Send to Haraj</h3>
+            <p className="text-sm text-gray-500 mb-4">This group will be converted to Haraj mode. CIF/FOB/TAX rounds are replaced with a single base price.</p>
+            <form onSubmit={handleSendToHaraj}>
+              <div className="mb-4">
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Haraj Round</label>
+                <div className="flex gap-2">
+                  {['1', '2', '3'].map(r => (
+                    <button key={r} type="button"
+                      onClick={() => setHarajFormData({ ...harajFormData, harajRound: r })}
+                      className={`w-12 h-12 rounded-full text-sm font-bold border transition ${
+                        harajFormData.harajRound === r ? 'bg-orange-500 text-white border-orange-500' : 'bg-white text-gray-600 border-gray-300 hover:border-orange-400'
+                      }`}>{r}</button>
+                  ))}
+                </div>
+                <p className="text-xs text-gray-500 mt-1">1st Haraj uses same base price. 2nd/3rd also use same price.</p>
+              </div>
+              <div className="mb-4">
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Haraj Base Price (optional)</label>
+                <input
+                  type="number"
+                  value={harajFormData.harajPrice}
+                  onChange={(e) => setHarajFormData({ ...harajFormData, harajPrice: e.target.value })}
+                  placeholder={`Default: ${formatCurrency(group.basePrice)}`}
+                  step="0.01" min="0"
+                />
+                <p className="text-xs text-gray-500 mt-1">Leave empty to keep current base price</p>
+              </div>
+              <div className="flex gap-2">
+                <button type="submit" className="flex-1 bg-orange-500 text-white py-2 rounded hover:bg-orange-600 font-semibold">Convert to Haraj</button>
+                <button type="button" onClick={() => setShowHarajModal(false)} className="flex-1 btn-secondary">Cancel</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Yasbela Modal */}
+      {showYasbelaModal && (
+        <div className="modal-backdrop">
+          <div className="modal-content p-6 w-full max-w-md">
+            <h3 className="text-xl font-bold gradient-text mb-1">↩ Apply Yasbela</h3>
+            <p className="text-sm text-gray-500 mb-4">Winner cancelled. A 5% CPO penalty will be applied to <strong>{formatCurrency(group.winnerPrice)}</strong> = <strong className="text-red-600">{formatCurrency((group.winnerPrice || 0) * 0.05)}</strong></p>
+            <form onSubmit={handleYasbela}>
+              <div className="mb-4">
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Cancellation Reason</label>
+                <textarea
+                  value={yasbelaFormData.reason}
+                  onChange={(e) => setYasbelaFormData({ ...yasbelaFormData, reason: e.target.value })}
+                  placeholder="Written cancellation request or 5-day no-show..."
+                  rows={3}
+                  className="w-full"
+                />
+              </div>
+              <div className="mb-4">
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Re-auction Under Tender</label>
+                <select
+                  value={yasbelaFormData.yasbelaTenderId}
+                  onChange={(e) => setYasbelaFormData({ ...yasbelaFormData, yasbelaTenderId: e.target.value })}
+                  className="w-full"
+                >
+                  <option value="">-- Same tender (default) --</option>
+                  {allTenders.filter(t => t.id !== group.tenderId).map(t => (
+                    <option key={t.id} value={t.id}>{t.tenderNumber} ({t.tenderType})</option>
+                  ))}
+                </select>
+                <p className="text-xs text-gray-500 mt-1">Select a different tender number if re-announced under new auction</p>
+              </div>
+              <div className="flex gap-2">
+                <button type="submit" className="flex-1 bg-purple-600 text-white py-2 rounded hover:bg-purple-700 font-semibold">Apply Yasbela</button>
+                <button type="button" onClick={() => setShowYasbelaModal(false)} className="flex-1 btn-secondary">Cancel</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* Bid Modal */}
       {showBidModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
             <h3 className="text-xl font-bold mb-4">Submit Bid</h3>
             <form onSubmit={handleSubmitBid}>
-              <div className="mb-4">
-                <label className="block text-gray-700 text-sm font-bold mb-2">
-                  Bidder
-                </label>
-                <select
-                  value={selectedBidder}
-                  onChange={(e) => setSelectedBidder(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded"
-                  required
+              {/* Toggle between existing and new bidder */}
+              <div className="mb-4 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setUseNewBidder(false)}
+                  className={`flex-1 py-2 px-3 rounded text-sm font-medium transition ${
+                    !useNewBidder 
+                      ? 'bg-blue-600 text-white' 
+                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  }`}
                 >
-                  <option value="">-- Select --</option>
-                  {group.bidders?.map((bg) => (
-                    <option key={bg.bidder.id} value={bg.bidder.id}>
-                      {bg.bidder.name} - {bg.bidder.companyName}
-                    </option>
-                  ))}
-                </select>
+                  Existing Bidder
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setUseNewBidder(true)}
+                  className={`flex-1 py-2 px-3 rounded text-sm font-medium transition ${
+                    useNewBidder 
+                      ? 'bg-blue-600 text-white' 
+                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  }`}
+                >
+                  + New Bidder
+                </button>
               </div>
+
+              {/* Existing Bidder Search */}
+              {!useNewBidder && (
+                <div className="mb-4 relative">
+                  <label className="block text-gray-700 text-sm font-bold mb-2">
+                    Search Bidder *
+                  </label>
+                  <input
+                    type="text"
+                    value={bidderSearch}
+                    onChange={handleBidderSearchChange}
+                    onFocus={() => setShowBidderDropdown(true)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded"
+                    placeholder="Type bidder name, company, or phone..."
+                    autoComplete="off"
+                  />
+                  {selectedBidder && (
+                    <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded text-sm">
+                      <p className="font-medium text-green-800">✓ Selected: {selectedBidder.name}</p>
+                      <p className="text-green-600 text-xs">{selectedBidder.companyName} - {selectedBidder.phone}</p>
+                    </div>
+                  )}
+                  
+                  {/* Dropdown */}
+                  {showBidderDropdown && bidderSearch && !selectedBidder && (
+                    <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                      {filteredBidders.length > 0 ? (
+                        filteredBidders.map((bidder) => (
+                          <div
+                            key={bidder.id}
+                            onClick={() => handleSelectBidder(bidder)}
+                            className="p-3 hover:bg-blue-50 cursor-pointer border-b last:border-b-0"
+                          >
+                            <p className="font-medium text-gray-800">{bidder.name}</p>
+                            <p className="text-sm text-gray-600">{bidder.companyName}</p>
+                            <p className="text-xs text-gray-500">{bidder.phone}</p>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="p-4 text-center">
+                          <p className="text-gray-500 text-sm mb-2">No bidders found</p>
+                          <button
+                            type="button"
+                            onClick={() => setUseNewBidder(true)}
+                            className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                          >
+                            + Add as New Bidder
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  
+                  <p className="text-xs text-gray-500 mt-1">
+                    Type to search by name, company, or phone number
+                  </p>
+                </div>
+              )}
+
+              {/* New Bidder Form */}
+              {useNewBidder && (
+                <div className="mb-4 space-y-3">
+                  <div>
+                    <label className="block text-gray-700 text-sm font-bold mb-2">
+                      Bidder Name *
+                    </label>
+                    <input
+                      type="text"
+                      value={newBidderData.name}
+                      onChange={(e) => setNewBidderData({ ...newBidderData, name: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded"
+                      placeholder="Enter bidder name"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-gray-700 text-sm font-bold mb-2">
+                      Company Name *
+                    </label>
+                    <input
+                      type="text"
+                      value={newBidderData.companyName}
+                      onChange={(e) => setNewBidderData({ ...newBidderData, companyName: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded"
+                      placeholder="Enter company name"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-gray-700 text-sm font-bold mb-2">
+                      Phone Number *
+                    </label>
+                    <input
+                      type="text"
+                      value={newBidderData.phone}
+                      onChange={(e) => setNewBidderData({ ...newBidderData, phone: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded"
+                      placeholder="Enter phone number"
+                    />
+                  </div>
+                  <p className="text-xs text-blue-600">
+                    ℹ This bidder will be added to the system
+                  </p>
+                </div>
+              )}
+              
               <div className="mb-4">
                 <label className="block text-gray-700 text-sm font-bold mb-2">
-                  Bid Price (Min {formatCurrency(group.basePrice)})
+                  Bid Amount *
                 </label>
                 <input
                   type="number"
                   value={bidAmount}
                   onChange={(e) => setBidAmount(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded"
-                  min={group.basePrice}
+                  placeholder="Enter bid amount"
                   step="0.01"
+                  min="0"
                   required
                 />
+                <p className="text-xs text-gray-500 mt-1">
+                  Base Price: {formatCurrency(group.basePrice)}
+                </p>
               </div>
+              
               <div className="flex space-x-2">
                 <button
                   type="submit"
                   className="flex-1 bg-primary-600 text-white py-2 rounded hover:bg-primary-700"
                 >
-                  Submit
+                  Submit Bid
                 </button>
                 <button
                   type="button"
-                  onClick={() => setShowBidModal(false)}
+                  onClick={() => {
+                    setShowBidModal(false);
+                    setSelectedBidder(null);
+                    setBidderSearch('');
+                    setBidAmount('');
+                    setShowBidderDropdown(false);
+                    setUseNewBidder(false);
+                    setNewBidderData({ name: '', companyName: '', phone: '' });
+                  }}
                   className="flex-1 bg-gray-300 text-gray-700 py-2 rounded hover:bg-gray-400"
                 >
                   Cancel
@@ -1585,62 +2142,84 @@ function NewTenderPage() {
   const [tenders, setTenders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [mode, setMode] = useState('excel'); // 'excel' | 'manual'
   const [formData, setFormData] = useState({
-    tenderNumber: '',
-    title: '',
-    location: '',
-    exchangeRate: 1,
-    date: '',
-    responsibleBody: ''
+    tenderNumber: '', title: '', location: '',
+    exchangeRate: '', date: '', responsibleBody: '',
+    tenderType: 'AUCTION', originalTenderId: '', harajRound: '1'
   });
   const [file, setFile] = useState(null);
+  const [preview, setPreview] = useState(null);
+  const [previewing, setPreviewing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState(false);
 
-  useEffect(() => {
-    loadTenders();
-  }, []);
+  useEffect(() => { loadTenders(); }, []);
 
   const loadTenders = async () => {
     try {
       const response = await api.get('/tenders');
       setTenders(response.data);
-    } catch (error) {
-      console.error('Failed to load tenders:', error);
+    } catch (e) {
+      console.error(e);
     } finally {
       setLoading(false);
     }
   };
 
+  const handleFileChange = async (e) => {
+    const f = e.target.files[0];
+    if (!f) return;
+    setFile(f);
+    setPreview(null);
+    setError('');
+    setPreviewing(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', f);
+      const res = await api.post('/tenders/preview-excel', fd, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      setPreview(res.data);
+      // Auto-fill form from Excel metadata
+      const m = res.data.tenderMeta || {};
+      setFormData({
+        tenderNumber:    m.tenderNumber    || '',
+        title:           m.title           || '',
+        location:        m.location        || '',
+        responsibleBody: m.responsibleBody || '',
+        exchangeRate:    m.exchangeRate    || '',
+        date:            m.date ? m.date.slice(0, 10) : ''
+      });
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to read Excel file');
+    } finally {
+      setPreviewing(false);
+    }
+  };
+
+  const resetForm = () => {
+    setShowForm(false);
+    setMode('excel');
+    setFormData({ tenderNumber: '', title: '', location: '', exchangeRate: '', date: '', responsibleBody: '', tenderType: 'AUCTION', originalTenderId: '', harajRound: '1' });
+    setFile(null);
+    setPreview(null);
+    setError('');
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    if (mode === 'excel' && !file) { setError('Please select an Excel file'); return; }
+    if (!formData.tenderNumber) { setError('Tender Number is required'); return; }
+    if (!formData.exchangeRate) { setError('Exchange Rate is required'); return; }
     setSubmitting(true);
-
-    const data = new FormData();
-    Object.entries(formData).forEach(([key, value]) => {
-      data.append(key, value);
-    });
-    if (file) {
-      data.append('file', file);
-    }
-
     try {
-      const response = await api.post('/tenders', data, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
-      setSuccess(true);
-      setShowForm(false);
-      setFormData({
-        tenderNumber: '',
-        title: '',
-        location: '',
-        exchangeRate: 1,
-        date: '',
-        responsibleBody: ''
-      });
-      setFile(null);
+      const fd = new FormData();
+      Object.entries(formData).forEach(([k, v]) => { if (v !== '') fd.append(k, v); });
+      if (file) fd.append('file', file);
+      await api.post('/tenders', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      resetForm();
       loadTenders();
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to create tender');
@@ -1649,137 +2228,251 @@ function NewTenderPage() {
     }
   };
 
-  const handleDelete = async (tenderId) => {
+  const handleDelete = (tenderId) => {
     if (!confirm('Are you sure you want to delete this tender?')) return;
-    try {
-      await api.delete(`/tenders/${tenderId}`);
-      loadTenders();
-    } catch (error) {
-      alert(error.response?.data?.error || 'Failed to delete tender');
-    }
+    setTenders(ts => ts.filter(t => t.id !== tenderId));
+    api.delete(`/tenders/${tenderId}`).catch(err => { alert(err.response?.data?.error || 'Failed to delete tender'); loadTenders(); });
   };
 
-  const formatCurrency = (value) => {
-    return new Intl.NumberFormat('en-US', { minimumFractionDigits: 2 }).format(value || 0);
-  };
+  if (loading) return <div className="text-center py-8">Loading...</div>;
 
-  if (loading) {
-    return <div className="text-center py-8">Loading...</div>;
-  }
+  const Field = ({ label, required, children }) => (
+    <div>
+      <label className="block text-gray-700 text-sm font-semibold mb-1">
+        {label}{required && <span className="text-red-500 ml-1">*</span>}
+      </label>
+      {children}
+    </div>
+  );
 
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold text-gray-800">Tenders</h2>
-        <button
-          onClick={() => setShowForm(!showForm)}
-          className="bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700"
-        >
-          {showForm ? 'Cancel' : '+ Add New Tender'}
+        <h2 className="text-2xl font-bold gradient-text">Tenders</h2>
+        <button onClick={() => setShowForm(!showForm)} className="btn-primary">
+          {showForm ? 'Cancel' : '+ New Tender'}
         </button>
       </div>
 
       {showForm && (
-        <div className="bg-white rounded-lg shadow p-6 mb-6">
-          <h3 className="text-xl font-bold mb-4">Create New Tender</h3>
+        <div className="glass rounded-2xl shadow-xl p-6 mb-6">
+          <h3 className="text-xl font-bold gradient-text mb-4">Create New Tender</h3>
+
+          {/* Mode toggle */}
+          <div className="flex gap-2 mb-6 p-1 bg-gray-100/80 rounded-xl w-fit">
+            <button
+              type="button"
+              onClick={() => { setMode('excel'); setPreview(null); setFile(null); setFormData({ tenderNumber: '', title: '', location: '', exchangeRate: '', date: '', responsibleBody: '', tenderType: formData.tenderType, originalTenderId: formData.originalTenderId, harajRound: formData.harajRound }); }}
+              className={`px-5 py-2 rounded-lg text-sm font-semibold transition-all ${
+                mode === 'excel' ? 'bg-white shadow text-blue-700' : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              📂 Upload Excel
+            </button>
+            <button
+              type="button"
+              onClick={() => { setMode('manual'); setPreview(null); setFile(null); }}
+              className={`px-5 py-2 rounded-lg text-sm font-semibold transition-all ${
+                mode === 'manual' ? 'bg-white shadow text-blue-700' : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              ✏️ Manual Entry
+            </button>
+          </div>
+
+          {/* Tender Type */}
+          <div className="flex gap-2 mb-4">
+            {['AUCTION', 'HARAJ', 'YASBELA'].map(type => (
+              <button
+                key={type}
+                type="button"
+                onClick={() => setFormData({ ...formData, tenderType: type })}
+                className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all border ${
+                  formData.tenderType === type
+                    ? type === 'AUCTION' ? 'bg-blue-700 text-white border-blue-700'
+                      : type === 'HARAJ' ? 'bg-orange-500 text-white border-orange-500'
+                      : 'bg-purple-600 text-white border-purple-600'
+                    : 'bg-white text-gray-600 border-gray-300 hover:border-gray-400'
+                }`}
+              >
+                {type === 'AUCTION' ? '🏛 ጨረታ (Auction)' : type === 'HARAJ' ? '🔨 ሀራጅ (Haraj)' : '↩ ያስበላ (Yasbela)'}
+              </button>
+            ))}
+          </div>
+
+          {/* Haraj round selector */}
+          {formData.tenderType === 'HARAJ' && (
+            <div className="mb-4 flex items-center gap-3">
+              <label className="text-sm font-semibold text-gray-700">Haraj Round:</label>
+              {['1', '2', '3'].map(r => (
+                <button key={r} type="button"
+                  onClick={() => setFormData({ ...formData, harajRound: r })}
+                  className={`w-10 h-10 rounded-full text-sm font-bold border transition ${
+                    formData.harajRound === r ? 'bg-orange-500 text-white border-orange-500' : 'bg-white text-gray-600 border-gray-300'
+                  }`}>{r}</button>
+              ))}
+            </div>
+          )}
+
+          {/* Original tender reference for Yasbela */}
+          {formData.tenderType === 'YASBELA' && (
+            <div className="mb-4">
+              <label className="block text-sm font-semibold text-gray-700 mb-1">Original Tender ID (optional)</label>
+              <input
+                type="number"
+                value={formData.originalTenderId}
+                onChange={(e) => setFormData({ ...formData, originalTenderId: e.target.value })}
+                placeholder="e.g. 3"
+                className="w-48"
+              />
+              <p className="text-xs text-gray-500 mt-1">Reference to the original auction tender</p>
+            </div>
+          )}
+
           {error && (
-            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+            <div className="bg-red-100 border border-red-300 text-red-700 px-4 py-3 rounded-xl mb-4 text-sm">
               {error}
             </div>
           )}
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+
+          <form onSubmit={handleSubmit} className="space-y-5">
+
+            {/* Excel upload section */}
+            {mode === 'excel' && (
               <div>
-                <label className="block text-gray-700 text-sm font-bold mb-2">Tender Number *</label>
+                <Field label="Excel File" required>
+                  <div className={`border-2 border-dashed rounded-xl p-6 text-center transition-all ${
+                    file ? 'border-green-400 bg-green-50/50' : 'border-gray-300 hover:border-blue-400 bg-gray-50/50'
+                  }`}>
+                    <input
+                      type="file"
+                      accept=".xlsx,.xls"
+                      onChange={handleFileChange}
+                      className="hidden"
+                      id="excel-upload"
+                    />
+                    <label htmlFor="excel-upload" className="cursor-pointer">
+                      {previewing ? (
+                        <p className="text-blue-600 font-medium">Reading file...</p>
+                      ) : file ? (
+                        <div>
+                          <p className="text-green-700 font-semibold">✓ {file.name}</p>
+                          <p className="text-xs text-gray-500 mt-1">Click to change file</p>
+                        </div>
+                      ) : (
+                        <div>
+                          <p className="text-gray-500 font-medium">Click to select Excel file</p>
+                          <p className="text-xs text-gray-400 mt-1">.xlsx or .xls</p>
+                        </div>
+                      )}
+                    </label>
+                  </div>
+                </Field>
+
+                {/* Excel preview summary */}
+                {preview && (
+                  <div className="mt-3 p-4 bg-blue-50/80 border border-blue-200 rounded-xl">
+                    <p className="text-sm font-semibold text-blue-800 mb-2">📊 Excel Preview</p>
+                    <div className="flex gap-4 text-sm text-blue-700">
+                      <span>Groups: <strong>{preview.groupCount}</strong></span>
+                      <span>Items: <strong>{preview.itemCount}</strong></span>
+                    </div>
+                    <div className="mt-2 space-y-1">
+                      {preview.groups.map(g => (
+                        <div key={g.code} className="text-xs text-gray-600 flex gap-2">
+                          <span className="font-mono bg-white px-1 rounded">{g.code}</span>
+                          <span>{g.name}</span>
+                          <span className="text-gray-400">({g.itemCount} items)</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Tender info fields — always shown, auto-filled from Excel in excel mode */}
+            <div className="grid grid-cols-2 gap-4">
+              <Field label="Tender Number" required>
                 <input
                   type="text"
                   value={formData.tenderNumber}
                   onChange={(e) => setFormData({ ...formData, tenderNumber: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded"
+                  placeholder="e.g. TND-2024-001"
                   required
                 />
-              </div>
-              <div>
-                <label className="block text-gray-700 text-sm font-bold mb-2">Title</label>
+              </Field>
+              <Field label="Title">
                 <input
                   type="text"
                   value={formData.title}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded"
+                  placeholder="e.g. Seized Goods Auction"
                 />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-gray-700 text-sm font-bold mb-2">Date</label>
+              </Field>
+              <Field label="Date">
                 <input
                   type="date"
                   value={formData.date}
                   onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded"
                 />
-              </div>
-              <div>
-                <label className="block text-gray-700 text-sm font-bold mb-2">Location</label>
+              </Field>
+              <Field label="Location">
                 <input
                   type="text"
                   value={formData.location}
                   onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded"
+                  placeholder="e.g. Dire Dawa Customs Gate 1"
                 />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-gray-700 text-sm font-bold mb-2">Responsible Body</label>
+              </Field>
+              <Field label="Responsible Body">
                 <input
                   type="text"
                   value={formData.responsibleBody}
                   onChange={(e) => setFormData({ ...formData, responsibleBody: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded"
+                  placeholder="e.g. Dire Dawa Customs Commission"
                 />
-              </div>
+              </Field>
+              <Field label="Exchange Rate" required>
+                <input
+                  type="number"
+                  value={formData.exchangeRate}
+                  onChange={(e) => setFormData({ ...formData, exchangeRate: e.target.value })}
+                  placeholder="e.g. 57.5"
+                  step="0.01"
+                  min="0"
+                  required
+                />
+              </Field>
             </div>
-            <div>
-              <label className="block text-gray-700 text-sm font-bold mb-2">Exchange Rate *</label>
-              <input
-                type="number"
-                value={formData.exchangeRate}
-                onChange={(e) => setFormData({ ...formData, exchangeRate: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded"
-                step="0.01"
-                min="0"
-                required
-              />
+
+            {mode === 'excel' && preview && (
+              <p className="text-xs text-blue-600">ℹ Fields auto-filled from Excel. You can edit them before submitting.</p>
+            )}
+
+            <div className="flex gap-3 pt-2">
+              <button type="submit" disabled={submitting} className="btn-primary disabled:opacity-50">
+                {submitting ? 'Creating...' : 'Create Tender'}
+              </button>
+              <button type="button" onClick={resetForm} className="btn-secondary">Cancel</button>
             </div>
-            <div>
-              <label className="block text-gray-700 text-sm font-bold mb-2">Excel File (Optional)</label>
-              <input
-                type="file"
-                accept=".xlsx,.xls"
-                onChange={(e) => setFile(e.target.files[0])}
-                className="w-full px-3 py-2 border border-gray-300 rounded"
-              />
-              <p className="text-xs text-gray-500 mt-1">Upload an Excel file to import groups and items automatically</p>
-            </div>
-            <button
-              type="submit"
-              disabled={submitting}
-              className="w-full bg-primary-600 text-white py-3 rounded-lg hover:bg-primary-700 transition disabled:opacity-50"
-            >
-              {submitting ? 'Creating...' : 'Create Tender'}
-            </button>
           </form>
         </div>
       )}
 
       {/* Tenders Table */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
+      <div className="glass rounded-2xl shadow-lg overflow-hidden">
+        <div className="px-4 py-3 border-b border-gray-200/50 bg-gradient-to-r from-blue-800 to-blue-600">
+          <h3 className="text-sm font-bold text-white">All Tenders</h3>
+        </div>
+        <div className="overflow-x-auto">
         <table>
           <thead>
             <tr>
               <th>Tender Number</th>
+              <th>Type</th>
               <th>Title</th>
+              <th>Date</th>
               <th>Location</th>
               <th>Exchange Rate</th>
               <th>Groups</th>
@@ -1791,37 +2484,39 @@ function NewTenderPage() {
             {tenders.map((tender) => (
               <tr key={tender.id}>
                 <td className="font-medium">{tender.tenderNumber}</td>
+                <td>
+                  <span className={`px-2 py-1 rounded text-xs font-semibold ${
+                    tender.tenderType === 'HARAJ' ? 'bg-orange-100 text-orange-800' :
+                    tender.tenderType === 'YASBELA' ? 'bg-purple-100 text-purple-800' :
+                    'bg-blue-100 text-blue-800'
+                  }`}>{tender.tenderType || 'AUCTION'}{tender.tenderType === 'HARAJ' && tender.harajRound > 1 ? ` #${tender.harajRound}` : ''}</span>
+                </td>
                 <td>{tender.title || '-'}</td>
+                <td>{tender.date ? new Date(tender.date).toLocaleDateString() : '-'}</td>
                 <td>{tender.location || '-'}</td>
                 <td>{tender.exchangeRate}</td>
                 <td>{tender.groups?.length || 0}</td>
                 <td>
-                  <span className={`px-2 py-1 rounded text-xs ${tender.status === 'OPEN' ? 'bg-green-100 text-green-800' : tender.status === 'SOLD' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'}`}>
-                    {tender.status}
-                  </span>
+                  <span className={`px-2 py-1 rounded text-xs ${
+                    tender.status === 'OPEN' ? 'bg-green-100 text-green-800' :
+                    tender.status === 'SOLD' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'
+                  }`}>{tender.status}</span>
                 </td>
                 <td className="space-x-2">
-                  <a
-                    href={`/tenders/${tender.id}`}
-                    className="text-primary-600 hover:text-primary-800"
-                  >
-                    View
+                  <a href={`/tenders/${tender.id}`} className="text-blue-600 hover:text-blue-800 inline-flex items-center">
+                    <Eye className="w-4 h-4" />
                   </a>
-                  <button
-                    onClick={() => handleDelete(tender.id)}
-                    className="text-red-600 hover:text-red-800"
-                  >
-                    Delete
+                  <button onClick={() => handleDelete(tender.id)} className="text-red-600 hover:text-red-800 inline-flex items-center">
+                    <Trash2 className="w-4 h-4" />
                   </button>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
+        </div>
         {tenders.length === 0 && (
-          <div className="p-8 text-center text-gray-500">
-            No tenders found
-          </div>
+          <div className="p-8 text-center text-gray-500">No tenders found</div>
         )}
       </div>
     </div>
@@ -1857,23 +2552,12 @@ function BiddersPage() {
     }
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
-    try {
-      await api.post('/bidders', formData);
-      setShowModal(false);
-      setFormData({
-        name: '',
-        companyName: '',
-        phone: '',
-        email: '',
-        address: '',
-        tin: ''
-      });
-      loadBidders();
-    } catch (error) {
-      alert(error.response?.data?.error || 'Failed to create bidder');
-    }
+    const data = { ...formData };
+    setShowModal(false);
+    setFormData({ name:'',companyName:'',phone:'',email:'',address:'',tin:'' });
+    api.post('/bidders', data).then(() => loadBidders()).catch(e => alert(e.response?.data?.error || 'Failed to create bidder'));
   };
 
   if (loading) {
@@ -1882,6 +2566,15 @@ function BiddersPage() {
 
   return (
     <div>
+      <div className="mb-4">
+        <button
+          onClick={() => window.history.back()}
+          className="flex items-center space-x-2 text-gray-600 hover:text-gray-800 font-medium"
+        >
+          <ChevronLeft className="w-5 h-5" />
+          <span>Back</span>
+        </button>
+      </div>
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-bold text-gray-800">Bidders</h2>
         <button
@@ -1893,6 +2586,7 @@ function BiddersPage() {
       </div>
 
       <div className="bg-white rounded-lg shadow overflow-hidden">
+        <div className="overflow-x-auto">
         <table>
           <thead>
             <tr>
@@ -1915,6 +2609,7 @@ function BiddersPage() {
             ))}
           </tbody>
         </table>
+        </div>
         {bidders.length === 0 && (
           <div className="p-8 text-center text-gray-500">
             No bidders found
@@ -2040,9 +2735,19 @@ function AuditPage() {
 
   return (
     <div>
+      <div className="mb-4">
+        <button
+          onClick={() => window.history.back()}
+          className="flex items-center space-x-2 text-gray-600 hover:text-gray-800 font-medium"
+        >
+          <ChevronLeft className="w-5 h-5" />
+          <span>Back</span>
+        </button>
+      </div>
       <h2 className="text-2xl font-bold text-gray-800 mb-6">Audit Logs</h2>
 
       <div className="bg-white rounded-lg shadow overflow-hidden">
+        <div className="overflow-x-auto">
         <table>
           <thead>
             <tr>
@@ -2071,6 +2776,7 @@ function AuditPage() {
             ))}
           </tbody>
         </table>
+        </div>
       </div>
 
       {/* Pagination */}
@@ -2136,23 +2842,20 @@ function UsersPage() {
     }
   };
 
-  const handleDelete = async (userId) => {
+  const handleDelete = (userId) => {
     if (!confirm('Are you sure you want to delete this user?')) return;
-    try {
-      await api.delete(`/users/${userId}`);
-      loadUsers();
-    } catch (error) {
-      alert(error.response?.data?.error || 'Failed to delete user');
-    }
+    setUsers(us => us.filter(u => u.id !== userId));
+    api.delete(`/users/${userId}`).catch(e => { alert(e.response?.data?.error || 'Failed to delete user'); loadUsers(); });
   };
 
-  const handleRoleChange = async (userId, newRole) => {
-    try {
-      await api.patch(`/users/${userId}`, { role: newRole });
-      loadUsers();
-    } catch (error) {
-      alert(error.response?.data?.error || 'Failed to update role');
-    }
+  const handleRoleChange = (userId, newRole) => {
+    setUsers(us => us.map(u => u.id === userId ? { ...u, role: newRole } : u));
+    api.patch(`/users/${userId}`, { role: newRole }).catch(e => { alert(e.response?.data?.error || 'Failed to update role'); loadUsers(); });
+  };
+
+  const handleToggleActive = (userId) => {
+    setUsers(us => us.map(u => u.id === userId ? { ...u, isActive: !u.isActive } : u));
+    api.patch(`/users/${userId}/toggle-active`).catch(e => { alert(e.response?.data?.error || 'Failed to toggle user status'); loadUsers(); });
   };
 
   if (loading) {
@@ -2161,6 +2864,15 @@ function UsersPage() {
 
   return (
     <div>
+      <div className="mb-4">
+        <button
+          onClick={() => window.history.back()}
+          className="flex items-center space-x-2 text-gray-600 hover:text-gray-800 font-medium"
+        >
+          <ChevronLeft className="w-5 h-5" />
+          <span>Back</span>
+        </button>
+      </div>
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-bold text-gray-800">Users</h2>
         <button
@@ -2172,19 +2884,21 @@ function UsersPage() {
       </div>
 
       <div className="bg-white rounded-lg shadow overflow-hidden">
+        <div className="overflow-x-auto">
         <table>
           <thead>
             <tr>
               <th>Name</th>
               <th>Email</th>
               <th>Role</th>
+              <th>Status</th>
               <th>Created</th>
               <th>Actions</th>
             </tr>
           </thead>
           <tbody>
             {users.map((user) => (
-              <tr key={user.id}>
+              <tr key={user.id} className={!user.isActive ? 'opacity-50' : ''}>
                 <td className="font-medium">{user.name}</td>
                 <td>{user.email}</td>
                 <td>
@@ -2192,25 +2906,46 @@ function UsersPage() {
                     value={user.role}
                     onChange={(e) => handleRoleChange(user.id, e.target.value)}
                     className="border rounded px-2 py-1 text-sm"
+                    disabled={!user.isActive}
                   >
                     <option value="ADMIN">ADMIN</option>
                     <option value="STAFF">STAFF</option>
                     <option value="VIEWER">VIEWER</option>
                   </select>
                 </td>
-                <td className="text-sm">{new Date(user.createdAt).toLocaleDateString()}</td>
                 <td>
+                  <span className={`px-2 py-1 rounded text-xs font-semibold ${
+                    user.isActive 
+                      ? 'bg-green-100 text-green-800' 
+                      : 'bg-red-100 text-red-800'
+                  }`}>
+                    {user.isActive ? 'Active' : 'Deactivated'}
+                  </span>
+                </td>
+                <td className="text-sm">{new Date(user.createdAt).toLocaleDateString()}</td>
+                <td className="space-x-2">
+                  <button
+                    onClick={() => handleToggleActive(user.id)}
+                    className={`text-sm inline-flex items-center ${
+                      user.isActive 
+                        ? 'text-orange-600 hover:text-orange-800' 
+                        : 'text-green-600 hover:text-green-800'
+                    }`}
+                  >
+                    {user.isActive ? 'Deactivate' : 'Activate'}
+                  </button>
                   <button
                     onClick={() => handleDelete(user.id)}
-                    className="text-red-600 hover:text-red-800 text-sm"
+                    className="text-red-600 hover:text-red-800 text-sm inline-flex items-center"
                   >
-                    Delete
+                    <Trash2 className="w-4 h-4" />
                   </button>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
+        </div>
         {users.length === 0 && (
           <div className="p-8 text-center text-gray-500">
             No users found
@@ -2294,9 +3029,10 @@ function UsersPage() {
 function App() {
   return (
     <BrowserRouter>
-      <AuthProvider>
-        <Routes>
-          <Route path="/" element={<ModernLanding />} />
+      <ThemeProvider>
+        <AuthProvider>
+          <Routes>
+          <Route path="/" element={<EnhancedModernLanding />} />
           <Route path="/login" element={<LoginPage />} />
           <Route
             path="/dashboard"
@@ -2368,8 +3104,9 @@ function App() {
               </ProtectedRoute>
             }
           />
-        </Routes>
-      </AuthProvider>
+          </Routes>
+        </AuthProvider>
+      </ThemeProvider>
     </BrowserRouter>
   );
 }

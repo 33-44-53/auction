@@ -2,406 +2,1102 @@ const express = require('express');
 const router = express.Router();
 const ExcelJS = require('exceljs');
 const puppeteer = require('puppeteer');
-const path = require('path');
-const fs = require('fs');
-const { PrismaClient } = require('@prisma/client');
+const { Document, Packer, Paragraph, TextRun, AlignmentType, HeadingLevel, TabStopType, TabStopPosition } = require('docx');
+const prisma = require('../prisma');
 
-const prisma = new PrismaClient();
+const fmt = (n) => new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n || 0);
 
-// Export tender to Excel
+// Shared styles
+const bold = { font: { bold: true, name: 'Nyala', size: 11 } };
+const center = { alignment: { horizontal: 'center', vertical: 'middle', wrapText: true } };
+const borderStyle = { border: { top: { style: 'thin' }, bottom: { style: 'thin' }, left: { style: 'thin' }, right: { style: 'thin' } } };
+const headerFill = { fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9E1F2' } } };
+const winnerFill = { fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFC6EFCE' } } };
+const hStyle = { ...bold, ...center, ...borderStyle, ...headerFill };
+
+function applyStyle(cell, ...styles) {
+  styles.forEach(s => Object.assign(cell, s));
+}
+
+function setCell(sheet, r, c, v, ...styles) {
+  const cl = sheet.getCell(r, c);
+  cl.value = v;
+  styles.forEach(s => Object.assign(cl, s));
+  return cl;
+}
+
+// Build the official auction sheet for one group
+function buildGroupSheet(sheet, group, tender) {
+  const round = group.currentRound;
+  const exRate = tender.exchangeRate;
+
+  const HEADERS = [
+    'ተ.ቁ', 'የእቃው አይነት', 'ማርክ', 'ስሪት\n ሀገር', 'መለኪያ',
+    'መጋዘን1', 'መጋዘን 2', 'መጋዝን\n3', 'ጠቅላላ ድምር',
+    'መነሻ ዋጋ', 'ጠቅላላ \nዋጋ', 'ሞዴል',
+    'ተጨራጩ የሰጠው ዋጋ', 'የተጨራቹ ስም', 'ኮድ',
+    'የአንድ ዋጋ\n(FOB)', 'የአንድ ዋጋ\n(CIF)', 'የአንድ ዋጋ\n(TAX)', 'exchange rate'
+  ];
+
+  // Row 1: title
+  sheet.mergeCells('A1:E1');
+  setCell(sheet, 1, 1, `ግልፅ ጨረታ ቁጥር ${tender.tenderNumber}`, { font: { bold: true, size: 13, name: 'Nyala' } });
+  sheet.mergeCells('F1:K1');
+  setCell(sheet, 1, 6, tender.title || group.name || '', { font: { bold: true, size: 13, name: 'Nyala' }, ...center });
+
+  // Row 2: column headers
+  HEADERS.forEach((h, i) => setCell(sheet, 2, i + 1, h, hStyle));
+  sheet.getRow(2).height = 36;
+
+  // Current round bids only, sorted desc
+  const roundBids = group.bids
+    .filter(b => b.round === round)
+    .sort((a, b) => b.bidPrice - a.bidPrice);
+  const winner = roundBids.find(b => b.isWinner) || roundBids[0] || null;
+
+  let r = 3;
+  for (const item of group.items) {
+    const unitPriceMap = {
+      FOB: item.fob * exRate,
+      CIF: item.cif * exRate,
+      TAX: item.tax * exRate,
+      HARAJ: item.unitPrice || 0
+    };
+    const unitPrice = unitPriceMap[round] || item.unitPrice || 0;
+    const totalPrice = unitPrice * item.totalQuantity;
+
+    const rowData = [
+      item.itemCode, item.name, item.brand || '', item.country || '', item.unit,
+      item.warehouse1 || 0, item.warehouse2 || 0, item.warehouse3 || 0, item.totalQuantity,
+      unitPrice, totalPrice, item.serialNumber || '',
+      winner ? winner.bidPrice : '', winner ? winner.bidder.name : '', group.code,
+      item.fob, item.cif, item.tax, exRate
+    ];
+
+    rowData.forEach((v, i) => {
+      const cl = sheet.getCell(r, i + 1);
+      cl.value = v;
+      Object.assign(cl, borderStyle);
+      if (typeof v === 'number') cl.numFmt = '#,##0.00';
+    });
+    r++;
+  }
+
+  // Base price summary row
+  sheet.mergeCells(`A${r}:I${r}`);
+  setCell(sheet, r, 1, 'መነሻ ዋጋ', bold, borderStyle);
+  const bp = sheet.getCell(r, 11);
+  bp.value = group.basePrice || 0;
+  bp.numFmt = '#,##0.00';
+  applyStyle(bp, bold, borderStyle);
+  r++;
+
+  // Bids label
+  sheet.mergeCells(`A${r}:M${r}`);
+  setCell(sheet, r, 1, 'ከቫት በፊት ተጫራች የሚሰጠው  ጠቅላላ ዋጋ', bold, borderStyle);
+  r++;
+
+  // Bids rows (current round only)
+  for (const bid of roundBids) {
+    const bc = sheet.getCell(r, 13);
+    bc.value = bid.bidPrice;
+    bc.numFmt = '#,##0.00';
+    applyStyle(bc, borderStyle);
+
+    const nc = sheet.getCell(r, 14);
+    nc.value = bid.bidder.name;
+    applyStyle(nc, borderStyle);
+
+    if (bid.isWinner) {
+      applyStyle(sheet.getCell(r, 13), winnerFill, bold);
+      applyStyle(sheet.getCell(r, 14), winnerFill, bold);
+    }
+    r++;
+  }
+
+  // Column widths
+  [8, 28, 12, 10, 10, 10, 10, 10, 12, 16, 16, 12, 18, 22, 10, 12, 12, 12, 12]
+    .forEach((w, i) => { sheet.getColumn(i + 1).width = w; });
+
+  sheet.views = [{ state: 'frozen', ySplit: 2 }];
+}
+
+// ── Export single group ────────────────────────────────────────────────────────
+router.get('/excel/group/:groupId', async (req, res, next) => {
+  try {
+    const groupId = parseInt(req.params.groupId);
+    const group = await prisma.group.findUnique({
+      where: { id: groupId },
+      include: { tender: true, items: true, bids: { include: { bidder: true }, orderBy: { bidPrice: 'desc' } } }
+    });
+    if (!group) return res.status(404).json({ error: 'Group not found' });
+
+    const workbook = new ExcelJS.Workbook();
+    buildGroupSheet(workbook.addWorksheet('ጨረታ'), group, group.tender);
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    const safeCode = group.code.replace(/[^a-zA-Z0-9\-_]/g, '_');
+    res.setHeader('Content-Disposition', `attachment; filename="${safeCode}_${group.currentRound}.xlsx"`);
+    await workbook.xlsx.write(res);
+    res.end();
+
+    if (req.userId) {
+      prisma.auditLog.create({
+        data: { userId: req.userId, action: 'EXPORT_GROUP_BIDS', entity: 'Group', entityId: groupId, details: JSON.stringify({ groupCode: group.code, round: group.currentRound }), ipAddress: req.ip }
+      }).catch(() => {});
+    }
+  } catch (error) { next(error); }
+});
+
+// ── Export full tender (one sheet per group) ───────────────────────────────────
 router.get('/excel/:tenderId', async (req, res, next) => {
   try {
     const tenderId = parseInt(req.params.tenderId);
-
     const tender = await prisma.tender.findUnique({
       where: { id: tenderId },
       include: {
         groups: {
-          include: {
-            items: true,
-            bids: {
-              include: { bidder: true },
-              orderBy: { bidPrice: 'desc' }
-            }
-          },
+          include: { items: true, bids: { include: { bidder: true }, orderBy: { bidPrice: 'desc' } } },
           orderBy: { code: 'asc' }
         }
       }
     });
-
-    if (!tender) {
-      return res.status(404).json({ error: 'Tender not found' });
-    }
+    if (!tender) return res.status(404).json({ error: 'Tender not found' });
 
     const workbook = new ExcelJS.Workbook();
-    workbook.creator = 'Tender Management System';
-    workbook.created = new Date();
+    for (const group of tender.groups) {
+      const safeName = group.code.replace(/[^a-zA-Z0-9\-_\u1200-\u137F]/g, '_').slice(0, 31);
+      buildGroupSheet(workbook.addWorksheet(safeName), group, tender);
+    }
 
-    // Main sheet - Groups Overview
-    const overviewSheet = workbook.addWorksheet('Overview', {
-      properties: { tabColor: { argb: 'FF0000FF' } }
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    const safeTN = tender.tenderNumber.replace(/[^a-zA-Z0-9\-_]/g, '_');
+    res.setHeader('Content-Disposition', `attachment; filename="tender_${safeTN}.xlsx"`);
+    await workbook.xlsx.write(res);
+    res.end();
+
+    await prisma.auditLog.create({
+      data: { userId: req.userId, action: 'EXPORT_EXCEL', entity: 'Tender', entityId: tenderId, details: JSON.stringify({ tenderNumber: tender.tenderNumber }), ipAddress: req.ip }
     });
+  } catch (error) { next(error); }
+});
 
-    // Header styles
-    const titleStyle = {
-      font: { size: 14, bold: true, color: { argb: 'FFFFFFFF' } },
-      fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1F4E79' } },
-      alignment: { horizontal: 'center' }
-    };
+// ── Export tender to PDF ───────────────────────────────────────────────────────
+router.get('/pdf/:tenderId', async (req, res, next) => {
+  let browser;
+  try {
+    const tenderId = parseInt(req.params.tenderId);
+    const tender = await prisma.tender.findUnique({
+      where: { id: tenderId },
+      include: {
+        groups: {
+          include: { items: true, bids: { include: { bidder: true }, orderBy: { bidPrice: 'desc' } } },
+          orderBy: { code: 'asc' }
+        }
+      }
+    });
+    if (!tender) return res.status(404).json({ error: 'Tender not found' });
 
+    let groupsHtml = '';
+    for (const group of tender.groups) {
+      const round = group.currentRound;
+      const exRate = tender.exchangeRate;
+      const roundBids = group.bids.filter(b => b.round === round).sort((a, b) => b.bidPrice - a.bidPrice);
+      const winner = roundBids.find(b => b.isWinner) || roundBids[0] || null;
+
+      let itemRows = '';
+      for (const item of group.items) {
+        const unitPriceMap = { FOB: item.fob * exRate, CIF: item.cif * exRate, TAX: item.tax * exRate, HARAJ: item.unitPrice || 0 };
+        const unitPrice = unitPriceMap[round] || item.unitPrice || 0;
+        const totalPrice = unitPrice * item.totalQuantity;
+        itemRows += `<tr>
+          <td>${item.itemCode}</td><td>${item.name}</td><td>${item.brand||''}</td><td>${item.country||''}</td>
+          <td>${item.unit}</td><td>${item.warehouse1||0}</td><td>${item.warehouse2||0}</td><td>${item.warehouse3||0}</td>
+          <td>${item.totalQuantity}</td><td>${fmt(unitPrice)}</td><td>${fmt(totalPrice)}</td>
+          <td>${item.serialNumber||''}</td><td>${winner?fmt(winner.bidPrice):''}</td><td>${winner?winner.bidder.name:''}</td>
+          <td>${group.code}</td><td>${fmt(item.fob)}</td><td>${fmt(item.cif)}</td><td>${fmt(item.tax)}</td><td>${exRate}</td>
+        </tr>`;
+      }
+
+      let bidRows = roundBids.map(bid => `
+        <tr class="${bid.isWinner ? 'winner' : ''}">
+          <td colspan="12"></td>
+          <td>${fmt(bid.bidPrice)}</td><td>${bid.bidder.name}</td>
+        </tr>`).join('');
+
+      groupsHtml += `
+        <div class="group-section">
+          <div class="group-title">ግልፅ ጨረታ ቁጥር ${tender.tenderNumber} &nbsp;&nbsp; ${tender.title || group.name || ''}</div>
+          <table>
+            <thead><tr>
+              <th>ተ.ቁ</th><th>የእቃው አይነት</th><th>ማርክ</th><th>ስሪት ሀገር</th><th>መለኪያ</th>
+              <th>መጋዘን1</th><th>መጋዘን2</th><th>መጋዘን3</th><th>ጠቅላላ ድምር</th>
+              <th>መነሻ ዋጋ</th><th>ጠቅላላ ዋጋ</th><th>ሞዴል</th>
+              <th>ተጨራጩ የሰጠው ዋጋ</th><th>የተጨራቹ ስም</th><th>ኮድ</th>
+              <th>FOB</th><th>CIF</th><th>TAX</th><th>Rate</th>
+            </tr></thead>
+            <tbody>
+              ${itemRows}
+              <tr class="summary-row"><td colspan="9"><b>መነሻ ዋጋ</b></td><td></td><td><b>${fmt(group.basePrice)}</b></td><td colspan="8"></td></tr>
+              <tr class="bids-label"><td colspan="13"><b>ከቫት በፊት ተጫራች የሚሰጠው ጠቅላላ ዋጋ</b></td><td colspan="6"></td></tr>
+              ${bidRows}
+            </tbody>
+          </table>
+        </div>`;
+    }
+
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+      <style>
+        body { font-family: 'Nyala', 'Segoe UI', sans-serif; font-size: 9px; margin: 10px; }
+        .group-section { margin-bottom: 20px; page-break-after: always; }
+        .group-title { font-weight: bold; font-size: 12px; margin-bottom: 6px; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { border: 1px solid #999; padding: 3px 4px; white-space: nowrap; }
+        th { background: #D9E1F2; font-weight: bold; text-align: center; }
+        .winner { background: #C6EFCE; font-weight: bold; }
+        .summary-row td { background: #f5f5f5; }
+        .bids-label td { background: #fffbe6; font-weight: bold; }
+      </style></head><body>${groupsHtml}</body></html>`;
+
+    browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] });
+    const page = await browser.newPage();
+    await page.setContent(html, { waitUntil: 'networkidle0' });
+    const pdfBuffer = await page.pdf({ format: 'A3', landscape: true, printBackground: true, margin: { top: '10px', bottom: '10px', left: '10px', right: '10px' } });
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="tender_${tender.tenderNumber}.pdf"`);
+    res.send(pdfBuffer);
+
+    await prisma.auditLog.create({
+      data: { userId: req.userId, action: 'EXPORT_PDF', entity: 'Tender', entityId: tenderId, details: JSON.stringify({ tenderNumber: tender.tenderNumber }), ipAddress: req.ip }
+    });
+  } catch (error) { next(error); }
+  finally { if (browser) await browser.close(); }
+});
+
+// ── Export closed group with calculations (70%, 30%, VAT) ────────────────────
+router.get('/excel/group/:groupId/closed', async (req, res, next) => {
+  try {
+    const groupId = parseInt(req.params.groupId);
+    const group = await prisma.group.findUnique({
+      where: { id: groupId },
+      include: { tender: true, items: true, bids: { include: { bidder: true }, orderBy: { bidPrice: 'desc' } } }
+    });
+    if (!group) return res.status(404).json({ error: 'Group not found' });
+    if (group.status !== 'SOLD') return res.status(400).json({ error: 'Group must be SOLD to generate closed report' });
+
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet('ጨረታ');
+    const tender = group.tender;
+    const round = group.currentRound;
+    const exRate = tender.exchangeRate;
+
+    // Winner bid
+    const roundBids = group.bids.filter(b => b.round === round).sort((a, b) => b.bidPrice - a.bidPrice);
+    const winner = roundBids.find(b => b.isWinner) || roundBids[0] || null;
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // HEADER SECTION
+    // ═══════════════════════════════════════════════════════════════════════════
+    
+    // Row 1: Main Title (merged across full width)
+    sheet.mergeCells('A1:T1');
+    const titleCell = sheet.getCell('A1');
+    titleCell.value = `ግልፅ ጨረታ ቁጥር ${tender.tenderNumber} ${tender.title || group.name || 'የተለያዩ አልባሰት'}`;
+    titleCell.font = { name: 'Arial', size: 16, bold: true };
+    titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
+    titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE7E6E6' } };
+    sheet.getRow(1).height = 30;
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // TABLE HEADERS
+    // ═══════════════════════════════════════════════════════════════════════════
+    
     const headerStyle = {
-      font: { size: 11, bold: true },
+      font: { name: 'Arial', size: 11, bold: true },
+      alignment: { horizontal: 'center', vertical: 'middle', wrapText: true },
       fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9E1F2' } },
       border: {
         top: { style: 'thin' },
         left: { style: 'thin' },
         bottom: { style: 'thin' },
         right: { style: 'thin' }
-      },
-      alignment: { horizontal: 'center' }
+      }
     };
 
-    // Tender info
-    overviewSheet.mergeCells('A1:G1');
-    overviewSheet.getCell('A1').value = `የጨረታ ስም: ${tender.title || tender.tenderNumber}`;
-    overviewSheet.getCell('A1').style = titleStyle;
-
-    overviewSheet.getRow(3).values = ['ኮድ', 'ሁኔታ', 'ዙር', 'መነሻ ዋጋ', 'ተጫማሪዎች', 'ከፍተኛ ቅናሽ', 'አሸናፊ'];
-    overviewSheet.getRow(3).eachCell((cell) => {
-      cell.style = headerStyle;
-    });
-
-    let rowIndex = 4;
-    for (const group of tender.groups) {
-      const highestBid = group.bids.length > 0 ? group.bids[0] : null;
-      const winner = group.bids.find(b => b.isWinner);
-
-      overviewSheet.getRow(rowIndex).values = [
-        group.code,
-        group.status,
-        group.currentRound,
-        group.basePrice || 0,
-        group.bids.length,
-        highestBid ? highestBid.bidPrice : '-',
-        winner ? winner.bidder.name : '-'
-      ];
-      rowIndex++;
-    }
-
-    overviewSheet.columns = [
-      { width: 15 },
-      { width: 12 },
-      { width: 10 },
-      { width: 15 },
-      { width: 12 },
-      { width: 15 },
-      { width: 20 }
+    // Row 2: Column Headers
+    const headers = [
+      'ተ.ቁ',                    // A2
+      'የእቃው አይነት',             // B2
+      'ማርክ',                    // C2
+      'ስሪት ሀገር',               // D2
+      'መለኪያ',                  // E2
+      'መጋዘን 1',                // F2
+      'መጋዘን 2',                // G2
+      'መጋዘን 3',                // H2
+      'መጋዘን 3ሀ',               // I2
+      'ጠቅላላ ድምር',             // J2
+      'የአንድ ዋጋ (TAX)',         // K2
+      'ጠቅላላ ዋጋ',              // L2
+      'ሞዴል',                   // M2
+      'ተጨራጩ የሰጠው ዋጋ',        // N2
+      'የተጨራቹ ስም / ኮድ',        // O2 (merged header)
+      'FOB',                   // P2
+      'CIF',                   // Q2
+      'TAX',                   // R2
+      'Final Calc'             // S2
     ];
 
-    // Group details sheet
-    for (const group of tender.groups) {
-      const groupSheet = workbook.addWorksheet(group.code, {
-        properties: { tabColor: { argb: 'FF00B050' } }
-      });
+    headers.forEach((header, index) => {
+      const cell = sheet.getCell(2, index + 1);
+      cell.value = header;
+      Object.assign(cell, headerStyle);
+    });
+    
+    sheet.getRow(2).height = 40;
 
-      // Items table
-      groupSheet.mergeCells('A1:K1');
-      groupSheet.getCell('A1').value = `${group.code} - ${group.name || 'Items'}`;
-      groupSheet.getCell('A1').style = titleStyle;
-
-      groupSheet.getRow(3).values = [
-        'ቁም ቁረጠ', 'ዕቃ', 'ምርት', 'ሀገር', 'አሃድ', 'ቁም', 'FOB', 'CIF', 'Tax', 'አሃድ ዋጋ', 'ጠቅላላ ዋጋ'
-      ];
-      groupSheet.getRow(3).eachCell((cell) => {
-        cell.style = headerStyle;
-      });
-
-      let itemRow = 4;
-      for (const item of group.items) {
-        groupSheet.getRow(itemRow).values = [
-          item.itemCode,
-          item.name,
-          item.brand || '-',
-          item.country || '-',
-          item.unit,
-          item.quantity,
-          item.fob,
-          item.cif,
-          item.tax,
-          item.unitPrice || 0,
-          item.totalPrice || 0
-        ];
-        itemRow++;
-      }
-
-      groupSheet.columns = [
-        { width: 12 }, // itemCode
-        { width: 30 }, // name
-        { width: 15 }, // brand
-        { width: 12 }, // country
-        { width: 10 }, // unit
-        { width: 10 }, // quantity
-        { width: 12 }, // fob
-        { width: 12 }, // cif
-        { width: 12 }, // tax
-        { width: 15 }, // unitPrice
-        { width: 15 }  // totalPrice
-      ];
-
-      // Bids section
-      if (group.bids.length > 0) {
-        const bidStartRow = itemRow + 2;
-        groupSheet.mergeCells(`A${bidStartRow}:F${bidStartRow}`);
-        groupSheet.getCell(`A${bidStartRow}`).value = 'ቅናሽዎች';
-        groupSheet.getCell(`A${bidStartRow}`).style = titleStyle;
-
-        const headerRow = bidStartRow + 1;
-        groupSheet.getRow(headerRow).values = ['ተጫማሪ', 'ኩባንያዎ', 'ቅናሽ', 'ዙር', 'አሸናፊ'];
-        groupSheet.getRow(headerRow).eachCell((cell) => {
-          cell.style = headerStyle;
-        });
-
-        let bidRow = headerRow + 1;
-        for (const bid of group.bids) {
-          groupSheet.getRow(bidRow).values = [
-            bid.bidder.name,
-            bid.bidder.companyName,
-            bid.bidPrice,
-            bid.round,
-            bid.isWinner ? '✓' : '-'
-          ];
-          bidRow++;
-        }
-      }
+    // Merge የተጨራቹ ስም and ኮድ cells for all data rows (will be filled later)
+    const totalItems = group.items.length;
+    if (totalItems > 0) {
+      // Merge column O (የተጨራቹ ስም / ኮድ) from row 3 to last item row
+      const lastItemRow = 2 + totalItems;
+      sheet.mergeCells(`O3:O${lastItemRow}`);
     }
 
-    // Set response headers
-    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', `attachment; filename=tender_${tender.tenderNumber}.xlsx`);
+    // ═══════════════════════════════════════════════════════════════════════════
+    // DATA ROWS
+    // ═══════════════════════════════════════════════════════════════════════════
+    
+    const dataBorder = {
+      top: { style: 'thin' },
+      left: { style: 'thin' },
+      bottom: { style: 'thin' },
+      right: { style: 'thin' }
+    };
 
+    let currentRow = 3;
+    let totalBasePrice = 0;
+
+    group.items.forEach((item, index) => {
+      // Calculate unit price based on current round
+      const unitPriceMap = {
+        FOB: item.fob * exRate,
+        CIF: item.cif * exRate,
+        TAX: item.tax * exRate,
+        HARAJ: item.unitPrice || 0
+      };
+      const unitPrice = unitPriceMap[round] || item.unitPrice || 0;
+      const totalPrice = unitPrice * item.totalQuantity;
+      totalBasePrice += totalPrice;
+
+      const rowData = [
+        index + 1,                         // ተ.ቁ
+        item.name,                         // የእቃው አይነት
+        item.brand || '',                  // ማርክ
+        item.country || '',                // ስሪት ሀገር
+        item.unit,                         // መለኪያ
+        item.warehouse1 || 0,              // መጋዘን 1
+        item.warehouse2 || 0,              // መጋዘን 2
+        item.warehouse3 || 0,              // መጋዘን 3
+        0,                                 // መጋዘን 3ሀ (empty)
+        item.totalQuantity,                // ጠቅላላ ድምር
+        unitPrice,                         // የአንድ ዋጋ (TAX)
+        totalPrice,                        // ጠቅላላ ዋጋ
+        item.itemCode || item.serialNumber || '', // ሞዴል
+        winner ? winner.bidPrice : '',     // ተጨራጩ የሰጠው ዋጋ
+        // Column O (የተጨራቹ ስም / ኮድ) - only fill on first row
+        index === 0 && winner ? `${winner.bidder.name}\n${group.code}` : '',
+        item.fob,                          // FOB
+        item.cif,                          // CIF
+        item.tax,                          // TAX
+        totalPrice                         // Final Calc
+      ];
+
+      rowData.forEach((value, colIndex) => {
+        const cell = sheet.getCell(currentRow, colIndex + 1);
+        
+        // Skip setting value for merged cell (column O) except first row
+        if (colIndex === 14 && index > 0) {
+          // Don't set value, it's part of merged cell
+        } else {
+          cell.value = value;
+        }
+        
+        cell.border = dataBorder;
+        cell.font = { name: 'Arial', size: 10 };
+
+        // Alignment and formatting
+        if (typeof value === 'number') {
+          cell.alignment = { horizontal: 'right', vertical: 'middle' };
+          cell.numFmt = '#,##0.00';
+        } else {
+          // Special handling for merged የተጨራቹ ስም / ኮድ cell
+          if (colIndex === 14) {
+            cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+          } else {
+            cell.alignment = { horizontal: 'left', vertical: 'middle' };
+          }
+        }
+      });
+
+      sheet.getRow(currentRow).height = 20;
+      currentRow++;
+    });
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // SUMMARY SECTION
+    // ═══════════════════════════════════════════════════════════════════════════
+    
+    const winnerPrice = winner ? winner.bidPrice : 0;
+    const calc70 = winnerPrice * 0.70;
+    const calc30 = winnerPrice * 0.30;
+    const vat = winnerPrice * 0.15;
+    const finalTotal = winnerPrice + vat;
+
+    const summaryStyle = {
+      font: { name: 'Arial', size: 11, bold: true },
+      border: dataBorder,
+      alignment: { horizontal: 'right', vertical: 'middle' }
+    };
+
+    const summaryValueStyle = {
+      font: { name: 'Arial', size: 11, bold: true },
+      border: dataBorder,
+      alignment: { horizontal: 'right', vertical: 'middle' },
+      numFmt: '#,##0.00'
+    };
+
+    // Empty row for spacing
+    currentRow++;
+
+    // Base price row
+    sheet.mergeCells(`A${currentRow}:K${currentRow}`);
+    const basePriceLabel = sheet.getCell(`A${currentRow}`);
+    basePriceLabel.value = 'የእቃው መነሻ ዋጋ ከቫት በፊት';
+    Object.assign(basePriceLabel, summaryStyle);
+    
+    const basePriceValue = sheet.getCell(`L${currentRow}`);
+    basePriceValue.value = totalBasePrice;
+    Object.assign(basePriceValue, summaryValueStyle);
+    sheet.getRow(currentRow).height = 25;
+    currentRow++;
+
+    // 70% row
+    sheet.mergeCells(`A${currentRow}:K${currentRow}`);
+    const label70 = sheet.getCell(`A${currentRow}`);
+    label70.value = '70%';
+    Object.assign(label70, summaryStyle);
+    
+    const value70 = sheet.getCell(`L${currentRow}`);
+    value70.value = calc70;
+    Object.assign(value70, summaryValueStyle);
+    sheet.getRow(currentRow).height = 25;
+    currentRow++;
+
+    // 30% row
+    sheet.mergeCells(`A${currentRow}:K${currentRow}`);
+    const label30 = sheet.getCell(`A${currentRow}`);
+    label30.value = '30%';
+    Object.assign(label30, summaryStyle);
+    
+    const value30 = sheet.getCell(`L${currentRow}`);
+    value30.value = calc30;
+    Object.assign(value30, summaryValueStyle);
+    sheet.getRow(currentRow).height = 25;
+    currentRow++;
+
+    // VAT row (highlighted)
+    sheet.mergeCells(`A${currentRow}:K${currentRow}`);
+    const labelVAT = sheet.getCell(`A${currentRow}`);
+    labelVAT.value = '15% (ቫት)';
+    Object.assign(labelVAT, summaryStyle);
+    
+    const valueVAT = sheet.getCell(`L${currentRow}`);
+    valueVAT.value = vat;
+    Object.assign(valueVAT, summaryValueStyle);
+    valueVAT.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFF00' } }; // Yellow
+    sheet.getRow(currentRow).height = 25;
+    currentRow++;
+
+    // Final total row (highlighted green)
+    sheet.mergeCells(`A${currentRow}:K${currentRow}`);
+    const labelTotal = sheet.getCell(`A${currentRow}`);
+    labelTotal.value = 'ጠቅላላ የእቃው ክፍያ ድምር';
+    Object.assign(labelTotal, summaryStyle);
+    
+    const valueTotal = sheet.getCell(`L${currentRow}`);
+    valueTotal.value = finalTotal;
+    Object.assign(valueTotal, summaryValueStyle);
+    valueTotal.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF92D050' } }; // Green
+    sheet.getRow(currentRow).height = 25;
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // COLUMN WIDTHS
+    // ═══════════════════════════════════════════════════════════════════════════
+    
+    const columnWidths = [
+      8,   // A: ተ.ቁ
+      30,  // B: የእቃው አይነት
+      12,  // C: ማርክ
+      12,  // D: ስሪት ሀገር
+      10,  // E: መለኪያ
+      10,  // F: መጋዘን 1
+      10,  // G: መጋዘን 2
+      10,  // H: መጋዘን 3
+      10,  // I: መጋዘን 3ሀ
+      12,  // J: ጠቅላላ ድምር
+      15,  // K: የአንድ ዋጋ (TAX)
+      16,  // L: ጠቅላላ ዋጋ
+      15,  // M: ሞዴል
+      18,  // N: ተጨራጩ የሰጠው ዋጋ
+      25,  // O: የተጨራቹ ስም / ኮድ (merged, wider)
+      12,  // P: FOB
+      12,  // Q: CIF
+      12,  // R: TAX
+      15   // S: Final Calc
+    ];
+
+    columnWidths.forEach((width, index) => {
+      sheet.getColumn(index + 1).width = width;
+    });
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // PRINT SETUP
+    // ═══════════════════════════════════════════════════════════════════════════
+    
+    sheet.pageSetup = {
+      paperSize: 9,              // A4
+      orientation: 'landscape',  // Landscape
+      fitToPage: true,
+      fitToWidth: 1,
+      fitToHeight: 0,            // Allow multiple pages vertically if needed
+      margins: {
+        left: 0.5,
+        right: 0.5,
+        top: 0.75,
+        bottom: 0.75,
+        header: 0.3,
+        footer: 0.3
+      },
+      printArea: `A1:S${currentRow}`,
+      horizontalCentered: true
+    };
+
+    // Freeze header row
+    sheet.views = [{ state: 'frozen', ySplit: 2 }];
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // SEND FILE
+    // ═══════════════════════════════════════════════════════════════════════════
+    
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    const safeAuctionNumber = tender.tenderNumber.replace(/[^a-zA-Z0-9\-_]/g, '_');
+    res.setHeader('Content-Disposition', `attachment; filename="Auction_${safeAuctionNumber}.xlsx"`);
     await workbook.xlsx.write(res);
     res.end();
 
-    // Log audit
-    await prisma.auditLog.create({
-      data: {
-        userId: req.userId,
-        action: 'EXPORT_EXCEL',
-        entity: 'Tender',
-        entityId: tenderId,
-        details: JSON.stringify({ tenderNumber: tender.tenderNumber }),
-        ipAddress: req.ip
-      }
-    });
-  } catch (error) {
-    next(error);
-  }
-});
-
-// Export tender to PDF
-router.get('/pdf/:tenderId', async (req, res, next) => {
-  let browser;
-  
-  try {
-    const tenderId = parseInt(req.params.tenderId);
-
-    const tender = await prisma.tender.findUnique({
-      where: { id: tenderId },
-      include: {
-        groups: {
-          include: {
-            items: true,
-            bids: {
-              include: { bidder: true },
-              orderBy: { bidPrice: 'desc' }
-            }
-          },
-          orderBy: { code: 'asc' }
+    if (req.userId) {
+      prisma.auditLog.create({
+        data: { 
+          userId: req.userId, 
+          action: 'EXPORT_CLOSED_GROUP', 
+          entity: 'Group', 
+          entityId: groupId, 
+          details: JSON.stringify({ 
+            groupCode: group.code, 
+            winnerName: winner?.bidder.name, 
+            winnerPrice,
+            auctionNumber: tender.tenderNumber 
+          }), 
+          ipAddress: req.ip 
         }
-      }
-    });
-
-    if (!tender) {
-      return res.status(404).json({ error: 'Tender not found' });
+      }).catch(() => {});
     }
-
-    // Generate HTML content
-    const htmlContent = generatePDFHTML(tender);
-
-    // Launch browser and generate PDF
-    browser = await puppeteer.launch({
-      headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
-    });
-
-    const page = await browser.newPage();
-    await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
-
-    const pdfBuffer = await page.pdf({
-      format: 'A4',
-      printBackground: true,
-      margin: { top: '20px', bottom: '20px', left: '20px', right: '20px' }
-    });
-
-    // Set response headers
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename=tender_${tender.tenderNumber}.pdf`);
-
-    res.send(pdfBuffer);
-
-    // Log audit
-    await prisma.auditLog.create({
-      data: {
-        userId: req.userId,
-        action: 'EXPORT_PDF',
-        entity: 'Tender',
-        entityId: tenderId,
-        details: JSON.stringify({ tenderNumber: tender.tenderNumber }),
-        ipAddress: req.ip
-      }
-    });
-  } catch (error) {
-    next(error);
-  } finally {
-    if (browser) {
-      await browser.close();
-    }
-  }
+  } catch (error) { next(error); }
 });
 
-// Generate HTML for PDF
-function generatePDFHTML(tender) {
-  const formatCurrency = (num) => {
-    return new Intl.NumberFormat('en-US', { 
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2 
-    }).format(num || 0);
-  };
-
-  let html = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="UTF-8">
-      <title>Tender ${tender.tenderNumber}</title>
-      <style>
-        body { font-family: 'Segoe UI', Tahoma, sans-serif; margin: 0; padding: 20px; }
-        h1 { color: #1F4E79; border-bottom: 2px solid #1F4E79; padding-bottom: 10px; }
-        h2 { color: #2E75B6; margin-top: 30px; }
-        table { width: 100%; border-collapse: collapse; margin: 15px 0; }
-        th { background: #D9E1F2; padding: 10px; text-align: left; border: 1px solid #ccc; font-weight: bold; }
-        td { padding: 8px; border: 1px solid #ccc; }
-        .tender-info { background: #F2F2F2; padding: 15px; margin-bottom: 20px; border-radius: 5px; }
-        .group-section { margin-bottom: 30px; page-break-inside: avoid; }
-        .status { display: inline-block; padding: 3px 10px; border-radius: 3px; font-size: 12px; }
-        .status-OPEN { background: #C6EFCE; color: #006100; }
-        .status-SOLD { background: #FFC7CE; color: #9C0006; }
-        .status-SPLIT { background: #FFEB9C; color: #9C5700; }
-        .winner { background: #C6EFCE; font-weight: bold; }
-        .summary { display: flex; justify-content: space-between; margin-top: 10px; }
-        .summary-item { text-align: center; }
-      </style>
-    </head>
-    <body>
-      <h1>የጨረታ ሪፖርት / Tender Report</h1>
-      <div class="tender-info">
-        <p><strong>የጨረታ ቁጥር / Tender Number:</strong> ${tender.tenderNumber}</p>
-        <p><strong>ስም / Title:</strong> ${tender.title || '-'}</p>
-        <p><strong>ቦታ / Location:</strong> ${tender.location || '-'}</p>
-        <p><strong>የምንዛሪ ስርዓት / Exchange Rate:</strong> ${tender.exchangeRate}</p>
-        <p><strong>ሁኔታ / Status:</strong> ${tender.status}</p>
-      </div>
-  `;
-
-  for (const group of tender.groups) {
-    const highestBid = group.bids.length > 0 ? group.bids[0] : null;
-    const winner = group.bids.find(b => b.isWinner);
-
-    html += `
-      <div class="group-section">
-        <h2>${group.code} - ${group.name || 'Group'}</h2>
-        <div class="summary">
-          <div class="summary-item"><strong>ሁኔታ:</strong> <span class="status status-${group.status}">${group.status}</span></div>
-          <div class="summary-item"><strong>ዙር:</strong> ${group.currentRound}</div>
-          <div class="summary-item"><strong>መነሻ ዋጋ:</strong> ${formatCurrency(group.basePrice)}</div>
-          <div class="summary-item"><strong>ተጫማሪዎች:</strong> ${group.bids.length}</div>
-        </div>
-
-        <h3>ዕቃዎች / Items</h3>
-        <table>
-          <thead>
-            <tr>
-              <th>ቁም ቁረጠ</th>
-              <th>ዕቃ</th>
-              <th>ምርት</th>
-              <th>ቁም</th>
-              <th>FOB</th>
-              <th>CIF</th>
-              <th>Tax</th>
-              <th>አሃድ ዋጋ</th>
-              <th>ጠቅላላ</th>
-            </tr>
-          </thead>
-          <tbody>
-    `;
-
-    for (const item of group.items) {
-      html += `
-        <tr>
-          <td>${item.itemCode}</td>
-          <td>${item.name}</td>
-          <td>${item.brand || '-'}</td>
-          <td>${item.quantity}</td>
-          <td>${formatCurrency(item.fob)}</td>
-          <td>${formatCurrency(item.cif)}</td>
-          <td>${formatCurrency(item.tax)}</td>
-          <td>${formatCurrency(item.unitPrice)}</td>
-          <td>${formatCurrency(item.totalPrice)}</td>
-        </tr>
-      `;
-    }
-
-    html += '</tbody></table>';
-
-    if (group.bids.length > 0) {
-      html += `
-        <h3>ቅናሽዎች / Bids</h3>
-        <table>
-          <thead>
-            <tr>
-              <th>ተጫማሪ</th>
-              <th>ኩባንያዎ</th>
-              <th>ቅናሽ</th>
-              <th>ዙር</th>
-              <th>አሸናፊ</th>
-            </tr>
-          </thead>
-          <tbody>
-      `;
-
-      for (const bid of group.bids) {
-        const isWinner = bid.isWinner ? '✓' : '-';
-        const rowClass = bid.isWinner ? 'winner' : '';
-        html += `
-          <tr class="${rowClass}">
-            <td>${bid.bidder.name}</td>
-            <td>${bid.bidder.companyName}</td>
-            <td>${formatCurrency(bid.bidPrice)}</td>
-            <td>${bid.round}</td>
-            <td>${isWinner}</td>
-          </tr>
-        `;
+// ── Generate Customizable Winner Letter (የመሸኛ ደብደዳቤ) ────────────────────────
+router.get('/winner-letter/:groupId', async (req, res, next) => {
+  try {
+    const groupId = parseInt(req.params.groupId);
+    const group = await prisma.group.findUnique({
+      where: { id: groupId },
+      include: { 
+        tender: true, 
+        items: true, 
+        bids: { 
+          where: { isWinner: true },
+          include: { bidder: true } 
+        } 
       }
+    });
+    
+    if (!group) return res.status(404).json({ error: 'Group not found' });
+    if (group.status !== 'SOLD') return res.status(400).json({ error: 'Group must be SOLD to generate winner letter' });
+    if (!group.bids || group.bids.length === 0) return res.status(400).json({ error: 'No winner found' });
 
-      html += '</tbody></table>';
+    const winner = group.bids[0];
+    const winnerPrice = winner.bidPrice;
+    const calc70 = winnerPrice * 0.70;
+    const calc30 = winnerPrice * 0.30;
+    const vat = winnerPrice * 0.15;
+    const totalWithVAT = calc70 + calc30 + vat;
+
+    // Ethiopian date conversion (simplified)
+    const today = new Date();
+    const ethiopianYear = today.getFullYear() - 7;
+    const ethiopianDate = `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${ethiopianYear}`;
+
+    // Create Word document
+    const doc = new Document({
+      sections: [{
+        properties: {
+          page: {
+            margin: { top: 1440, right: 1440, bottom: 1440, left: 1440 } // 1 inch margins
+          }
+        },
+        children: [
+          // Reference Number
+          new Paragraph({
+            text: `ቁጥር/Ref.No: ${group.tender.tenderNumber}/${group.code}`,
+            spacing: { after: 200 }
+          }),
+          
+          // Date
+          new Paragraph({
+            text: `ቀን /Date: ${ethiopianDate}`,
+            spacing: { after: 400 }
+          }),
+          
+          // Recipient
+          new Paragraph({
+            text: 'ለገቢ አሰባሰብና ዋስትና አያያዝ ቡድን',
+            spacing: { after: 200 }
+          }),
+          
+          // Subject
+          new Paragraph({
+            children: [
+              new TextRun({ text: 'ጉዳዩ፤ ', bold: true }),
+              new TextRun({ text: 'ክፊያ መቀበለን ይመለከታል' })
+            ],
+            spacing: { after: 400 }
+          }),
+          
+          // Body paragraph 1
+          new Paragraph({
+            text: `በቅ/ጽ/ቤታችን ግልፅ ጨረታ ቁጥር ${group.tender.tenderNumber} በ${ethiopianDate} ዓ.ም የተካሄደ መሆኑ ይታወቃል። በዚህ መሠረት ስት ${winner.bidder.name} በኮድ-${group.code} የተለየዩ ${group.tender.title || 'የሞባይል ቀፎ'} በብር ${fmt(winnerPrice)} ተወዳድረው አሸናፊ መሆናቸውን እየገለፅን የክፍያ ሁኔታው ከዚህ በታች እንደሚከተለው ቀርቧል።`,
+            spacing: { after: 400 },
+            alignment: AlignmentType.JUSTIFIED
+          }),
+          
+          // Payment breakdown
+          new Paragraph({
+            children: [
+              new TextRun({ text: '70% ', bold: true }),
+              new TextRun({ text: '----------------------------------------------------' }),
+              new TextRun({ text: ` ${fmt(calc70)}`, bold: true })
+            ],
+            spacing: { after: 100 }
+          }),
+          
+          new Paragraph({
+            children: [
+              new TextRun({ text: '30% ', bold: true }),
+              new TextRun({ text: '----------------------------------------------------' }),
+              new TextRun({ text: ` ${fmt(calc30)}`, bold: true })
+            ],
+            spacing: { after: 100 }
+          }),
+          
+          new Paragraph({
+            children: [
+              new TextRun({ text: '15% (ቫት) ', bold: true }),
+              new TextRun({ text: '---------------------------------------------' }),
+              new TextRun({ text: ` ${fmt(vat)}`, bold: true })
+            ],
+            spacing: { after: 100 }
+          }),
+          
+          new Paragraph({
+            children: [
+              new TextRun({ text: 'ጠቅላላ ድምር ', bold: true }),
+              new TextRun({ text: '-------------------------------------------' }),
+              new TextRun({ text: ` ${fmt(totalWithVAT)}`, bold: true })
+            ],
+            spacing: { after: 400 }
+          }),
+          
+          // Instructions paragraph
+          new Paragraph({
+            text: 'ስለሆነም ተጫራቹ ገንዘቡን በድሬዳዋ ጉምሩክ ኮሚሽን ቅ/ጽ/ቤት ስም በተከፈተው 70% በቀጥታ ገቢ አካውት ቁጥር 1000014311762 በጉምርክ ኮሚሽን እና ለፍትህ ሚንስቴር 30%ቱን እና ቫቱን በዲፖዚት አካውንት 1000014260092 ሪሲት አሰርተው ሲያቀርቡ ተቆርጦ እንዲሰጣቸው እያሳሰብን የውርስ እቃ መጋዘን ሀላፊ የክፍያውን መረጃ ይዘው ሲቀርቡ ከዚህ ደብዳቤ ጋር ተያይዞ በቀረበው ዝርዝር መሰረት በሞዴል 266 ወጪ በማድረግ ንብረቱን እንድታስረክቡ እያሳሰብን ለርክክብ ይረዳ ዘንድ የእቃው ዝርዝር 1 ገጽ ከዚህ ደብዳቤ ጋር ያያዝን ሲሆን የእቃ አያያዝ ቡድንም ያሸነፉትን እቃ ክፍያ መፈፀሙን በማረጋገጥ በ 5 የስራ ቀናት ውስጥ ከመጋዘን እናዲያወጡ ለርክክብ ይረዳ ዘንድ ግልባጭ ተደርጎለታል፡፡',
+            spacing: { after: 600 },
+            alignment: AlignmentType.JUSTIFIED
+          }),
+          
+          // Closing
+          new Paragraph({
+            text: '‹‹ከሰላምታ ጋር››',
+            alignment: AlignmentType.CENTER,
+            spacing: { after: 600 }
+          }),
+          
+          // Copy distribution header
+          new Paragraph({
+            children: [
+              new TextRun({ text: 'ግልባጭ፡-', bold: true, underline: {} })
+            ],
+            spacing: { after: 200 }
+          }),
+          
+          // Copy distribution list
+          new Paragraph({ text: 'ለጉምሩክ ኦፕሬሽን ም/ስ/አስኪያጅ', spacing: { after: 100 } }),
+          new Paragraph({ text: 'የተያዙና የተወረሱ ንብ/አስ/የስራ ሂደት', spacing: { after: 100 } }),
+          new Paragraph({ text: 'ለኢንተለጀንስ እና ኮተረበንድ ክትትል የስራ ሂደት', spacing: { after: 100 } }),
+          new Paragraph({ text: 'ለእቃ አያያዝ ቡድን', spacing: { after: 100 } }),
+          new Paragraph({ text: 'ለውርስ እቃ አስወጋጅ ኮሚቴ', spacing: { after: 100 } }),
+          new Paragraph({ text: 'መጋዘን 1', spacing: { after: 100 } }),
+          new Paragraph({ text: 'ለበር ጥበቃ', spacing: { after: 100 } }),
+          new Paragraph({ text: 'ለድ/ለኮን/ቁጥ/ድን/ተሻ/ፖሊ/መምሪያ ሪጅመንት 14', spacing: { after: 100 } }),
+          new Paragraph({ text: 'ድ/ዳ/ጉ/ኮምሽን', spacing: { after: 100 } }),
+          new Paragraph({ text: `አቶ ${winner.bidder.name}`, spacing: { after: 100 } }),
+          new Paragraph({ text: 'በ/መ', spacing: { after: 100 } })
+        ]
+      }]
+    });
+
+    // Generate and send document
+    const buffer = await Packer.toBuffer(doc);
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+    const safeCode = group.code.replace(/[^a-zA-Z0-9\-_]/g, '_');
+    res.setHeader('Content-Disposition', `attachment; filename="Winner_Letter_${safeCode}.docx"`);
+    res.send(buffer);
+
+    if (req.userId) {
+      prisma.auditLog.create({
+        data: { 
+          userId: req.userId, 
+          action: 'EXPORT_WINNER_LETTER', 
+          entity: 'Group', 
+          entityId: groupId, 
+          details: JSON.stringify({ 
+            groupCode: group.code, 
+            winnerName: winner.bidder.name,
+            winnerPrice 
+          }), 
+          ipAddress: req.ip 
+        }
+      }).catch(() => {});
+    }
+  } catch (error) { next(error); }
+});
+
+// ── Generate Winner Letter Excel (የመሸኛ ደብደዳቤ) - Legacy ────────────────────────
+router.get('/winner-letter-excel/:groupId', async (req, res, next) => {
+  try {
+    const groupId = parseInt(req.params.groupId);
+    const group = await prisma.group.findUnique({
+      where: { id: groupId },
+      include: { 
+        tender: true, 
+        items: true, 
+        bids: { 
+          where: { isWinner: true },
+          include: { bidder: true } 
+        } 
+      }
+    });
+    
+    if (!group) return res.status(404).json({ error: 'Group not found' });
+    if (group.status !== 'SOLD') return res.status(400).json({ error: 'Group must be SOLD to generate winner letter' });
+    if (!group.bids || group.bids.length === 0) return res.status(400).json({ error: 'No winner found' });
+
+    const winner = group.bids[0];
+    const winnerPrice = winner.bidPrice;
+    const calc70 = winnerPrice * 0.70;
+    const calc30 = winnerPrice * 0.30;
+    const vat = winnerPrice * 0.15;
+    const totalWithVAT = winnerPrice + vat;
+
+    // Get current Ethiopian date (simplified - you may want to use a proper Ethiopian calendar library)
+    const today = new Date();
+    const ethiopianYear = today.getFullYear() - 7; // Approximate conversion
+    const ethiopianDate = `${today.getDate()}/${today.getMonth() + 1}/${ethiopianYear}`;
+
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet('የመሸኛ ደብደዳቤ');
+
+    // Set page setup for printing
+    sheet.pageSetup = {
+      paperSize: 9, // A4
+      orientation: 'portrait',
+      margins: { left: 1, right: 1, top: 1, bottom: 1 }
+    };
+
+    // Column widths
+    sheet.getColumn(1).width = 15;
+    sheet.getColumn(2).width = 50;
+
+    let row = 1;
+
+    // Header - Logo/Letterhead area (you can customize this)
+    sheet.mergeCells(`A${row}:B${row}`);
+    const headerCell = sheet.getCell(`A${row}`);
+    headerCell.value = 'ድሬዳዋ ጉምሩክ ኮሚሽን';
+    headerCell.font = { name: 'Nyala', size: 16, bold: true };
+    headerCell.alignment = { horizontal: 'center', vertical: 'middle' };
+    sheet.getRow(row).height = 30;
+    row++;
+
+    sheet.mergeCells(`A${row}:B${row}`);
+    const subHeaderCell = sheet.getCell(`A${row}`);
+    subHeaderCell.value = 'Dire Dawa Customs Commission';
+    subHeaderCell.font = { name: 'Arial', size: 12, bold: true };
+    subHeaderCell.alignment = { horizontal: 'center', vertical: 'middle' };
+    sheet.getRow(row).height = 25;
+    row++;
+
+    // Empty row
+    row++;
+
+    // Reference number (ራታ ቁጥር)
+    sheet.mergeCells(`A${row}:B${row}`);
+    const refCell = sheet.getCell(`A${row}`);
+    refCell.value = `ራታ ቁጥር: ${group.tender.tenderNumber}/${group.code}`;
+    refCell.font = { name: 'Nyala', size: 11 };
+    refCell.alignment = { horizontal: 'left', vertical: 'middle' };
+    row++;
+
+    // Date (ቀን)
+    sheet.mergeCells(`A${row}:B${row}`);
+    const dateCell = sheet.getCell(`A${row}`);
+    dateCell.value = `ቀን: ${ethiopianDate}`;
+    dateCell.font = { name: 'Nyala', size: 11 };
+    dateCell.alignment = { horizontal: 'left', vertical: 'middle' };
+    row++;
+
+    // Empty row
+    row++;
+
+    // Title
+    sheet.mergeCells(`A${row}:B${row}`);
+    const titleCell = sheet.getCell(`A${row}`);
+    titleCell.value = 'የመሸኛ ደብደዳቤ';
+    titleCell.font = { name: 'Nyala', size: 14, bold: true, underline: true };
+    titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
+    sheet.getRow(row).height = 25;
+    row++;
+
+    // Empty row
+    row++;
+
+    // Recipient (ለ:)
+    sheet.mergeCells(`A${row}:B${row}`);
+    const recipientCell = sheet.getCell(`A${row}`);
+    recipientCell.value = `ለ: ${winner.bidder.name}`;
+    recipientCell.font = { name: 'Nyala', size: 11, bold: true };
+    recipientCell.alignment = { horizontal: 'left', vertical: 'middle' };
+    row++;
+
+    if (winner.bidder.companyName) {
+      sheet.mergeCells(`A${row}:B${row}`);
+      const companyCell = sheet.getCell(`A${row}`);
+      companyCell.value = `    ${winner.bidder.companyName}`;
+      companyCell.font = { name: 'Nyala', size: 11 };
+      companyCell.alignment = { horizontal: 'left', vertical: 'middle' };
+      row++;
     }
 
-    html += '</div>';
-  }
+    // Empty row
+    row++;
 
-  html += '</body></html>';
-  
-  return html;
-}
+    // Subject (ጉዳዩ:)
+    sheet.mergeCells(`A${row}:B${row}`);
+    const subjectCell = sheet.getCell(`A${row}`);
+    subjectCell.value = `ጉዳዩ: የጨረታ መሸነፍ ማሳወቂያ - ${group.tender.title || 'የተለያዩ እቃዎች'}`;
+    subjectCell.font = { name: 'Nyala', size: 11, bold: true };
+    subjectCell.alignment = { horizontal: 'left', vertical: 'middle' };
+    row++;
+
+    // Empty row
+    row++;
+
+    // Body text
+    sheet.mergeCells(`A${row}:B${row}`);
+    const bodyCell1 = sheet.getCell(`A${row}`);
+    bodyCell1.value = `በድሬዳዋ ጉምሩክ ኮሚሽን በተካሄደው ግልፅ ጨረታ ቁጥር ${group.tender.tenderNumber} ላይ በተካሄደው የጨረታ ሂደት፣ እርስዎ በኮድ ${group.code} ስር የተመዘገቡትን እቃዎች በመሸነፍዎ በደስታ እናሳውቅዎታለን።`;
+    bodyCell1.font = { name: 'Nyala', size: 11 };
+    bodyCell1.alignment = { horizontal: 'left', vertical: 'middle', wrapText: true };
+    sheet.getRow(row).height = 40;
+    row++;
+
+    // Empty row
+    row++;
+
+    // Payment details header
+    sheet.mergeCells(`A${row}:B${row}`);
+    const paymentHeaderCell = sheet.getCell(`A${row}`);
+    paymentHeaderCell.value = 'የክፍያ ዝርዝር:';
+    paymentHeaderCell.font = { name: 'Nyala', size: 11, bold: true, underline: true };
+    paymentHeaderCell.alignment = { horizontal: 'left', vertical: 'middle' };
+    row++;
+
+    // Empty row
+    row++;
+
+    // Winning amount
+    const labelCell1 = sheet.getCell(`A${row}`);
+    labelCell1.value = 'የመሸነፊያ ዋጋ (ከቫት በፊት):';
+    labelCell1.font = { name: 'Nyala', size: 11 };
+    labelCell1.alignment = { horizontal: 'left', vertical: 'middle' };
+    
+    const valueCell1 = sheet.getCell(`B${row}`);
+    valueCell1.value = fmt(winnerPrice);
+    valueCell1.font = { name: 'Arial', size: 11, bold: true };
+    valueCell1.alignment = { horizontal: 'left', vertical: 'middle' };
+    row++;
+
+    // 70% payment
+    const labelCell2 = sheet.getCell(`A${row}`);
+    labelCell2.value = '70% ክፍያ:';
+    labelCell2.font = { name: 'Nyala', size: 11 };
+    labelCell2.alignment = { horizontal: 'left', vertical: 'middle' };
+    
+    const valueCell2 = sheet.getCell(`B${row}`);
+    valueCell2.value = fmt(calc70);
+    valueCell2.font = { name: 'Arial', size: 11 };
+    valueCell2.alignment = { horizontal: 'left', vertical: 'middle' };
+    row++;
+
+    // 30% payment
+    const labelCell3 = sheet.getCell(`A${row}`);
+    labelCell3.value = '30% ክፍያ:';
+    labelCell3.font = { name: 'Nyala', size: 11 };
+    labelCell3.alignment = { horizontal: 'left', vertical: 'middle' };
+    
+    const valueCell3 = sheet.getCell(`B${row}`);
+    valueCell3.value = fmt(calc30);
+    valueCell3.font = { name: 'Arial', size: 11 };
+    valueCell3.alignment = { horizontal: 'left', vertical: 'middle' };
+    row++;
+
+    // VAT (15%)
+    const labelCell4 = sheet.getCell(`A${row}`);
+    labelCell4.value = '15% ቫት:';
+    labelCell4.font = { name: 'Nyala', size: 11 };
+    labelCell4.alignment = { horizontal: 'left', vertical: 'middle' };
+    
+    const valueCell4 = sheet.getCell(`B${row}`);
+    valueCell4.value = fmt(vat);
+    valueCell4.font = { name: 'Arial', size: 11, bold: true };
+    valueCell4.alignment = { horizontal: 'left', vertical: 'middle' };
+    valueCell4.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFF00' } };
+    row++;
+
+    // Total with VAT
+    const labelCell5 = sheet.getCell(`A${row}`);
+    labelCell5.value = 'ጠቅላላ የክፍያ ድምር:';
+    labelCell5.font = { name: 'Nyala', size: 11, bold: true };
+    labelCell5.alignment = { horizontal: 'left', vertical: 'middle' };
+    
+    const valueCell5 = sheet.getCell(`B${row}`);
+    valueCell5.value = fmt(totalWithVAT);
+    valueCell5.font = { name: 'Arial', size: 12, bold: true };
+    valueCell5.alignment = { horizontal: 'left', vertical: 'middle' };
+    valueCell5.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF92D050' } };
+    row++;
+
+    // Empty row
+    row++;
+
+    // Instructions
+    sheet.mergeCells(`A${row}:B${row}`);
+    const instructionCell = sheet.getCell(`A${row}`);
+    instructionCell.value = 'ክፍያውን በሚከተለው መንገድ እንዲፈፅሙ እንጠይቃለን:';
+    instructionCell.font = { name: 'Nyala', size: 11, bold: true };
+    instructionCell.alignment = { horizontal: 'left', vertical: 'middle' };
+    row++;
+
+    sheet.mergeCells(`A${row}:B${row}`);
+    const instruction1Cell = sheet.getCell(`A${row}`);
+    instruction1Cell.value = '• 70% ክፍያ በ 5 የስራ ቀናት ውስጥ';
+    instruction1Cell.font = { name: 'Nyala', size: 11 };
+    instruction1Cell.alignment = { horizontal: 'left', vertical: 'middle' };
+    row++;
+
+    sheet.mergeCells(`A${row}:B${row}`);
+    const instruction2Cell = sheet.getCell(`A${row}`);
+    instruction2Cell.value = '• 30% ክፍያ እቃውን ከመውሰድዎ በፊት';
+    instruction2Cell.font = { name: 'Nyala', size: 11 };
+    instruction2Cell.alignment = { horizontal: 'left', vertical: 'middle' };
+    row++;
+
+    // Empty rows
+    row += 2;
+
+    // Closing
+    sheet.mergeCells(`A${row}:B${row}`);
+    const closingCell = sheet.getCell(`A${row}`);
+    closingCell.value = 'እንኳን ደስ አለዎት!';
+    closingCell.font = { name: 'Nyala', size: 11, bold: true };
+    closingCell.alignment = { horizontal: 'left', vertical: 'middle' };
+    row++;
+
+    // Empty rows
+    row += 2;
+
+    // Signature section
+    sheet.mergeCells(`A${row}:B${row}`);
+    const signatureCell = sheet.getCell(`A${row}`);
+    signatureCell.value = 'ከሰላምታ ጋር';
+    signatureCell.font = { name: 'Nyala', size: 11 };
+    signatureCell.alignment = { horizontal: 'left', vertical: 'middle' };
+    row++;
+
+    sheet.mergeCells(`A${row}:B${row}`);
+    const nameCell = sheet.getCell(`A${row}`);
+    nameCell.value = '_______________________';
+    nameCell.font = { name: 'Arial', size: 11 };
+    nameCell.alignment = { horizontal: 'left', vertical: 'middle' };
+    row++;
+
+    sheet.mergeCells(`A${row}:B${row}`);
+    const titleSignCell = sheet.getCell(`A${row}`);
+    titleSignCell.value = 'የጨረታ ኮሚቴ ሰብሳቢ';
+    titleSignCell.font = { name: 'Nyala', size: 11 };
+    titleSignCell.alignment = { horizontal: 'left', vertical: 'middle' };
+    row++;
+
+    sheet.mergeCells(`A${row}:B${row}`);
+    const commissionCell = sheet.getCell(`A${row}`);
+    commissionCell.value = 'ድሬዳዋ ጉምሩክ ኮሚሽን';
+    commissionCell.font = { name: 'Nyala', size: 11 };
+    commissionCell.alignment = { horizontal: 'left', vertical: 'middle' };
+
+    // Send file
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    const safeCode = group.code.replace(/[^a-zA-Z0-9\-_]/g, '_');
+    res.setHeader('Content-Disposition', `attachment; filename="Winner_Letter_Excel_${safeCode}.xlsx"`);
+    await workbook.xlsx.write(res);
+    res.end();
+
+    if (req.userId) {
+      prisma.auditLog.create({
+        data: { 
+          userId: req.userId, 
+          action: 'EXPORT_WINNER_LETTER_EXCEL', 
+          entity: 'Group', 
+          entityId: groupId, 
+          details: JSON.stringify({ 
+            groupCode: group.code, 
+            winnerName: winner.bidder.name,
+            winnerPrice 
+          }), 
+          ipAddress: req.ip 
+        }
+      }).catch(() => {});
+    }
+  } catch (error) { next(error); }
+});
 
 module.exports = router;

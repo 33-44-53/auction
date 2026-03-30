@@ -3,8 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = "file:./dev.db"
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 model User {
@@ -13,6 +13,7 @@ model User {
   email     String     @unique
   password  String
   role      String     @default("VIEWER") // ADMIN | STAFF | VIEWER
+  isActive  Boolean    @default(true)
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
   auditLogs AuditLog[]
@@ -22,6 +23,9 @@ model Tender {
   id             Int        @id @default(autoincrement())
   title          String?
   tenderNumber   String
+  tenderType     String     @default("AUCTION") // AUCTION | HARAJ | YASBELA
+  originalTenderId Int?     // Reference to original tender for Yasbela
+  harajRound     Int        @default(1) // 1st Haraj, 2nd Haraj, etc.
   date           DateTime?  // የተያዘበት ቀን - Catched Date
   location       String?   // የተያዘበት ቦታ - Catched Location
   responsibleBody String?  // ያዥው አካል - Responsible body
@@ -31,6 +35,8 @@ model Tender {
   updatedAt      DateTime   @updatedAt
   groups         Group[]
   files          File[]
+  originalTender Tender?    @relation("TenderReference", fields: [originalTenderId], references: [id])
+  referencedTenders Tender[] @relation("TenderReference")
 }
 
 model Group {
@@ -40,13 +46,19 @@ model Group {
   name             String?
   vehiclePlate     String?    // የተሸከርካሪ ሰሌዳ - Vehicle plate
   parentGroupId    Int?
+  originalGroupId  Int?       // For Yasbela: reference to the original SOLD group
   basePrice        Float?
-  currentRound     String     @default("CIF") // CIF | FOB | TAX
+  harajPrice       Float?     // Simplified price for Haraj (no CIF/FOB/TAX)
+  currentRound     String     @default("TAX") // TAX | CIF | FOB | HARAJ
+  previousRound    String?    // Store previous round before converting to HARAJ (for revert)
   roundNumber      Int         @default(1)    // 1, 2, 3
-  status           String     @default("OPEN") // OPEN | SOLD | SPLIT | CANCELLED
+  status           String     @default("OPEN") // OPEN | SOLD | SPLIT | CANCELLED | HARAJ | YASBELA
   winnerBidderId   Int?
   winnerPrice      Float?
   soldPrice        Float?
+  yasbelaPenalty   Float?     // 5% CPO deduction
+  yasbelaReason    String?    // Cancellation reason
+  yasbelaDate      DateTime?  // Date of Yasbela
   createdAt        DateTime   @default(now())
   updatedAt        DateTime   @updatedAt
   
@@ -113,7 +125,7 @@ model Bid {
   groupId    Int
   bidderId   Int
   bidPrice   Float
-  round      String   // CIF | FOB | TAX
+  round      String   // TAX | CIF | FOB
   roundNumber Int     @default(1)  // 1, 2, 3 for tracking multiple rounds
   isWinner   Boolean  @default(false)
   createdAt  DateTime @default(now())

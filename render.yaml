@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: tender-management-backend
+    env: node
+    region: oregon
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: 24h
+      - key: PORT
+        value: 3000
+    healthCheckPath: /api/health

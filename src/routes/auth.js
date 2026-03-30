@@ -3,9 +3,7 @@ const router = express.Router();
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const { body, validationResult } = require('express-validator');
-const { PrismaClient } = require('@prisma/client');
-
-const prisma = new PrismaClient();
+const prisma = require('../prisma');
 
 // Validation
 const loginValidation = [
@@ -36,6 +34,11 @@ router.post('/login', loginValidation, async (req, res, next) => {
 
     if (!user) {
       return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    // Check if user is active
+    if (!user.isActive) {
+      return res.status(403).json({ error: 'Your account is deactivated. Please contact the administrator.' });
     }
 
     const isPasswordValid = await bcrypt.compare(password, user.password);

@@ -1,7 +1,5 @@
 const jwt = require('jsonwebtoken');
-const { PrismaClient } = require('@prisma/client');
-
-const prisma = new PrismaClient();
+const prisma = require('../prisma');
 
 const authenticate = async (req, res, next) => {
   try {
@@ -19,8 +17,8 @@ const authenticate = async (req, res, next) => {
       where: { id: decoded.userId }
     });
 
-    if (!user) {
-      return res.status(401).json({ error: 'User not found' });
+    if (!user || !user.isActive) {
+      return res.status(401).json({ error: 'User not found or deactivated' });
     }
 
     req.user = user;

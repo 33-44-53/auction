@@ -134,6 +134,7 @@ Frontend will run on http://localhost:5173
 ### Price Selection
 For each item, the system automatically selects the highest price:
 - Price = MAX(CIF, FOB, TAX)
+- The round name is determined by which value is highest
 
 ### Calculations
 ```
@@ -147,9 +148,14 @@ base_price = SUM(total_price of all items in group)
 ```
 
 ### Round System
-1. **1st Round**: CIF (highest)
-2. **2nd Round**: FOB
-3. **3rd Round**: TAX
+1. **Round 1**: Highest price among (CIF, FOB, TAX) - round name matches the highest value
+2. **Round 2**: Second highest price - round name matches the middle value
+3. **Round 3**: Lowest price - round name matches the lowest value
+
+Example: If TAX=100, CIF=80, FOB=60, then:
+- Round 1 = TAX (100)
+- Round 2 = CIF (80)
+- Round 3 = FOB (60)
 
 ### Bidding Rules
 - Bidders are assigned per GROUP

@@ -2,16 +2,14 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const { body, validationResult } = require('express-validator');
-const { PrismaClient } = require('@prisma/client');
+const prisma = require('../prisma');
 const { authorize } = require('../middleware/auth');
-
-const prisma = new PrismaClient();
 
 // List all users (admin only)
 router.get('/', authorize('ADMIN'), async (req, res, next) => {
   try {
     const users = await prisma.user.findMany({
-      select: { id: true, name: true, email: true, role: true, createdAt: true },
+      select: { id: true, name: true, email: true, role: true, isActive: true, createdAt: true },
       orderBy: { createdAt: 'desc' }
     });
     res.json(users);
@@ -74,8 +72,44 @@ router.patch('/:id', authorize('ADMIN'), async (req, res, next) => {
     const user = await prisma.user.update({
       where: { id: parseInt(req.params.id) },
       data: { role },
-      select: { id: true, name: true, email: true, role: true }
+      select: { id: true, name: true, email: true, role: true, isActive: true }
     });
+    res.json(user);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Toggle user active status (admin only)
+router.patch('/:id/toggle-active', authorize('ADMIN'), async (req, res, next) => {
+  try {
+    const targetId = parseInt(req.params.id);
+    if (targetId === req.userId) {
+      return res.status(400).json({ error: 'Cannot deactivate your own account' });
+    }
+    
+    const currentUser = await prisma.user.findUnique({ where: { id: targetId } });
+    if (!currentUser) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const user = await prisma.user.update({
+      where: { id: targetId },
+      data: { isActive: !currentUser.isActive },
+      select: { id: true, name: true, email: true, role: true, isActive: true }
+    });
+
+    await prisma.auditLog.create({
+      data: {
+        userId: req.userId,
+        action: user.isActive ? 'ACTIVATE_USER' : 'DEACTIVATE_USER',
+        entity: 'User',
+        entityId: targetId,
+        details: JSON.stringify({ name: user.name, email: user.email }),
+        ipAddress: req.ip
+      }
+    });
+
     res.json(user);
   } catch (error) {
     next(error);
