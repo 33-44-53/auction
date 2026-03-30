@@ -13,8 +13,7 @@
     "prisma:migrate:deploy": "prisma migrate deploy",
     "prisma:studio": "prisma studio",
     "seed": "node prisma/seed.js",
-    "setup": "npm run prisma:generate && npm run prisma:migrate && npm run seed",
-    "postinstall": "prisma generate"
+    "setup": "npm run prisma:generate && npm run prisma:migrate && npm run seed"
   },
   "dependencies": {
     "@prisma/client": "^5.10.0",
