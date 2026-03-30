@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
-    "build": "prisma generate && prisma migrate deploy",
+    "build": "npx prisma generate && npx prisma migrate deploy",
     "kill-port": "for /f \"tokens=5\" %a in ('netstat -ano ^| findstr :3000') do taskkill /PID %a /F",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
