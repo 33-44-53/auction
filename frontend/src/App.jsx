@@ -152,7 +152,7 @@ function LoginPage() {
       <div className="glass p-10 rounded-3xl shadow-2xl w-full max-w-md relative z-10 fade-in">
         <div className="text-center mb-8">
           <div className="w-20 h-20 mx-auto mb-4">
-            <img src="/src/logo.jpg" alt="Dire Dawa Customs" className="w-full h-full rounded-2xl shadow-lg" />
+            <img src="/logo.jpg" alt="Dire Dawa Customs" className="w-full h-full rounded-2xl shadow-lg" />
           </div>
           <h1 className="text-3xl font-bold gradient-text mb-2">
             Welcome Back
@@ -232,7 +232,7 @@ function DashboardLayout({ children }) {
       <header className="glass-dark text-white shadow-2xl relative z-10">
         <div className="container mx-auto px-4 py-3 flex justify-between items-center">
           <div className="flex items-center space-x-3">
-            <img src="/src/logo.jpg" alt="Dire Dawa Customs" className="w-10 h-10 rounded-lg shadow-lg" />
+            <img src="/logo.jpg" alt="Dire Dawa Customs" className="w-10 h-10 rounded-lg shadow-lg" />
             <div>
               <h1 className="text-lg font-bold">Dire Dawa Customs Commission</h1>
               <span className="text-xs text-blue-200">Tender Management System</span>

@@ -14,6 +14,7 @@ const exportRoutes = require('./routes/export');
 const auditRoutes = require('./routes/audit');
 const statsRoutes = require('./routes/stats');
 const usersRoutes = require('./routes/users');
+const seedRoutes = require('./routes/seed');
 
 const { errorHandler } = require('./middleware/errorHandler');
 const { authenticate } = require('./middleware/auth');
@@ -21,25 +22,44 @@ const { auditLogger } = require('./middleware/audit');
 
 const app = express();
 
-// Middleware
+// Middleware - CORS Configuration
 const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:3000',
-  process.env.FRONTEND_URL,
-  'https://your-app.vercel.app' // Replace with your actual Vercel URL
-].filter(Boolean);
+  'https://auction-diredawa.vercel.app'
+];
+
+// Add FRONTEND_URL from environment if it exists
+if (process.env.FRONTEND_URL) {
+  allowedOrigins.push(process.env.FRONTEND_URL);
+}
 
 app.use(cors({
   origin: function(origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl requests)
+    // Allow requests with no origin (mobile apps, Postman, curl)
     if (!origin) return callback(null, true);
-    if (allowedOrigins.indexOf(origin) !== -1 || process.env.NODE_ENV === 'development') {
+    
+    // In production, if FRONTEND_URL is not set, allow the Vercel domain
+    if (process.env.NODE_ENV === 'production' && !process.env.FRONTEND_URL) {
+      console.warn('⚠️ FRONTEND_URL not set, allowing Vercel domain by default');
+      if (origin.includes('vercel.app') || origin.includes('auction-diredawa')) {
+        return callback(null, true);
+      }
+    }
+    
+    // Check if origin is in allowed list
+    if (allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
+      console.log('CORS blocked origin:', origin);
+      console.log('Allowed origins:', allowedOrigins);
       callback(new Error('Not allowed by CORS'));
     }
   },
-  credentials: true
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  exposedHeaders: ['Content-Disposition']
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -62,6 +82,29 @@ app.use('/api/export', authenticate, exportRoutes);
 app.use('/api/audit', authenticate, auditRoutes);
 app.use('/api/stats', authenticate, statsRoutes);
 app.use('/api/users', authenticate, usersRoutes);
+app.use('/api/seed', seedRoutes); // TEMPORARY - Remove after seeding production
+
+// Root route - API info
+app.get('/', (req, res) => {
+  res.json({
+    name: 'Dire Dawa Customs Tender Management API',
+    version: '1.0.0',
+    status: 'running',
+    endpoints: {
+      health: '/api/health',
+      auth: '/api/auth',
+      tenders: '/api/tenders',
+      groups: '/api/groups',
+      bidders: '/api/bidders',
+      export: '/api/export',
+      audit: '/api/audit',
+      stats: '/api/stats',
+      users: '/api/users'
+    },
+    frontend: process.env.FRONTEND_URL || 'Not configured',
+    documentation: 'See README.md for API documentation'
+  });
+});
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -79,6 +122,8 @@ const server = app.listen(PORT, () => {
   console.log(`   Tender Management API`);
   console.log(`   http://localhost:${PORT}/api/health`);
   console.log(`   ENV: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`   CORS Allowed Origins:`);
+  allowedOrigins.forEach(origin => console.log(`     - ${origin}`));
   console.log('======================================\n');
 });
 

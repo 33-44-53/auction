@@ -1,20 +1,23 @@
 services:
   - type: web
-    name: tender-management-backend
+    name: auction-backend
     env: node
-    region: oregon
-    plan: free
-    buildCommand: npm install && npm run build
+    buildCommand: npm install && npx prisma generate
     startCommand: npm start
     envVars:
       - key: NODE_ENV
         value: production
-      - key: DATABASE_URL
-        sync: false
+      - key: FRONTEND_URL
+        value: https://auction-diredawa.vercel.app
       - key: JWT_SECRET
         generateValue: true
       - key: JWT_EXPIRES_IN
         value: 24h
-      - key: PORT
-        value: 3000
-    healthCheckPath: /api/health
+      - key: UPLOAD_DIR
+        value: ./uploads
+      - key: MAX_FILE_SIZE
+        value: 50MB
+      - key: DATABASE_URL
+        fromDatabase:
+          name: auction-db
+          property: connectionString
