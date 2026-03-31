@@ -1279,7 +1279,7 @@ function GroupDetailPage() {
                 title="Download closed group report with calculations"
               >
                 <span>📊</span>
-                <span>Closed Report</span>
+                <span>Winners Excel</span>
               </button>
             )}
             {group.status === 'SOLD' && (
