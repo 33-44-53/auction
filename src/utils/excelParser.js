@@ -69,9 +69,14 @@ function parseTenderMeta(data, headerRowIndex) {
     const keyCell = String(row[0] || '').trim().toLowerCase();
     const valCell = (row[1] !== undefined && row[1] !== '') ? row[1] : null;
     if (!keyCell || valCell === null) continue;
+    
+    // Debug log
+    console.log(`Row ${i}: Key="${keyCell}", Value="${valCell}"`);
+    
     for (const [field, patterns] of Object.entries(metaKeys)) {
-      if (patterns.some(p => keyCell.includes(p))) {
+      if (patterns.some(p => keyCell.includes(p.toLowerCase()))) {
         meta[field] = String(valCell).trim();
+        console.log(`  Matched ${field}: ${meta[field]}`);
         break;
       }
     }
