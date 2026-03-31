@@ -55,11 +55,11 @@ async function parseExcelFile(filePath, tenderId) {
 function parseTenderMeta(data, headerRowIndex) {
   const meta = {};
   const metaKeys = {
-    tenderNumber:    ['tender number', 'tender no', 'tender#', 'የጨረታ ቁጥር'],
+    tenderNumber:    ['tender number', 'tender no', 'tender#', 'የጨረታ ቁጥር', 'ቁጥር'],
     title:           ['title', 'tender title', 'ስም', 'የጨረታ ስም'],
-    date:            ['date', 'tender date', 'ቀን'],
+    date:            ['date', 'tender date', 'ቀን', 'የተያዘበት ቀን'],
     location:        ['location', 'place', 'ቦታ', 'የተያዘበት ቦታ'],
-    responsibleBody: ['responsible body', 'responsible', 'ያዥው አካል'],
+    responsibleBody: ['responsible body', 'responsible', 'ያዥው አካል', 'የሀላፊነት አካል'],
     exchangeRate:    ['exchange rate', 'rate', 'የምንዛሪ', 'exchange'],
   };
 
