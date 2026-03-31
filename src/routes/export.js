@@ -402,11 +402,12 @@ router.get('/excel/group/:groupId/closed', async (req, res, next) => {
       'ጠቅላላ ዋጋ',              // L2
       'ሞዴል',                   // M2
       'ተጨራጩ የሰጠው ዋጋ',        // N2
-      'የተጨራቹ ስም / ኮድ',        // O2 (merged header)
-      'FOB',                   // P2
-      'CIF',                   // Q2
-      'TAX',                   // R2
-      'Final Calc'             // S2
+      'የተጨራቹ ስም',             // O2
+      'ኮድ',                    // P2
+      'FOB',                   // Q2
+      'CIF',                   // R2
+      'TAX',                   // S2
+      'exchange rate'          // T2
     ];
 
     headers.forEach((header, index) => {
@@ -417,12 +418,14 @@ router.get('/excel/group/:groupId/closed', async (req, res, next) => {
     
     sheet.getRow(2).height = 40;
 
-    // Merge የተጨራቹ ስም and ኮድ cells for all data rows (will be filled later)
+    // Merge columns for winner info and exchange rate
     const totalItems = group.items.length;
     if (totalItems > 0) {
-      // Merge column O (የተጨራቹ ስም / ኮድ) from row 3 to last item row
       const lastItemRow = 2 + totalItems;
+      sheet.mergeCells(`N3:N${lastItemRow}`);
       sheet.mergeCells(`O3:O${lastItemRow}`);
+      sheet.mergeCells(`P3:P${lastItemRow}`);
+      sheet.mergeCells(`T3:T${lastItemRow}`);
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -452,34 +455,33 @@ router.get('/excel/group/:groupId/closed', async (req, res, next) => {
       totalBasePrice += totalPrice;
 
       const rowData = [
-        index + 1,                         // ተ.ቁ
-        item.name,                         // የእቃው አይነት
-        item.brand || '',                  // ማርክ
-        item.country || '',                // ስሪት ሀገር
-        item.unit,                         // መለኪያ
-        item.warehouse1 || 0,              // መጋዘን 1
-        item.warehouse2 || 0,              // መጋዘን 2
-        item.warehouse3 || 0,              // መጋዘን 3
-        0,                                 // መጋዘን 3ሀ (empty)
-        item.totalQuantity,                // ጠቅላላ ድምር
-        unitPrice,                         // የአንድ ዋጋ (TAX)
-        totalPrice,                        // ጠቅላላ ዋጋ
-        item.itemCode || item.serialNumber || '', // ሞዴል
-        index === 0 && winner ? winner.bidPrice : '',     // ተጨራጩ የሰጠው ዋጋ (only first row)
-        // Column O (የተጨራቹ ስም / ኮድ) - only fill on first row
-        index === 0 && winner ? `${winner.bidder.name}\n${group.code}` : '',
-        index === 0 ? item.fob : '',       // FOB (only first row)
-        index === 0 ? item.cif : '',       // CIF (only first row)
-        index === 0 ? item.tax : '',       // TAX (only first row)
-        totalPrice                         // Final Calc
+        index + 1,
+        item.name,
+        item.brand || '',
+        item.country || '',
+        item.unit,
+        item.warehouse1 || 0,
+        item.warehouse2 || 0,
+        item.warehouse3 || 0,
+        0,
+        item.totalQuantity,
+        unitPrice,
+        totalPrice,
+        item.itemCode || item.serialNumber || '',
+        index === 0 && winner ? winner.bidPrice : '',
+        index === 0 && winner ? winner.bidder.name : '',
+        index === 0 ? group.code : '',
+        index === 0 ? item.fob : '',
+        index === 0 ? item.cif : '',
+        index === 0 ? item.tax : '',
+        index === 0 ? exRate : ''
       ];
 
       rowData.forEach((value, colIndex) => {
         const cell = sheet.getCell(currentRow, colIndex + 1);
         
-        // Skip setting value for merged cell (column O) except first row
-        if (colIndex === 14 && index > 0) {
-          // Don't set value, it's part of merged cell
+        if ((colIndex === 13 || colIndex === 14 || colIndex === 15 || colIndex === 19) && index > 0) {
+          // Skip merged cells
         } else {
           cell.value = value;
         }
@@ -487,13 +489,11 @@ router.get('/excel/group/:groupId/closed', async (req, res, next) => {
         cell.border = dataBorder;
         cell.font = { name: 'Arial', size: 10 };
 
-        // Alignment and formatting
-        if (typeof value === 'number') {
+        if (typeof value === 'number' && value !== 0) {
           cell.alignment = { horizontal: 'right', vertical: 'middle' };
-          cell.numFmt = '#,##0.00';
+          cell.numFmt = Number.isInteger(value) ? '#,##0' : '#,##0.00';
         } else {
-          // Special handling for merged የተጨራቹ ስም / ኮድ cell
-          if (colIndex === 14) {
+          if (colIndex === 13 || colIndex === 14 || colIndex === 15 || colIndex === 19) {
             cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
           } else {
             cell.alignment = { horizontal: 'left', vertical: 'middle' };
@@ -525,7 +525,7 @@ router.get('/excel/group/:groupId/closed', async (req, res, next) => {
       font: { name: 'Arial', size: 11, bold: true },
       border: dataBorder,
       alignment: { horizontal: 'right', vertical: 'middle' },
-      numFmt: '#,##0.00'
+      numFmt: '#,##0'
     };
 
     // Empty row for spacing
@@ -597,25 +597,7 @@ router.get('/excel/group/:groupId/closed', async (req, res, next) => {
     // ═══════════════════════════════════════════════════════════════════════════
     
     const columnWidths = [
-      8,   // A: ተ.ቁ
-      30,  // B: የእቃው አይነት
-      12,  // C: ማርክ
-      12,  // D: ስሪት ሀገር
-      10,  // E: መለኪያ
-      10,  // F: መጋዘን 1
-      10,  // G: መጋዘን 2
-      10,  // H: መጋዘን 3
-      10,  // I: መጋዘን 3ሀ
-      12,  // J: ጠቅላላ ድምር
-      15,  // K: የአንድ ዋጋ (TAX)
-      16,  // L: ጠቅላላ ዋጋ
-      15,  // M: ሞዴል
-      18,  // N: ተጨራጩ የሰጠው ዋጋ
-      25,  // O: የተጨራቹ ስም / ኮድ (merged, wider)
-      12,  // P: FOB
-      12,  // Q: CIF
-      12,  // R: TAX
-      15   // S: Final Calc
+      8, 30, 12, 12, 10, 10, 10, 10, 10, 12, 15, 16, 15, 18, 20, 12, 12, 12, 12, 15
     ];
 
     columnWidths.forEach((width, index) => {
@@ -640,7 +622,7 @@ router.get('/excel/group/:groupId/closed', async (req, res, next) => {
         header: 0.3,
         footer: 0.3
       },
-      printArea: `A1:S${currentRow}`,
+      printArea: `A1:T${currentRow}`,
       horizontalCentered: true
     };
 
