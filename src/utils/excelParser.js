@@ -115,9 +115,9 @@ function mapHeaders(headers) {
     brand:        ['Brand', 'ምርት', 'ማርክ'],
     country:      ['Country', 'Origin', 'ሀገር', 'ስሪት ሀገር'],
     unit:         ['Unit', 'አሃድ', 'መለኪያ'],
-    warehouse1:   ['Warehouse 1', 'WH1', 'Warehouse1', 'መጋዘን 1', 'መጋዘን1', 'መጋዝን 1', 'መጋዝን1'],
-    warehouse2:   ['Warehouse 2', 'WH2', 'Warehouse2', 'መጋዘን 2', 'መጋዘን2', 'መጋዝን 2', 'መጋዝን2'],
-    warehouse3:   ['Warehouse 3', 'WH3', 'Warehouse3', 'መጋዘን 3', 'መጋዘን3', 'መጋዝን 3', 'መጋዝን3'],
+    warehouse1:   ['መጋዘን1', 'መጋዘን 1', 'መጋዝን1', 'መጋዝን 1', 'Warehouse 1', 'WH1', 'Warehouse1'],
+    warehouse2:   ['መጋዘን2', 'መጋዘን 2', 'መጋዝን2', 'መጋዝን 2', 'Warehouse 2', 'WH2', 'Warehouse2'],
+    warehouse3:   ['መጋዘን3', 'መጋዘን 3', 'መጋዝን3', 'መጋዝን 3', 'Warehouse 3', 'WH3', 'Warehouse3'],
     quantity:     ['Qty', 'Quantity', 'ብዛት', 'ጠቅላላ ድምር', 'Total Qty'],
     fob:          ['FOB', 'ኤፍኦቢ'],
     cif:          ['CIF', 'ሲአይኤፍ'],
@@ -125,12 +125,24 @@ function mapHeaders(headers) {
   };
 
   headers.forEach((header, index) => {
-    const s = String(header).trim().toLowerCase();
+    const s = String(header).trim();
     if (!s) return;
+    
+    // Normalize: remove all spaces and convert to lowercase for comparison
+    const normalized = s.replace(/\s+/g, '').toLowerCase();
+    
     for (const [field, patterns] of Object.entries(mappings)) {
       if (map[field] !== undefined) continue;
-      if (patterns.some(p => s === p.toLowerCase() || s.includes(p.toLowerCase()))) {
+      
+      // Check if any pattern matches (with or without spaces)
+      const matched = patterns.some(p => {
+        const normalizedPattern = p.replace(/\s+/g, '').toLowerCase();
+        return normalized === normalizedPattern || normalized.includes(normalizedPattern) || s.toLowerCase() === p.toLowerCase();
+      });
+      
+      if (matched) {
         map[field] = index;
+        console.log(`Mapped ${field} to column ${index}: "${s}"`);
       }
     }
   });
