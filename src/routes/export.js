@@ -61,6 +61,12 @@ function buildGroupSheet(sheet, group, tender) {
 
   let r = 3;
   let itemNumber = 1;
+  
+  // Get all bidders for current round
+  const roundBids = (group.bids || [])
+    .filter(b => b.round === round)
+    .sort((a, b) => b.bidPrice - a.bidPrice);
+  
   for (const item of group.items) {
     const unitPriceMap = {
       FOB: item.fob * exRate,
@@ -70,13 +76,16 @@ function buildGroupSheet(sheet, group, tender) {
     };
     const unitPrice = unitPriceMap[round] || item.unitPrice || 0;
     const totalPrice = unitPrice * item.totalQuantity;
+    
+    const itemIndex = itemNumber - 1;
+    const bidder = roundBids[itemIndex] || null;
 
     const rowData = [
       itemNumber++, item.name, item.brand || '', item.country || '', item.unit,
       item.warehouse1 || 0, item.warehouse2 || 0, item.warehouse3 || 0, item.totalQuantity,
       unitPrice, totalPrice, item.itemCode || item.serialNumber || '',
-      itemNumber === 2 ? item.fob : '', itemNumber === 2 ? item.cif : '', itemNumber === 2 ? item.tax : '', itemNumber === 2 ? exRate : '',
-      winner && itemNumber === 2 ? winner.bidPrice : '', winner && itemNumber === 2 ? winner.bidder.name : ''
+      itemIndex === 0 ? item.fob : '', itemIndex === 0 ? item.cif : '', itemIndex === 0 ? item.tax : '', itemIndex === 0 ? exRate : '',
+      bidder ? bidder.bidPrice : '', bidder ? bidder.bidder.name : ''
     ];
 
     rowData.forEach((v, i) => {
@@ -90,6 +99,11 @@ function buildGroupSheet(sheet, group, tender) {
         } else {
           cl.numFmt = '#,##0.00';
         }
+      }
+      
+      // Highlight winner bid
+      if (bidder && bidder.isWinner && (i === 16 || i === 17)) {
+        applyStyle(cl, winnerFill, bold);
       }
     });
     r++;
@@ -109,8 +123,9 @@ function buildGroupSheet(sheet, group, tender) {
   setCell(sheet, r, 1, 'ከቫት በፊት ተጫራች የሚሰጠው  ጠቅላላ ዋጋ', bold, borderStyle);
   r++;
 
-  // Bids rows (current round only) - Show ALL bidders with their prices
-  for (const bid of roundBids) {
+  // If there are more bidders than items, add extra rows for remaining bidders
+  const remainingBidders = roundBids.slice(group.items.length);
+  for (const bid of remainingBidders) {
     // Empty cells for columns A-P
     for (let col = 1; col <= 16; col++) {
       const cell = sheet.getCell(r, col);
