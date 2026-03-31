@@ -140,27 +140,42 @@ function buildGroupSheet(sheet, group, tender) {
 router.get('/excel/group/:groupId', async (req, res, next) => {
   try {
     const groupId = parseInt(req.params.groupId);
+    console.log(`[Export] Fetching group ${groupId} for Excel export`);
+    
     const group = await prisma.group.findUnique({
       where: { id: groupId },
       include: { tender: true, items: true, bids: { include: { bidder: true }, orderBy: { bidPrice: 'desc' } } }
     });
-    if (!group) return res.status(404).json({ error: 'Group not found' });
+    
+    if (!group) {
+      console.log(`[Export] Group ${groupId} not found`);
+      return res.status(404).json({ error: 'Group not found' });
+    }
+    
+    console.log(`[Export] Group ${group.code} found with ${group.items?.length || 0} items, ${group.bids?.length || 0} bids`);
 
     const workbook = new ExcelJS.Workbook();
     buildGroupSheet(workbook.addWorksheet('ጨረታ'), group, group.tender);
+    
+    console.log(`[Export] Sheet built, writing to response...`);
 
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     const safeCode = group.code.replace(/[^a-zA-Z0-9\-_]/g, '_');
     res.setHeader('Content-Disposition', `attachment; filename="${safeCode}_${group.currentRound}.xlsx"`);
     await workbook.xlsx.write(res);
     res.end();
+    
+    console.log(`[Export] Excel file sent successfully`);
 
     if (req.userId) {
       prisma.auditLog.create({
         data: { userId: req.userId, action: 'EXPORT_GROUP_BIDS', entity: 'Group', entityId: groupId, details: JSON.stringify({ groupCode: group.code, round: group.currentRound }), ipAddress: req.ip }
       }).catch(() => {});
     }
-  } catch (error) { next(error); }
+  } catch (error) { 
+    console.error(`[Export] Error exporting group:`, error);
+    next(error); 
+  }
 });
 
 // ── Export full tender (one sheet per group) ───────────────────────────────────
