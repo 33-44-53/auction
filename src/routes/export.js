@@ -13,7 +13,7 @@ const center = { alignment: { horizontal: 'center', vertical: 'middle', wrapText
 const borderStyle = { border: { top: { style: 'thin' }, bottom: { style: 'thin' }, left: { style: 'thin' }, right: { style: 'thin' } } };
 const headerFill = { fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9E1F2' } } };
 const winnerFill = { fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFC6EFCE' } } };
-const yellowFill = { fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFF00' } } };
+const yellowFill = { fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFCC00' } } };
 const hStyle = { ...bold, ...center, ...borderStyle, ...headerFill };
 
 function applyStyle(cell, ...styles) {

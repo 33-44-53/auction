@@ -177,7 +177,6 @@ function LoginPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full"
-              placeholder="admin@tender.com"
               required
             />
           </div>
@@ -191,7 +190,6 @@ function LoginPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="w-full"
-              placeholder="••••••••"
               required
             />
           </div>
@@ -226,9 +224,9 @@ function DashboardLayout({ children }) {
       <header className="glass-dark text-white shadow-2xl relative z-10">
         <div className="container mx-auto px-4 py-3 flex justify-between items-center">
           <div className="flex items-center space-x-3">
-            <img src={logoImage} alt="Dire Dawa Customs" className="w-10 h-10 rounded-lg shadow-lg" />
+            <img src={logoImage} alt="Diredawa Auction" className="w-10 h-10 rounded-lg shadow-lg" />
             <div>
-              <h1 className="text-lg font-bold">Dire Dawa Customs Commission</h1>
+              <h1 className="text-lg font-bold">Diredawa Auction</h1>
               <span className="text-xs text-blue-200">Tender Management System</span>
             </div>
           </div>
