@@ -204,13 +204,6 @@ function LoginPage() {
             {loading ? 'Logging in...' : 'Login'}
           </button>
         </form>
-
-        <div className="mt-6 text-center text-sm text-gray-500">
-          <p className="mb-2">Default credentials:</p>
-          <p className="font-mono bg-gray-100/80 backdrop-blur-sm px-3 py-2 rounded-lg inline-block">
-            admin@tender.com / admin123
-          </p>
-        </div>
       </div>
     </div>
   );
