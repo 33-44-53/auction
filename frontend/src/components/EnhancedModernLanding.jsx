@@ -553,15 +553,6 @@ const EnhancedModernLanding = () => {
             </div>
 
             <div>
-              <h3 className="font-bold text-gray-900 mb-4">Product</h3>
-              <ul className="space-y-2">
-                <li><a href="#features" className="text-gray-600 hover:text-blue-600 transition">Features</a></li>
-                <li><a href="#stats" className="text-gray-600 hover:text-blue-600 transition">Stats</a></li>
-                <li><a href="/login" className="text-gray-600 hover:text-blue-600 transition">Login</a></li>
-              </ul>
-            </div>
-
-            <div>
               <h3 className="font-bold text-gray-900 mb-4">Company</h3>
               <ul className="space-y-2">
                 <li><a href="#" className="text-gray-600 hover:text-blue-600 transition">About</a></li>
@@ -573,7 +564,6 @@ const EnhancedModernLanding = () => {
               <h3 className="font-bold text-gray-900 mb-4">Contact</h3>
               <ul className="space-y-2 text-gray-600">
                 <li>Dire Dawa, Ethiopia</li>
-                <li>info@diredawacustoms.gov.et</li>
                 <li>+251 93 334 3194</li>
                 <li>
                   <a 
