@@ -113,11 +113,14 @@ const EnhancedModernLanding = () => {
 
             <div className="flex items-center space-x-4">
               <motion.a
-                whileHover={{ scale: 1.05 }}
+                whileHover={{ scale: 1.05, boxShadow: "0 20px 40px rgba(30, 64, 175, 0.3)" }}
                 whileTap={{ scale: 0.95 }}
                 href="/login"
-                className="text-gray-700 hover:text-blue-800 transition font-semibold"
+                className="bg-gradient-to-r from-blue-800 to-blue-600 text-white px-8 py-3 rounded-xl font-bold shadow-lg hover:shadow-xl transition-all flex items-center gap-2"
               >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+                </svg>
                 Login
               </motion.a>
             </div>
