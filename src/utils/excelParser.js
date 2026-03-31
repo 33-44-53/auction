@@ -70,13 +70,9 @@ function parseTenderMeta(data, headerRowIndex) {
     const valCell = (row[1] !== undefined && row[1] !== '') ? row[1] : null;
     if (!keyCell || valCell === null) continue;
     
-    // Debug log
-    console.log(`Row ${i}: Key="${keyCell}", Value="${valCell}"`);
-    
     for (const [field, patterns] of Object.entries(metaKeys)) {
       if (patterns.some(p => keyCell.includes(p.toLowerCase()))) {
         meta[field] = String(valCell).trim();
-        console.log(`  Matched ${field}: ${meta[field]}`);
         break;
       }
     }
@@ -105,58 +101,84 @@ function findHeaderRow(data) {
 
 function mapHeaders(headers) {
   const map = {};
-  const mappings = {
-    groupCode:    ['ኮድ', 'Code', 'Group Code'],
-    groupName:    ['Group Name', 'Group Description', 'Name', 'ስም'],
-    itemCode:     ['Item Code', 'Item No', 'ቁም ቁረጠ', 'Model'],
-    serialNumber: ['Serial No', 'Serial Number', 'Serial', 'ተ.ቁ'],
-    itemName:     ['Item Name', 'ዕቃ', 'የእቃው አይነት', 'Item Type'],
-    itemType:     ['Item Type', 'Type', 'የእቃው አይነት'],
-    brand:        ['Brand', 'ምርት', 'ማርክ'],
-    country:      ['Country', 'Origin', 'ሀገር', 'ስሪት ሀገር'],
-    unit:         ['Unit', 'አሃድ', 'መለኪያ'],
-    warehouse1:   ['መጋዘን1', 'መጋዘን 1', 'መጋዝን1', 'መጋዝን 1', 'Warehouse 1', 'WH1', 'Warehouse1'],
-    warehouse2:   ['መጋዘን2', 'መጋዘን 2', 'መጋዝን2', 'መጋዝን 2', 'Warehouse 2', 'WH2', 'Warehouse2'],
-    warehouse3:   ['መጋዘን3', 'መጋዘን 3', 'መጋዝን3', 'መጋዝን 3', 'Warehouse 3', 'WH3', 'Warehouse3'],
-    quantity:     ['Qty', 'Quantity', 'ብዛት', 'ጠቅላላ ድምር', 'Total Qty'],
-    fob:          ['FOB', 'ኤፍኦቢ'],
-    cif:          ['CIF', 'ሲአይኤፍ'],
-    tax:          ['Tax', 'TAX', 'ግብር'],
-  };
-
+  
   console.log('\n=== HEADER MAPPING DEBUG ===');
   console.log('Total headers:', headers.length);
+  console.log('All headers:', headers.map((h, i) => `[${i}]="${h}"`).join(', '));
   
+  // Direct mapping by checking each header
   headers.forEach((header, index) => {
-    const s = String(header).trim();
-    if (!s) return;
+    const h = String(header || '').trim();
+    const hLower = h.toLowerCase();
+    const hNoSpace = h.replace(/\s+/g, '');
+    const hNoSpaceLower = hNoSpace.toLowerCase();
     
-    console.log(`Column ${index}: "${s}"`);
+    if (!h) return;
     
-    // Normalize: remove all spaces and convert to lowercase for comparison
-    const normalized = s.replace(/\s+/g, '').toLowerCase();
-    
-    for (const [field, patterns] of Object.entries(mappings)) {
-      if (map[field] !== undefined) continue;
-      
-      // Check if any pattern matches (with or without spaces)
-      const matched = patterns.some(p => {
-        const normalizedPattern = p.replace(/\s+/g, '').toLowerCase();
-        const exactMatch = s.toLowerCase() === p.toLowerCase();
-        const normalizedMatch = normalized === normalizedPattern;
-        const containsMatch = normalized.includes(normalizedPattern);
-        
-        if (field.startsWith('warehouse') && (exactMatch || normalizedMatch || containsMatch)) {
-          console.log(`  -> Checking ${field} pattern "${p}": exact=${exactMatch}, normalized=${normalizedMatch}, contains=${containsMatch}`);
-        }
-        
-        return exactMatch || normalizedMatch || containsMatch;
-      });
-      
-      if (matched) {
-        map[field] = index;
-        console.log(`  ✓ MAPPED ${field} to column ${index}`);
-      }
+    // Group code
+    if (h === 'ኮድ' || hLower === 'code' || hLower.includes('group code')) {
+      map.groupCode = index;
+      console.log(`Mapped groupCode to column ${index}: "${h}"`);
+    }
+    // Item name
+    else if (h === 'የእቃው አይነት' || hLower.includes('item name') || hLower.includes('item type')) {
+      map.itemName = index;
+      console.log(`Mapped itemName to column ${index}: "${h}"`);
+    }
+    // Brand
+    else if (h === 'ማርክ' || hLower === 'brand') {
+      map.brand = index;
+      console.log(`Mapped brand to column ${index}: "${h}"`);
+    }
+    // Country
+    else if (h === 'ስሪት ሀገር' || h === 'ሀገር' || hLower === 'country' || hLower.includes('origin')) {
+      map.country = index;
+      console.log(`Mapped country to column ${index}: "${h}"`);
+    }
+    // Unit
+    else if (h === 'መለኪያ' || h === 'አሃድ' || hLower === 'unit') {
+      map.unit = index;
+      console.log(`Mapped unit to column ${index}: "${h}"`);
+    }
+    // Warehouse 1
+    else if (hNoSpaceLower === 'መጋዘን1' || hNoSpaceLower === 'መጋዝን1' || hLower === 'warehouse 1' || hLower === 'wh1') {
+      map.warehouse1 = index;
+      console.log(`Mapped warehouse1 to column ${index}: "${h}"`);
+    }
+    // Warehouse 2
+    else if (hNoSpaceLower === 'መጋዘን2' || hNoSpaceLower === 'መጋዝን2' || hLower === 'warehouse 2' || hLower === 'wh2') {
+      map.warehouse2 = index;
+      console.log(`Mapped warehouse2 to column ${index}: "${h}"`);
+    }
+    // Warehouse 3
+    else if (hNoSpaceLower === 'መጋዘን3' || hNoSpaceLower === 'መጋዝን3' || hLower === 'warehouse 3' || hLower === 'wh3') {
+      map.warehouse3 = index;
+      console.log(`Mapped warehouse3 to column ${index}: "${h}"`);
+    }
+    // Total quantity
+    else if (h === 'ጠቅላላ ድምር' || hLower.includes('total') || hLower === 'quantity' || hLower === 'qty') {
+      map.quantity = index;
+      console.log(`Mapped quantity to column ${index}: "${h}"`);
+    }
+    // Model/Item Code
+    else if (h === 'ሞዴል' || hLower === 'model' || hLower.includes('item code')) {
+      map.itemCode = index;
+      console.log(`Mapped itemCode to column ${index}: "${h}"`);
+    }
+    // FOB
+    else if (hLower.includes('fob') || h.includes('(FOB)')) {
+      map.fob = index;
+      console.log(`Mapped fob to column ${index}: "${h}"`);
+    }
+    // CIF
+    else if (hLower.includes('cif') || h.includes('(CIF)')) {
+      map.cif = index;
+      console.log(`Mapped cif to column ${index}: "${h}"`);
+    }
+    // TAX
+    else if (hLower.includes('tax') || h.includes('(TAX)')) {
+      map.tax = index;
+      console.log(`Mapped tax to column ${index}: "${h}"`);
     }
   });
 
@@ -166,9 +188,6 @@ function mapHeaders(headers) {
   console.log('warehouse3:', map.warehouse3);
   console.log('quantity:', map.quantity);
   console.log('======================\n');
-
-  // If no dedicated 'Item Name' column, fall back to the 'Name' column
-  if (map.itemName === undefined) map.itemName = map.groupName;
 
   return map;
 }
