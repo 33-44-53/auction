@@ -36,7 +36,9 @@ function buildGroupSheet(sheet, group, tender) {
   const HEADERS = [
     'ተ.ቁ', 'የእቃው አይነት', 'ማርክ', 'ስሪት\n ሀገር', 'መለኪያ',
     'መጋዘን1', 'መጋዘን 2', 'መጋዝን\n3', 'ጠቅላላ ድምር',
-    'መነሻ ዋጋ', 'ጠቅላላ \nዋጋ', 'ሞዴል'
+    'መነሻ ዋጋ', 'ጠቅላላ \nዋጋ', 'ሞዴል',
+    'የአንድ ዋጋ\n(FOB)', 'የአንድ ዋጋ\n(CIF)', 'የአንድ ዋጋ\n(TAX)', 'exchange rate',
+    'ተጨራጩ የሰጠው ዋጋ', 'የተጨራቹ ስም'
   ];
 
   // Row 1: title
@@ -72,14 +74,23 @@ function buildGroupSheet(sheet, group, tender) {
     const rowData = [
       itemNumber++, item.name, item.brand || '', item.country || '', item.unit,
       item.warehouse1 || 0, item.warehouse2 || 0, item.warehouse3 || 0, item.totalQuantity,
-      unitPrice, totalPrice, item.itemCode || item.serialNumber || ''
+      unitPrice, totalPrice, item.itemCode || item.serialNumber || '',
+      itemNumber === 2 ? item.fob : '', itemNumber === 2 ? item.cif : '', itemNumber === 2 ? item.tax : '', itemNumber === 2 ? exRate : '',
+      winner && itemNumber === 2 ? winner.bidPrice : '', winner && itemNumber === 2 ? winner.bidder.name : ''
     ];
 
     rowData.forEach((v, i) => {
       const cl = sheet.getCell(r, i + 1);
       cl.value = v;
       Object.assign(cl, borderStyle);
-      if (typeof v === 'number') cl.numFmt = '#,##0.00';
+      if (typeof v === 'number' && v !== 0) {
+        // Remove decimals for whole numbers
+        if (Number.isInteger(v)) {
+          cl.numFmt = '#,##0';
+        } else {
+          cl.numFmt = '#,##0.00';
+        }
+      }
     });
     r++;
   }
@@ -89,32 +100,32 @@ function buildGroupSheet(sheet, group, tender) {
   setCell(sheet, r, 1, 'መነሻ ዋጋ', bold, borderStyle);
   const bp = sheet.getCell(r, 11);
   bp.value = group.basePrice || 0;
-  bp.numFmt = '#,##0.00';
+  bp.numFmt = Number.isInteger(group.basePrice) ? '#,##0' : '#,##0.00';
   applyStyle(bp, bold, borderStyle);
   r++;
 
   // Bids label
-  sheet.mergeCells(`A${r}:L${r}`);
+  sheet.mergeCells(`A${r}:R${r}`);
   setCell(sheet, r, 1, 'ከቫት በፊት ተጫራች የሚሰጠው  ጠቅላላ ዋጋ', bold, borderStyle);
   r++;
 
   // Bids rows (current round only) - Show ALL bidders with their prices
   for (const bid of roundBids) {
-    // Empty cells for columns A-J
-    for (let col = 1; col <= 10; col++) {
+    // Empty cells for columns A-P
+    for (let col = 1; col <= 16; col++) {
       const cell = sheet.getCell(r, col);
       cell.value = '';
       applyStyle(cell, borderStyle);
     }
 
-    // Bid price in column K (11)
-    const bc = sheet.getCell(r, 11);
+    // Bid price in column Q (17)
+    const bc = sheet.getCell(r, 17);
     bc.value = bid.bidPrice;
-    bc.numFmt = '#,##0.00';
+    bc.numFmt = Number.isInteger(bid.bidPrice) ? '#,##0' : '#,##0.00';
     applyStyle(bc, borderStyle);
 
-    // Bidder name in column L (12)
-    const nc = sheet.getCell(r, 12);
+    // Bidder name in column R (18)
+    const nc = sheet.getCell(r, 18);
     nc.value = bid.bidder.name;
     applyStyle(nc, borderStyle);
 
@@ -127,7 +138,7 @@ function buildGroupSheet(sheet, group, tender) {
   }
 
   // Column widths
-  [8, 28, 12, 10, 10, 10, 10, 10, 12, 16, 16, 12]
+  [8, 28, 12, 10, 10, 10, 10, 10, 12, 16, 16, 12, 12, 12, 12, 12, 18, 22]
     .forEach((w, i) => { sheet.getColumn(i + 1).width = w; });
 
   sheet.views = [{ state: 'frozen', ySplit: 2 }];
