@@ -124,9 +124,14 @@ function mapHeaders(headers) {
     tax:          ['Tax', 'TAX', 'ግብር'],
   };
 
+  console.log('\n=== HEADER MAPPING DEBUG ===');
+  console.log('Total headers:', headers.length);
+  
   headers.forEach((header, index) => {
     const s = String(header).trim();
     if (!s) return;
+    
+    console.log(`Column ${index}: "${s}"`);
     
     // Normalize: remove all spaces and convert to lowercase for comparison
     const normalized = s.replace(/\s+/g, '').toLowerCase();
@@ -137,15 +142,30 @@ function mapHeaders(headers) {
       // Check if any pattern matches (with or without spaces)
       const matched = patterns.some(p => {
         const normalizedPattern = p.replace(/\s+/g, '').toLowerCase();
-        return normalized === normalizedPattern || normalized.includes(normalizedPattern) || s.toLowerCase() === p.toLowerCase();
+        const exactMatch = s.toLowerCase() === p.toLowerCase();
+        const normalizedMatch = normalized === normalizedPattern;
+        const containsMatch = normalized.includes(normalizedPattern);
+        
+        if (field.startsWith('warehouse') && (exactMatch || normalizedMatch || containsMatch)) {
+          console.log(`  -> Checking ${field} pattern "${p}": exact=${exactMatch}, normalized=${normalizedMatch}, contains=${containsMatch}`);
+        }
+        
+        return exactMatch || normalizedMatch || containsMatch;
       });
       
       if (matched) {
         map[field] = index;
-        console.log(`Mapped ${field} to column ${index}: "${s}"`);
+        console.log(`  ✓ MAPPED ${field} to column ${index}`);
       }
     }
   });
+
+  console.log('\n=== FINAL MAPPING ===');
+  console.log('warehouse1:', map.warehouse1);
+  console.log('warehouse2:', map.warehouse2);
+  console.log('warehouse3:', map.warehouse3);
+  console.log('quantity:', map.quantity);
+  console.log('======================\n');
 
   // If no dedicated 'Item Name' column, fall back to the 'Name' column
   if (map.itemName === undefined) map.itemName = map.groupName;
@@ -179,6 +199,8 @@ function parseItemRow(row, headerMap) {
 
   const nameVal = getValue(row, headerMap.itemName) || getValue(row, headerMap.groupName);
   if (!nameVal) return null;
+
+  console.log(`Item: ${nameVal} - WH1=${wh1} (col ${headerMap.warehouse1}, val="${getValue(row, headerMap.warehouse1)}"), WH2=${wh2} (col ${headerMap.warehouse2}, val="${getValue(row, headerMap.warehouse2)}"), WH3=${wh3} (col ${headerMap.warehouse3}, val="${getValue(row, headerMap.warehouse3)}"), Total=${totalQuantity}`);
 
   return {
     itemCode:     getValue(row, headerMap.itemCode) ? String(getValue(row, headerMap.itemCode)).trim() : '-',
