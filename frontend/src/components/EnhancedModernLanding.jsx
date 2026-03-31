@@ -12,6 +12,12 @@ const Hero3DBackground = lazy(() => import('./Hero3DBackground'));
 const EnhancedModernLanding = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [show3D, setShow3D] = useState(true);
+  const [stats, setStats] = useState({
+    totalTenders: 0,
+    totalBidders: 0,
+    successRate: 0,
+    totalValue: 0
+  });
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 50);
@@ -20,6 +26,12 @@ const EnhancedModernLanding = () => {
     // Disable 3D on mobile for performance
     const isMobile = window.innerWidth < 768;
     setShow3D(!isMobile);
+    
+    // Fetch real stats
+    fetch('/api/stats/public')
+      .then(res => res.json())
+      .then(data => setStats(data))
+      .catch(err => console.error('Failed to load stats:', err));
     
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
@@ -224,7 +236,7 @@ const EnhancedModernLanding = () => {
                         </motion.div>
                         <div>
                           <EnhancedPrice isHighlighted>
-                            <p className="text-sm font-semibold text-gray-900">5M ETB Total Value</p>
+                            <p className="text-sm font-semibold text-gray-900">{new Intl.NumberFormat('en-US', { minimumFractionDigits: 0 }).format(stats.totalValue)} ETB</p>
                           </EnhancedPrice>
                           <p className="text-xs text-gray-500">Active Tenders</p>
                         </div>
@@ -352,10 +364,10 @@ const EnhancedModernLanding = () => {
             className="grid grid-cols-2 md:grid-cols-4 gap-8"
           >
             {[
-              { number: '15+', label: 'Active Tenders', icon: BarChart3 },
-              { number: '50+', label: 'Registered Bidders', icon: Users },
-              { number: '100%', label: 'Success Rate', icon: CheckCircle },
-              { number: '5M+', label: 'Total Value (ETB)', icon: TrendingUp }
+              { number: stats.totalTenders, label: 'Active Tenders', icon: BarChart3 },
+              { number: stats.totalBidders, label: 'Registered Bidders', icon: Users },
+              { number: `${stats.successRate}%`, label: 'Success Rate', icon: CheckCircle },
+              { number: stats.totalValue, label: 'Total Value (ETB)', icon: TrendingUp, isPrice: true }
             ].map((stat, idx) => (
               <motion.div key={idx} variants={fadeInUp}>
                 <EnhancedCard>
@@ -367,7 +379,7 @@ const EnhancedModernLanding = () => {
                       <stat.icon className="w-12 h-12 text-blue-600 mx-auto mb-4" />
                     </motion.div>
                     <h3 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent mb-2">
-                      <AnimatedCounter value={stat.number} suffix={stat.number.includes('+') ? '+' : stat.number.includes('%') ? '%' : stat.number.includes('M') ? 'M+' : ''} />
+                      {stat.isPrice ? new Intl.NumberFormat('en-US', { minimumFractionDigits: 0 }).format(stat.number) : stat.number}
                     </h3>
                     <p className="text-gray-600 font-medium">{stat.label}</p>
                   </div>

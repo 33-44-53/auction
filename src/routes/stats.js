@@ -2,6 +2,36 @@ const express = require('express');
 const router = express.Router();
 const prisma = require('../prisma');
 
+// Public stats endpoint (no auth required)
+router.get('/public', async (req, res, next) => {
+  try {
+    const [
+      totalTenders,
+      totalBidders,
+      soldGroups,
+      totalGroups
+    ] = await Promise.all([
+      prisma.tender.count(),
+      prisma.bidder.count(),
+      prisma.group.count({ where: { status: 'SOLD' } }),
+      prisma.group.count()
+    ]);
+
+    const totalValue = await prisma.group.aggregate({ _sum: { basePrice: true } });
+
+    const successRate = totalGroups > 0 ? Math.round((soldGroups / totalGroups) * 100) : 0;
+
+    res.json({
+      totalTenders,
+      totalBidders,
+      successRate,
+      totalValue: totalValue._sum.basePrice || 0
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 router.get('/', async (req, res, next) => {
   try {
     const [
