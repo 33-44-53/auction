@@ -224,7 +224,7 @@ const EnhancedModernLanding = () => {
                         </motion.div>
                         <div>
                           <EnhancedPrice isHighlighted>
-                            <p className="text-sm font-semibold text-gray-900">$2.5M Total Value</p>
+                            <p className="text-sm font-semibold text-gray-900">5M ETB Total Value</p>
                           </EnhancedPrice>
                           <p className="text-xs text-gray-500">Active Tenders</p>
                         </div>
@@ -352,10 +352,10 @@ const EnhancedModernLanding = () => {
             className="grid grid-cols-2 md:grid-cols-4 gap-8"
           >
             {[
-              { number: '500+', label: 'Active Tenders', icon: BarChart3 },
-              { number: '1,200+', label: 'Registered Bidders', icon: Users },
-              { number: '98%', label: 'Success Rate', icon: CheckCircle },
-              { number: '$50M+', label: 'Total Value', icon: TrendingUp }
+              { number: '15+', label: 'Active Tenders', icon: BarChart3 },
+              { number: '50+', label: 'Registered Bidders', icon: Users },
+              { number: '100%', label: 'Success Rate', icon: CheckCircle },
+              { number: '5M+', label: 'Total Value (ETB)', icon: TrendingUp }
             ].map((stat, idx) => (
               <motion.div key={idx} variants={fadeInUp}>
                 <EnhancedCard>
