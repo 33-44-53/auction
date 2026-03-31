@@ -973,7 +973,8 @@ function GroupDetailPage() {
   const handleDownloadBidsExcel = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`/api/export/excel/group/${groupId}`, {
+      const apiUrl = import.meta.env.VITE_API_URL || '/api';
+      const response = await fetch(`${apiUrl}/export/excel/group/${groupId}`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -986,6 +987,10 @@ function GroupDetailPage() {
       }
       
       const blob = await response.blob();
+      if (blob.size === 0) {
+        throw new Error('Downloaded file is empty');
+      }
+      
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -1005,7 +1010,8 @@ function GroupDetailPage() {
   const handleDownloadClosedReport = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`/api/export/excel/group/${groupId}/closed`, {
+      const apiUrl = import.meta.env.VITE_API_URL || '/api';
+      const response = await fetch(`${apiUrl}/export/excel/group/${groupId}/closed`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -1018,6 +1024,10 @@ function GroupDetailPage() {
       }
       
       const blob = await response.blob();
+      if (blob.size === 0) {
+        throw new Error('Downloaded file is empty');
+      }
+      
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -1037,7 +1047,8 @@ function GroupDetailPage() {
   const handleDownloadWinnerLetter = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`/api/export/winner-letter/${groupId}`, {
+      const apiUrl = import.meta.env.VITE_API_URL || '/api';
+      const response = await fetch(`${apiUrl}/export/winner-letter/${groupId}`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -1050,6 +1061,10 @@ function GroupDetailPage() {
       }
       
       const blob = await response.blob();
+      if (blob.size === 0) {
+        throw new Error('Downloaded file is empty');
+      }
+      
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
