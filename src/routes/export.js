@@ -36,9 +36,7 @@ function buildGroupSheet(sheet, group, tender) {
   const HEADERS = [
     'ተ.ቁ', 'የእቃው አይነት', 'ማርክ', 'ስሪት\n ሀገር', 'መለኪያ',
     'መጋዘን1', 'መጋዘን 2', 'መጋዝን\n3', 'ጠቅላላ ድምር',
-    'መነሻ ዋጋ', 'ጠቅላላ \nዋጋ', 'ሞዴል',
-    'ተጨራጩ የሰጠው ዋጋ', 'የተጨራቹ ስም', 'ኮድ',
-    'የአንድ ዋጋ\n(FOB)', 'የአንድ ዋጋ\n(CIF)', 'የአንድ ዋጋ\n(TAX)', 'exchange rate'
+    'መነሻ ዋጋ', 'ጠቅላላ \nዋጋ', 'ሞዴል'
   ];
 
   // Row 1: title
@@ -60,6 +58,7 @@ function buildGroupSheet(sheet, group, tender) {
   console.log(`[Export] Group ${group.code}: ${group.bids?.length || 0} total bids, ${roundBids.length} for round ${round}`);
 
   let r = 3;
+  let itemNumber = 1;
   for (const item of group.items) {
     const unitPriceMap = {
       FOB: item.fob * exRate,
@@ -71,11 +70,9 @@ function buildGroupSheet(sheet, group, tender) {
     const totalPrice = unitPrice * item.totalQuantity;
 
     const rowData = [
-      item.itemCode, item.name, item.brand || '', item.country || '', item.unit,
+      itemNumber++, item.name, item.brand || '', item.country || '', item.unit,
       item.warehouse1 || 0, item.warehouse2 || 0, item.warehouse3 || 0, item.totalQuantity,
-      unitPrice, totalPrice, item.serialNumber || '',
-      winner ? winner.bidPrice : '', winner ? winner.bidder.name : '', group.code,
-      item.fob, item.cif, item.tax, exRate
+      unitPrice, totalPrice, item.itemCode || item.serialNumber || ''
     ];
 
     rowData.forEach((v, i) => {
@@ -88,7 +85,7 @@ function buildGroupSheet(sheet, group, tender) {
   }
 
   // Base price summary row
-  sheet.mergeCells(`A${r}:I${r}`);
+  sheet.mergeCells(`A${r}:J${r}`);
   setCell(sheet, r, 1, 'መነሻ ዋጋ', bold, borderStyle);
   const bp = sheet.getCell(r, 11);
   bp.value = group.basePrice || 0;
@@ -97,27 +94,27 @@ function buildGroupSheet(sheet, group, tender) {
   r++;
 
   // Bids label
-  sheet.mergeCells(`A${r}:M${r}`);
+  sheet.mergeCells(`A${r}:L${r}`);
   setCell(sheet, r, 1, 'ከቫት በፊት ተጫራች የሚሰጠው  ጠቅላላ ዋጋ', bold, borderStyle);
   r++;
 
   // Bids rows (current round only) - Show ALL bidders with their prices
   for (const bid of roundBids) {
-    // Empty cells for columns A-L
-    for (let col = 1; col <= 12; col++) {
+    // Empty cells for columns A-J
+    for (let col = 1; col <= 10; col++) {
       const cell = sheet.getCell(r, col);
       cell.value = '';
       applyStyle(cell, borderStyle);
     }
 
-    // Bid price in column M (13)
-    const bc = sheet.getCell(r, 13);
+    // Bid price in column K (11)
+    const bc = sheet.getCell(r, 11);
     bc.value = bid.bidPrice;
     bc.numFmt = '#,##0.00';
     applyStyle(bc, borderStyle);
 
-    // Bidder name in column N (14)
-    const nc = sheet.getCell(r, 14);
+    // Bidder name in column L (12)
+    const nc = sheet.getCell(r, 12);
     nc.value = bid.bidder.name;
     applyStyle(nc, borderStyle);
 
@@ -130,7 +127,7 @@ function buildGroupSheet(sheet, group, tender) {
   }
 
   // Column widths
-  [8, 28, 12, 10, 10, 10, 10, 10, 12, 16, 16, 12, 18, 22, 10, 12, 12, 12, 12]
+  [8, 28, 12, 10, 10, 10, 10, 10, 12, 16, 16, 12]
     .forEach((w, i) => { sheet.getColumn(i + 1).width = w; });
 
   sheet.views = [{ state: 'frozen', ySplit: 2 }];
@@ -248,16 +245,17 @@ router.get('/pdf/:tenderId', async (req, res, next) => {
       const winner = roundBids.find(b => b.isWinner) || roundBids[0] || null;
 
       let itemRows = '';
+      let itemNum = 1;
       for (const item of group.items) {
         const unitPriceMap = { FOB: item.fob * exRate, CIF: item.cif * exRate, TAX: item.tax * exRate, HARAJ: item.unitPrice || 0 };
         const unitPrice = unitPriceMap[round] || item.unitPrice || 0;
         const totalPrice = unitPrice * item.totalQuantity;
         itemRows += `<tr>
-          <td>${item.itemCode}</td><td>${item.name}</td><td>${item.brand||''}</td><td>${item.country||''}</td>
+          <td>${itemNum++}</td><td>${item.name}</td><td>${item.brand||''}</td><td>${item.country||''}</td>
           <td>${item.unit}</td><td>${item.warehouse1||0}</td><td>${item.warehouse2||0}</td><td>${item.warehouse3||0}</td>
           <td>${item.totalQuantity}</td><td>${fmt(unitPrice)}</td><td>${fmt(totalPrice)}</td>
-          <td>${item.serialNumber||''}</td><td>${winner?fmt(winner.bidPrice):''}</td><td>${winner?winner.bidder.name:''}</td>
-          <td>${group.code}</td><td>${fmt(item.fob)}</td><td>${fmt(item.cif)}</td><td>${fmt(item.tax)}</td><td>${exRate}</td>
+          <td>${item.itemCode||item.serialNumber||''}</td><td></td><td></td>
+          <td></td><td></td><td></td><td></td><td></td>
         </tr>`;
       }
 
@@ -446,12 +444,12 @@ router.get('/excel/group/:groupId/closed', async (req, res, next) => {
         unitPrice,                         // የአንድ ዋጋ (TAX)
         totalPrice,                        // ጠቅላላ ዋጋ
         item.itemCode || item.serialNumber || '', // ሞዴል
-        winner ? winner.bidPrice : '',     // ተጨራጩ የሰጠው ዋጋ
+        index === 0 && winner ? winner.bidPrice : '',     // ተጨራጩ የሰጠው ዋጋ (only first row)
         // Column O (የተጨራቹ ስም / ኮድ) - only fill on first row
         index === 0 && winner ? `${winner.bidder.name}\n${group.code}` : '',
-        item.fob,                          // FOB
-        item.cif,                          // CIF
-        item.tax,                          // TAX
+        index === 0 ? item.fob : '',       // FOB (only first row)
+        index === 0 ? item.cif : '',       // CIF (only first row)
+        index === 0 ? item.tax : '',       // TAX (only first row)
         totalPrice                         // Final Calc
       ];
 
