@@ -97,20 +97,30 @@ function buildGroupSheet(sheet, group, tender) {
   setCell(sheet, r, 1, 'ከቫት በፊት ተጫራች የሚሰጠው  ጠቅላላ ዋጋ', bold, borderStyle);
   r++;
 
-  // Bids rows (current round only)
+  // Bids rows (current round only) - Show ALL bidders with their prices
   for (const bid of roundBids) {
+    // Empty cells for columns A-L
+    for (let col = 1; col <= 12; col++) {
+      const cell = sheet.getCell(r, col);
+      cell.value = '';
+      applyStyle(cell, borderStyle);
+    }
+
+    // Bid price in column M (13)
     const bc = sheet.getCell(r, 13);
     bc.value = bid.bidPrice;
     bc.numFmt = '#,##0.00';
     applyStyle(bc, borderStyle);
 
+    // Bidder name in column N (14)
     const nc = sheet.getCell(r, 14);
     nc.value = bid.bidder.name;
     applyStyle(nc, borderStyle);
 
+    // Highlight winner
     if (bid.isWinner) {
-      applyStyle(sheet.getCell(r, 13), winnerFill, bold);
-      applyStyle(sheet.getCell(r, 14), winnerFill, bold);
+      applyStyle(bc, winnerFill, bold);
+      applyStyle(nc, winnerFill, bold);
     }
     r++;
   }
