@@ -99,12 +99,6 @@ const EnhancedModernLanding = () => {
               </div>
             </motion.div>
 
-            <div className="hidden md:flex items-center space-x-8">
-              <a href="#features" className="text-gray-700 hover:text-blue-800 transition font-medium">Features</a>
-              <a href="#stats" className="text-gray-700 hover:text-blue-800 transition font-medium">Stats</a>
-              <a href="#contact" className="text-gray-700 hover:text-blue-800 transition font-medium">Contact</a>
-            </div>
-
             <div className="flex items-center space-x-4">
               <motion.a
                 whileHover={{ scale: 1.05 }}
@@ -113,14 +107,6 @@ const EnhancedModernLanding = () => {
                 className="text-gray-700 hover:text-blue-800 transition font-semibold"
               >
                 Login
-              </motion.a>
-              <motion.a
-                whileHover={{ scale: 1.05, boxShadow: "0 20px 40px rgba(30, 64, 175, 0.3)" }}
-                whileTap={{ scale: 0.95 }}
-                href="/login"
-                className="bg-gradient-to-r from-blue-800 to-blue-600 text-white px-6 py-2.5 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all"
-              >
-                Get Started
               </motion.a>
             </div>
           </div>
