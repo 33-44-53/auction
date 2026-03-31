@@ -37,8 +37,8 @@ function buildGroupSheet(sheet, group, tender) {
     'ተ.ቁ', 'የእቃው አይነት', 'ማርክ', 'ስሪት\n ሀገር', 'መለኪያ',
     'መጋዘን1', 'መጋዘን 2', 'መጋዝን\n3', 'ጠቅላላ ድምር',
     'መነሻ ዋጋ', 'ጠቅላላ \nዋጋ', 'ሞዴል',
-    'የአንድ ዋጋ\n(FOB)', 'የአንድ ዋጋ\n(CIF)', 'የአንድ ዋጋ\n(TAX)', 'exchange rate',
-    'ተጨራጩ የሰጠው ዋጋ', 'የተጨራቹ ስም'
+    'ተጨራጩ የሰጠው ዋጋ', 'የተጨራቹ ስም',
+    'የአንድ ዋጋ\n(FOB)', 'የአንድ ዋጋ\n(CIF)', 'የአንድ ዋጋ\n(TAX)', 'exchange rate'
   ];
 
   // Row 1: title
@@ -79,8 +79,8 @@ function buildGroupSheet(sheet, group, tender) {
       itemNumber++, item.name, item.brand || '', item.country || '', item.unit,
       item.warehouse1 || 0, item.warehouse2 || 0, item.warehouse3 || 0, item.totalQuantity,
       unitPrice, totalPrice, item.itemCode || item.serialNumber || '',
-      itemIndex === 0 ? item.fob : '', itemIndex === 0 ? item.cif : '', itemIndex === 0 ? item.tax : '', itemIndex === 0 ? exRate : '',
-      bidder ? bidder.bidPrice : '', bidder ? bidder.bidder.name : ''
+      bidder ? bidder.bidPrice : '', bidder ? bidder.bidder.name : '',
+      itemIndex === 0 ? item.fob : '', itemIndex === 0 ? item.cif : '', itemIndex === 0 ? item.tax : '', itemIndex === 0 ? exRate : ''
     ];
 
     rowData.forEach((v, i) => {
@@ -97,7 +97,7 @@ function buildGroupSheet(sheet, group, tender) {
       }
       
       // Highlight winner bid
-      if (bidder && bidder.isWinner && (i === 16 || i === 17)) {
+      if (bidder && bidder.isWinner && (i === 12 || i === 13)) {
         applyStyle(cl, winnerFill, bold);
       }
     });
@@ -114,28 +114,28 @@ function buildGroupSheet(sheet, group, tender) {
   r++;
 
   // Bids label
-  sheet.mergeCells(`A${r}:R${r}`);
+  sheet.mergeCells(`A${r}:N${r}`);
   setCell(sheet, r, 1, 'ከቫት በፊት ተጫራች የሚሰጠው  ጠቅላላ ዋጋ', bold, borderStyle);
   r++;
 
   // If there are more bidders than items, add extra rows for remaining bidders
   const remainingBidders = roundBids.slice(group.items.length);
   for (const bid of remainingBidders) {
-    // Empty cells for columns A-P
-    for (let col = 1; col <= 16; col++) {
+    // Empty cells for columns A-L
+    for (let col = 1; col <= 12; col++) {
       const cell = sheet.getCell(r, col);
       cell.value = '';
       applyStyle(cell, borderStyle);
     }
 
-    // Bid price in column Q (17)
-    const bc = sheet.getCell(r, 17);
+    // Bid price in column M (13)
+    const bc = sheet.getCell(r, 13);
     bc.value = bid.bidPrice;
     bc.numFmt = Number.isInteger(bid.bidPrice) ? '#,##0' : '#,##0.00';
     applyStyle(bc, borderStyle);
 
-    // Bidder name in column R (18)
-    const nc = sheet.getCell(r, 18);
+    // Bidder name in column N (14)
+    const nc = sheet.getCell(r, 14);
     nc.value = bid.bidder.name;
     applyStyle(nc, borderStyle);
 
