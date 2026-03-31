@@ -4,6 +4,7 @@ import { Upload, BarChart3, Users, Calculator, Shield, Zap, CheckCircle, ArrowRi
 import EnhancedCard from './EnhancedCard';
 import AnimatedCounter from './AnimatedCounter';
 import EnhancedPrice from './EnhancedPrice';
+import logoImage from '/logo.jpg';
 
 // Lazy load 3D component for performance
 const Hero3DBackground = lazy(() => import('./Hero3DBackground'));
@@ -87,7 +88,7 @@ const EnhancedModernLanding = () => {
             >
               <motion.img 
                 whileHover={{ rotate: 5 }}
-                src="/src/logo.jpg" 
+                src={logoImage} 
                 alt="Dire Dawa Customs" 
                 className="w-12 h-12 rounded-xl shadow-lg" 
               />
@@ -196,7 +197,7 @@ const EnhancedModernLanding = () => {
                         <motion.img 
                           animate={{ rotate: [0, 5, 0, -5, 0] }}
                           transition={{ duration: 5, repeat: Infinity }}
-                          src="/src/logo.jpg" 
+                          src={logoImage} 
                           alt="Logo" 
                           className="w-32 h-32 object-contain" 
                         />
@@ -314,7 +315,7 @@ const EnhancedModernLanding = () => {
               >
                 <div className="relative rounded-3xl overflow-hidden shadow-2xl border border-white/20 bg-white/50 backdrop-blur-sm p-2">
                   <div className="aspect-video bg-gradient-to-br from-blue-100 to-yellow-100 rounded-2xl flex items-center justify-center">
-                    <img src="/src/logo.jpg" alt="Logo" className="w-32 h-32 object-contain" />
+                    <img src={logoImage} alt="Logo" className="w-32 h-32 object-contain" />
                   </div>
                 </div>
                 {/* Floating Elements */}
@@ -545,7 +546,7 @@ const EnhancedModernLanding = () => {
           <div className="grid md:grid-cols-4 gap-8 mb-8">
             <div>
               <div className="flex items-center space-x-2 mb-4">
-                <img src="/src/logo.jpg" alt="Logo" className="w-10 h-10 rounded-xl" />
+                <img src={logoImage} alt="Logo" className="w-10 h-10 rounded-xl" />
                 <span className="text-xl font-bold text-gray-900">Dire Dawa Customs Commission</span>
               </div>
               <p className="text-gray-600">
