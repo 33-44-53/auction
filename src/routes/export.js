@@ -155,15 +155,25 @@ router.get('/excel/group/:groupId', async (req, res, next) => {
     console.log(`[Export] Group ${group.code} found with ${group.items?.length || 0} items, ${group.bids?.length || 0} bids`);
 
     const workbook = new ExcelJS.Workbook();
-    buildGroupSheet(workbook.addWorksheet('ጨረታ'), group, group.tender);
+    const sheet = workbook.addWorksheet('ጨረታ');
     
-    console.log(`[Export] Sheet built, writing to response...`);
+    console.log(`[Export] Building sheet...`);
+    buildGroupSheet(sheet, group, group.tender);
+    console.log(`[Export] Sheet built successfully`);
+    
+    // Write to buffer first to check if it's empty
+    const buffer = await workbook.xlsx.writeBuffer();
+    console.log(`[Export] Buffer size: ${buffer.length} bytes`);
+    
+    if (buffer.length === 0) {
+      console.error(`[Export] Generated empty Excel file!`);
+      return res.status(500).json({ error: 'Generated empty Excel file' });
+    }
 
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     const safeCode = group.code.replace(/[^a-zA-Z0-9\-_]/g, '_');
     res.setHeader('Content-Disposition', `attachment; filename="${safeCode}_${group.currentRound}.xlsx"`);
-    await workbook.xlsx.write(res);
-    res.end();
+    res.send(buffer);
     
     console.log(`[Export] Excel file sent successfully`);
 
@@ -174,7 +184,10 @@ router.get('/excel/group/:groupId', async (req, res, next) => {
     }
   } catch (error) { 
     console.error(`[Export] Error exporting group:`, error);
-    next(error); 
+    console.error(`[Export] Error stack:`, error.stack);
+    if (!res.headersSent) {
+      res.status(500).json({ error: error.message || 'Failed to generate Excel file' });
+    }
   }
 });
 
