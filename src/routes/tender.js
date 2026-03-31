@@ -158,7 +158,20 @@ router.post(
         const finalTitle = meta.title || title || null;
         const finalLocation = meta.location || location || null;
         const finalResponsibleBody = meta.responsibleBody || responsibleBody || null;
-        const finalDate = meta.date ? new Date(meta.date) : (date ? new Date(date) : null);
+        
+        // Parse date properly - handle DD-MM-YYYY format from Excel
+        let finalDate = null;
+        if (meta.date) {
+          const dateStr = String(meta.date).trim();
+          if (dateStr.includes('-')) {
+            const [day, month, year] = dateStr.split('-');
+            finalDate = new Date(year, month - 1, day);
+          } else {
+            finalDate = new Date(dateStr);
+          }
+        } else if (date) {
+          finalDate = new Date(date);
+        }
 
         const tender = await tx.tender.create({
           data: {
