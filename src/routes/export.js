@@ -13,6 +13,7 @@ const center = { alignment: { horizontal: 'center', vertical: 'middle', wrapText
 const borderStyle = { border: { top: { style: 'thin' }, bottom: { style: 'thin' }, left: { style: 'thin' }, right: { style: 'thin' } } };
 const headerFill = { fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9E1F2' } } };
 const winnerFill = { fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFC6EFCE' } } };
+const yellowFill = { fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFF00' } } };
 const hStyle = { ...bold, ...center, ...borderStyle, ...headerFill };
 
 function applyStyle(cell, ...styles) {
@@ -96,9 +97,13 @@ function buildGroupSheet(sheet, group, tender) {
         }
       }
       
-      // Highlight winner bid
-      if (bidder && bidder.isWinner && (i === 12 || i === 13)) {
-        applyStyle(cl, winnerFill, bold);
+      // Highlight winner bid - yellow for name, green for price
+      if (bidder && bidder.isWinner) {
+        if (i === 13) { // Bidder name column
+          applyStyle(cl, yellowFill, bold);
+        } else if (i === 12) { // Bid price column
+          applyStyle(cl, winnerFill, bold);
+        }
       }
     });
     r++;
@@ -139,10 +144,10 @@ function buildGroupSheet(sheet, group, tender) {
     nc.value = bid.bidder.name;
     applyStyle(nc, borderStyle);
 
-    // Highlight winner
+    // Highlight winner - yellow for name, green for price
     if (bid.isWinner) {
       applyStyle(bc, winnerFill, bold);
-      applyStyle(nc, winnerFill, bold);
+      applyStyle(nc, yellowFill, bold);
     }
     r++;
   }
