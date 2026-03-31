@@ -28,6 +28,8 @@ function setCell(sheet, r, c, v, ...styles) {
 
 // Build the official auction sheet for one group
 function buildGroupSheet(sheet, group, tender) {
+  console.log(`[Export] Building sheet for group ${group.code}, items: ${group.items?.length || 0}`);
+  
   const round = group.currentRound;
   const exRate = tender.exchangeRate;
 
