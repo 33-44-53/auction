@@ -62,11 +62,6 @@ function buildGroupSheet(sheet, group, tender) {
   let r = 3;
   let itemNumber = 1;
   
-  // Get all bidders for current round
-  const roundBids = (group.bids || [])
-    .filter(b => b.round === round)
-    .sort((a, b) => b.bidPrice - a.bidPrice);
-  
   for (const item of group.items) {
     const unitPriceMap = {
       FOB: item.fob * exRate,
