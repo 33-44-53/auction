@@ -5,20 +5,23 @@ async function generateThreeGroupsExcel() {
   const sheet = workbook.addWorksheet('ጨረታ');
 
   // Tender metadata (first few rows)
-  sheet.getCell('A1').value = 'የተያዘበት ቀን';
-  sheet.getCell('B1').value = '16-05-2018';
+  sheet.getCell('A1').value = 'Tender Number';
+  sheet.getCell('B1').value = '033/2018';
   
-  sheet.getCell('A2').value = 'የተያዘበት ቦታ';
-  sheet.getCell('B2').value = 'ከሀረር';
+  sheet.getCell('A2').value = 'Title';
+  sheet.getCell('B2').value = 'የተለያዩ የምግብነኮች';
   
-  sheet.getCell('A3').value = 'Tender Number';
-  sheet.getCell('B3').value = '033/2018';
+  sheet.getCell('A3').value = 'የተያዘበት ቀን';
+  sheet.getCell('B3').value = '16-05-2018';
   
-  sheet.getCell('A4').value = 'Exchange Rate';
-  sheet.getCell('B4').value = 157.098;
+  sheet.getCell('A4').value = 'የተያዘበት ቦታ';
+  sheet.getCell('B4').value = 'ከሀረር';
   
-  sheet.getCell('A5').value = 'Title';
-  sheet.getCell('B5').value = 'የተለያዩ የምግብነኮች';
+  sheet.getCell('A5').value = 'ያዥው አካል';
+  sheet.getCell('B5').value = 'Dire Dawa Customs Commission';
+  
+  sheet.getCell('A6').value = 'Exchange Rate';
+  sheet.getCell('B6').value = 157.098;
 
   // Headers (row 7)
   const headers = [
