@@ -50,10 +50,12 @@ function buildGroupSheet(sheet, group, tender) {
   sheet.getRow(2).height = 36;
 
   // Current round bids only, sorted desc
-  const roundBids = group.bids
+  const roundBids = (group.bids || [])
     .filter(b => b.round === round)
     .sort((a, b) => b.bidPrice - a.bidPrice);
   const winner = roundBids.find(b => b.isWinner) || roundBids[0] || null;
+  
+  console.log(`[Export] Group ${group.code}: ${group.bids?.length || 0} total bids, ${roundBids.length} for round ${round}`);
 
   let r = 3;
   for (const item of group.items) {
