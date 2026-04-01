@@ -707,7 +707,7 @@ function TenderDetailPage() {
           {tender.groups?.map((group) => (
             <div key={group.id} className="bg-white rounded-lg shadow p-4">
               <div className="flex justify-between items-start mb-2">
-                <div>
+                <div className="flex-1">
                   <h3 className="font-bold text-lg">{group.code}</h3>
                   {group.title && <p className="text-xs text-gray-600 mt-1">{group.title}</p>}
                 </div>
@@ -725,12 +725,37 @@ function TenderDetailPage() {
               {group.vehiclePlate && (
                 <p className="text-xs text-gray-500 mb-2">Vehicle: {group.vehiclePlate}</p>
               )}
-              <div className="bg-blue-50 rounded p-2 mb-3 text-xs space-y-1">
-                {group.date && <div><span className="text-gray-500">Date:</span> <span className="font-medium">{group.date}</span></div>}
-                {group.location && <div><span className="text-gray-500">Location:</span> <span className="font-medium">{group.location}</span></div>}
-                {group.responsibleBody && <div><span className="text-gray-500">Responsible:</span> <span className="font-medium">{group.responsibleBody}</span></div>}
-                {group.exchangeRate && <div><span className="text-gray-500">Exchange Rate:</span> <span className="font-medium">{group.exchangeRate}</span></div>}
-              </div>
+              
+              {/* Group-level metadata */}
+              {(group.date || group.location || group.responsibleBody || group.exchangeRate) && (
+                <div className="bg-blue-50 rounded p-2 mb-3 text-xs space-y-1">
+                  {group.date && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Date:</span>
+                      <span className="font-medium text-gray-800">{group.date}</span>
+                    </div>
+                  )}
+                  {group.location && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Location:</span>
+                      <span className="font-medium text-gray-800">{group.location}</span>
+                    </div>
+                  )}
+                  {group.responsibleBody && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Responsible:</span>
+                      <span className="font-medium text-gray-800">{group.responsibleBody}</span>
+                    </div>
+                  )}
+                  {group.exchangeRate && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Exchange Rate:</span>
+                      <span className="font-medium text-gray-800">{group.exchangeRate}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+              
               <div className="grid grid-cols-3 gap-2 text-sm mb-3">
                 <div>
                   <span className="text-gray-500">Round</span>
