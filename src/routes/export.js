@@ -63,6 +63,7 @@ function buildGroupSheet(sheet, group, tender) {
   let r = 3;
   let itemNumber = 1;
   const groupStartRow = r;
+  const bidStartRow = r; // Track where bids start for merging code column
   
   for (const item of group.items) {
     const unitPriceMap = {
@@ -120,29 +121,6 @@ function buildGroupSheet(sheet, group, tender) {
     r++;
   }
 
-  // Merge group code column (column O, index 15) for all item rows
-  if (group.items.length > 0) {
-    const groupEndRow = r - 1;
-    sheet.mergeCells(`O${groupStartRow}:O${groupEndRow}`);
-    const groupCodeCell = sheet.getCell(`O${groupStartRow}`);
-    groupCodeCell.value = group.code;
-    Object.assign(groupCodeCell, { ...bold, ...center, ...borderStyle });
-  }
-
-  // Base price summary row
-  sheet.mergeCells(`A${r}:J${r}`);
-  setCell(sheet, r, 1, 'መነሻ ዋጋ', bold, borderStyle);
-  const bp = sheet.getCell(r, 11);
-  bp.value = group.basePrice || 0;
-  bp.numFmt = Number.isInteger(group.basePrice) ? '#,##0' : '#,##0.00';
-  applyStyle(bp, bold, borderStyle);
-  r++;
-
-  // Bids label
-  sheet.mergeCells(`A${r}:O${r}`);
-  setCell(sheet, r, 1, 'ከቫት በፊት ተጫራች የሚሰጠው  ጠቅላላ ዋጋ', bold, borderStyle);
-  r++;
-
   // If there are more bidders than items, add extra rows for remaining bidders
   const remainingBidders = roundBids.slice(group.items.length);
   for (let idx = 0; idx < remainingBidders.length; idx++) {
@@ -160,11 +138,6 @@ function buildGroupSheet(sheet, group, tender) {
     nc.value = bid.bidder.name;
     applyStyle(nc, borderStyle);
 
-    // Group code in column O (15)
-    const gc = sheet.getCell(r, 15);
-    gc.value = group.code;
-    applyStyle(gc, borderStyle, bold, center);
-
     // Highlight highest bidder - yellow for name, green for price
     if (isHighest) {
       applyStyle(bc, winnerFill, bold);
@@ -172,6 +145,30 @@ function buildGroupSheet(sheet, group, tender) {
     }
     r++;
   }
+
+  // Merge group code column (column O, index 15) for ALL rows (items + extra bids)
+  const totalBidRows = Math.max(group.items.length, roundBids.length);
+  if (totalBidRows > 0) {
+    const groupEndRow = bidStartRow + totalBidRows - 1;
+    sheet.mergeCells(`O${bidStartRow}:O${groupEndRow}`);
+    const groupCodeCell = sheet.getCell(`O${bidStartRow}`);
+    groupCodeCell.value = group.code;
+    Object.assign(groupCodeCell, { ...bold, ...center, ...borderStyle });
+  }
+
+  // Base price summary row
+  sheet.mergeCells(`A${r}:J${r}`);
+  setCell(sheet, r, 1, 'መነሻ ዋጋ', bold, borderStyle);
+  const bp = sheet.getCell(r, 11);
+  bp.value = group.basePrice || 0;
+  bp.numFmt = Number.isInteger(group.basePrice) ? '#,##0' : '#,##0.00';
+  applyStyle(bp, bold, borderStyle);
+  r++;
+
+  // Bids label
+  sheet.mergeCells(`A${r}:O${r}`);
+  setCell(sheet, r, 1, 'ከቫት በፊት ተጫራች የሚሰጠው  ጠቅላላ ዋጋ', bold, borderStyle);
+  r++;
 
   // Column widths
   [8, 28, 12, 10, 10, 10, 10, 10, 12, 16, 16, 12, 12, 12, 12, 12, 12, 18, 22]
