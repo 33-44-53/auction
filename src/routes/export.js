@@ -233,29 +233,45 @@ router.get('/excel/:tenderId', async (req, res, next) => {
     const sheet = workbook.addWorksheet('ጨረታ');
     const exRate = tender.exchangeRate;
 
-    // Title row
-    sheet.mergeCells('A1:H1');
-    setCell(sheet, 1, 1, `የተቋም ቁጥር: ${tender.tenderNumber}`, { font: { bold: true, size: 13, name: 'Nyala' } });
-    sheet.mergeCells('I1:L1');
-    setCell(sheet, 1, 9, `ቀን: ${tender.date ? new Date(tender.date).toLocaleDateString('en-GB') : ''}`, { font: { bold: true, size: 11, name: 'Nyala' } });
-    sheet.mergeCells('M1:P1');
-    setCell(sheet, 1, 13, `የተቋም ስም: ${tender.responsibleBody || ''}`, { font: { bold: true, size: 11, name: 'Nyala' } });
-    sheet.mergeCells('Q1:S1');
-    setCell(sheet, 1, 17, `ዓይነት: ${tender.tenderType || 'AUCTION'}`, { font: { bold: true, size: 11, name: 'Nyala' } });
-    sheet.mergeCells('T1:U1');
-    setCell(sheet, 1, 20, `ስፍራ: ${tender.location || ''}`, { font: { bold: true, size: 11, name: 'Nyala' } });
+    // Row 1: Header info (matching image)
+    sheet.mergeCells('A1:B1');
+    setCell(sheet, 1, 1, 'የተካሄደ ቁጥር፡', bold);
+    sheet.mergeCells('C1:D1');
+    setCell(sheet, 1, 3, tender.date ? new Date(tender.date).toLocaleDateString('en-GB') : '5/4/2017- 18/04/2017');
+    
+    sheet.mergeCells('E1:F1');
+    setCell(sheet, 1, 5, 'የተካሄደ ቦታ፡');
+    sheet.mergeCells('G1:H1');
+    setCell(sheet, 1, 7, tender.location || '');
+    
+    sheet.mergeCells('I1:J1');
+    setCell(sheet, 1, 9, 'ዓይነት');
+    sheet.mergeCells('K1:L1');
+    setCell(sheet, 1, 11, 'ስነዳ');
+    
+    sheet.mergeCells('M1:N1');
+    setCell(sheet, 1, 13, 'የተጨማሪ ስልት');
 
-    // Second title row
-    sheet.mergeCells('A2:U2');
-    setCell(sheet, 2, 1, `ግልፅ ወይም ሚስጥር ጨረታ ቁጥር 01/2018 የተለያዩ የሞባይል ቀፎዎች ለመግዛት የተዘጋጀ`, { font: { bold: true, size: 12, name: 'Nyala' }, ...center });
+    // Row 2: Title
+    sheet.mergeCells('A2:N2');
+    setCell(sheet, 2, 1, 'ግልፅ ወይም ሚስጥር 01/2018 የተለያዩ የሞባይል ቀፎዎች ለመግዛት የተዘጋጀ', { font: { bold: true, size: 11, name: 'Nyala' }, ...center });
 
-    // Headers
+    // Row 3: Column headers (13 columns + 1 for group code)
     const HEADERS = [
-      'ተ.ቁ', 'የእቃው አይነት', 'ማርክ', 'ስሪት\nሀገር', 'መለኪያ',
-      'መጋዘን1', 'መጋዘን 2', 'መጋዝን\n3', 'ጠቅላላ\nድምር',
-      'የአንድ ዋጋ\n(CIF)', 'ጠቅላላ\nዋጋ', 'ሞዴል',
-      'ተጨራጩ የሰጠው ዋጋ', 'የተጨራቹ ስም', 'ኮድ',
-      'የአንድ ዋጋ\n(FOB)', 'የአንድ ዋጋ\n(CIF)', 'የአንድ ዋጋ\n(TAX)', 'exchange\nrate', 'የቡድን\nኮድ', 'ማስታወሻ'
+      'ተ.ቁ',
+      'የእቃው አይነት',
+      'ማርክ',
+      'ስሪት\nሀገር',
+      'መለኪያ',
+      'መጋዘን1',
+      'መጋዘን 2',
+      'መጋዝን\n3',
+      'ጠቅላላ\nድምር',
+      'የአንድ ዋጋ (CIF)',
+      'ጠቅላላ\nዋጋ',
+      'ሞዴል',
+      'ዋጋ',
+      'ዋጋ'
     ];
     HEADERS.forEach((h, i) => setCell(sheet, 3, i + 1, h, hStyle));
     sheet.getRow(3).height = 36;
@@ -265,9 +281,8 @@ router.get('/excel/:tenderId', async (req, res, next) => {
 
     for (const group of tender.groups) {
       const round = group.currentRound;
-      const roundBids = (group.bids || []).filter(b => b.round === round).sort((a, b) => b.bidPrice - a.bidPrice);
-      const winner = roundBids.find(b => b.isWinner) || roundBids[0] || null;
-
+      const groupStartRow = r;
+      
       for (let i = 0; i < group.items.length; i++) {
         const item = group.items[i];
         const unitPriceMap = {
@@ -278,15 +293,22 @@ router.get('/excel/:tenderId', async (req, res, next) => {
         };
         const unitPrice = unitPriceMap[round] || item.unitPrice || 0;
         const totalPrice = unitPrice * item.totalQuantity;
-        const bidder = roundBids[i] || null;
 
         const rowData = [
-          globalItemNumber++, item.name, item.brand || '', item.country || '', item.unit,
-          item.warehouse1 || 0, item.warehouse2 || 0, item.warehouse3 || 0, item.totalQuantity,
-          unitPrice, totalPrice, item.itemCode || item.serialNumber || '',
-          bidder ? bidder.bidPrice : '', bidder ? bidder.bidder.name : '', i === 0 ? group.code : '',
-          i === 0 ? item.fob : '', i === 0 ? item.cif : '', i === 0 ? item.tax : '', i === 0 ? exRate : '',
-          i === 0 ? group.code : '', ''
+          globalItemNumber++,
+          item.name,
+          item.brand || '',
+          item.country || '',
+          item.unit,
+          item.warehouse1 || 0,
+          item.warehouse2 || 0,
+          item.warehouse3 || 0,
+          item.totalQuantity,
+          unitPrice,
+          totalPrice,
+          item.itemCode || item.serialNumber || '',
+          '', // Empty for now
+          '' // Group code will be merged
         ];
 
         rowData.forEach((v, colIdx) => {
@@ -296,48 +318,35 @@ router.get('/excel/:tenderId', async (req, res, next) => {
           if (typeof v === 'number' && v !== 0) {
             cl.numFmt = Number.isInteger(v) ? '#,##0' : '#,##0.00';
           }
-          if (bidder && bidder.isWinner) {
-            if (colIdx === 13) applyStyle(cl, yellowFill, bold);
-            else if (colIdx === 12) applyStyle(cl, winnerFill, bold);
-          }
         });
         r++;
       }
 
-      // Base price row for this group
+      // Merge group code cell on the right (column N)
+      if (group.items.length > 0) {
+        sheet.mergeCells(`N${groupStartRow}:N${r - 1}`);
+        const groupCell = sheet.getCell(`N${groupStartRow}`);
+        groupCell.value = group.code;
+        Object.assign(groupCell, { ...bold, ...center, ...borderStyle });
+      }
+
+      // Base price row
       sheet.mergeCells(`A${r}:J${r}`);
-      setCell(sheet, r, 1, `መነሻ ዋጋ - ${group.code}`, bold, borderStyle);
+      setCell(sheet, r, 1, 'መነሻ ዋጋ', bold, borderStyle, center);
       const bp = sheet.getCell(r, 11);
       bp.value = group.basePrice || 0;
       bp.numFmt = Number.isInteger(group.basePrice) ? '#,##0' : '#,##0.00';
       applyStyle(bp, bold, borderStyle);
       r++;
-
-      // Extra bidders
-      const remainingBidders = roundBids.slice(group.items.length);
-      for (const bid of remainingBidders) {
-        for (let col = 1; col <= 12; col++) {
-          const cell = sheet.getCell(r, col);
-          cell.value = '';
-          applyStyle(cell, borderStyle);
-        }
-        const bc = sheet.getCell(r, 13);
-        bc.value = bid.bidPrice;
-        bc.numFmt = Number.isInteger(bid.bidPrice) ? '#,##0' : '#,##0.00';
-        applyStyle(bc, borderStyle);
-        const nc = sheet.getCell(r, 14);
-        nc.value = bid.bidder.name;
-        applyStyle(nc, borderStyle);
-        if (bid.isWinner) {
-          applyStyle(bc, winnerFill, bold);
-          applyStyle(nc, yellowFill, bold);
-        }
-        r++;
-      }
     }
 
+    // Final summary row
+    sheet.mergeCells(`A${r}:J${r}`);
+    setCell(sheet, r, 1, 'ከቫት በፊት ተጫራች የሚሰጠው  ጠቅላላ ዋጋ', bold, borderStyle);
+    r++;
+
     // Column widths
-    [8, 28, 12, 10, 10, 10, 10, 10, 12, 16, 16, 12, 12, 20, 12, 12, 12, 12, 15, 12, 15]
+    [6, 30, 12, 10, 10, 10, 10, 10, 12, 16, 16, 15, 12, 15]
       .forEach((w, i) => { sheet.getColumn(i + 1).width = w; });
 
     sheet.views = [{ state: 'frozen', ySplit: 3 }];
