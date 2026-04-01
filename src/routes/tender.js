@@ -265,8 +265,9 @@ router.post(
               const lowestPrice = Math.min(itemData.cif || 0, itemData.fob || 0, itemData.tax || 0);
               unitPrice = lowestPrice * groupExchangeRate;
             } else {
-              // For Auction: use HIGHEST of CIF, FOB, TAX (current round price)
-              unitPrice = Math.max(itemData.cif || 0, itemData.fob || 0, itemData.tax || 0) * groupExchangeRate;
+              // For Auction: use the price for the current round (initialRound)
+              const prices = { CIF: itemData.cif || 0, FOB: itemData.fob || 0, TAX: itemData.tax || 0 };
+              unitPrice = prices[initialRound] * groupExchangeRate;
             }
             const totalPrice = unitPrice * (itemData.totalQuantity || 0);
 
