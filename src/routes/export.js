@@ -32,7 +32,7 @@ function buildGroupSheet(sheet, group, tender) {
   console.log(`[Export] Building sheet for group ${group.code}, items: ${group.items?.length || 0}`);
   
   const round = group.currentRound;
-  const exRate = tender.exchangeRate;
+  const exRate = group.exchangeRate || tender.exchangeRate;
 
   const HEADERS = [
     'ተ.ቁ', 'የእቃው አይነት', 'ማርክ', 'ስሪት\n ሀገር', 'መለኪያ',
@@ -472,7 +472,7 @@ router.get('/excel/group/:groupId/closed', async (req, res, next) => {
     const sheet = workbook.addWorksheet('ጨረታ');
     const tender = group.tender;
     const round = group.currentRound;
-    const exRate = tender.exchangeRate;
+    const exRate = group.exchangeRate || tender.exchangeRate;
 
     // Winner bid
     const roundBids = group.bids.filter(b => b.round === round).sort((a, b) => b.bidPrice - a.bidPrice);
