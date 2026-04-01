@@ -216,6 +216,18 @@ router.post(
             initialRound = prices[0].name;
           }
 
+          // Parse group-level date if present
+          let groupDate = null;
+          if (groupData.date) {
+            const dateStr = String(groupData.date).trim();
+            if (dateStr.includes('-')) {
+              const [day, month, year] = dateStr.split('-');
+              groupDate = new Date(year, month - 1, day);
+            } else {
+              groupDate = new Date(dateStr);
+            }
+          }
+
           const group = await tx.group.create({
             data: {
               tenderId: tender.id,
@@ -223,7 +235,12 @@ router.post(
               name: groupData.name,
               currentRound: initialRound,
               roundNumber: 1,
-              status: 'OPEN'
+              status: 'OPEN',
+              title: groupData.title || null,
+              date: groupDate,
+              location: groupData.location || null,
+              responsibleBody: groupData.responsibleBody || null,
+              exchangeRate: groupData.exchangeRate ? parseFloat(groupData.exchangeRate) : null
             }
           });
 
