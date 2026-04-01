@@ -214,7 +214,7 @@ router.get('/excel/group/:groupId', async (req, res, next) => {
   }
 });
 
-// ── Export full tender (one sheet per group) ───────────────────────────────────
+// ── Export full tender (ALL groups in ONE sheet) ───────────────────────────────
 router.get('/excel/:tenderId', async (req, res, next) => {
   try {
     const tenderId = parseInt(req.params.tenderId);
@@ -230,10 +230,117 @@ router.get('/excel/:tenderId', async (req, res, next) => {
     if (!tender) return res.status(404).json({ error: 'Tender not found' });
 
     const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet('ጨረታ');
+    const exRate = tender.exchangeRate;
+
+    // Title row
+    sheet.mergeCells('A1:H1');
+    setCell(sheet, 1, 1, `የተቋም ቁጥር: ${tender.tenderNumber}`, { font: { bold: true, size: 13, name: 'Nyala' } });
+    sheet.mergeCells('I1:L1');
+    setCell(sheet, 1, 9, `ቀን: ${tender.date ? new Date(tender.date).toLocaleDateString('en-GB') : ''}`, { font: { bold: true, size: 11, name: 'Nyala' } });
+    sheet.mergeCells('M1:P1');
+    setCell(sheet, 1, 13, `የተቋም ስም: ${tender.responsibleBody || ''}`, { font: { bold: true, size: 11, name: 'Nyala' } });
+    sheet.mergeCells('Q1:S1');
+    setCell(sheet, 1, 17, `ዓይነት: ${tender.tenderType || 'AUCTION'}`, { font: { bold: true, size: 11, name: 'Nyala' } });
+    sheet.mergeCells('T1:U1');
+    setCell(sheet, 1, 20, `ስፍራ: ${tender.location || ''}`, { font: { bold: true, size: 11, name: 'Nyala' } });
+
+    // Second title row
+    sheet.mergeCells('A2:U2');
+    setCell(sheet, 2, 1, `ግልፅ ወይም ሚስጥር ጨረታ ቁጥር 01/2018 የተለያዩ የሞባይል ቀፎዎች ለመግዛት የተዘጋጀ`, { font: { bold: true, size: 12, name: 'Nyala' }, ...center });
+
+    // Headers
+    const HEADERS = [
+      'ተ.ቁ', 'የእቃው አይነት', 'ማርክ', 'ስሪት\nሀገር', 'መለኪያ',
+      'መጋዘን1', 'መጋዘን 2', 'መጋዝን\n3', 'ጠቅላላ\nድምር',
+      'የአንድ ዋጋ\n(CIF)', 'ጠቅላላ\nዋጋ', 'ሞዴል',
+      'ተጨራጩ የሰጠው ዋጋ', 'የተጨራቹ ስም', 'ኮድ',
+      'የአንድ ዋጋ\n(FOB)', 'የአንድ ዋጋ\n(CIF)', 'የአንድ ዋጋ\n(TAX)', 'exchange\nrate', 'የቡድን\nኮድ', 'ማስታወሻ'
+    ];
+    HEADERS.forEach((h, i) => setCell(sheet, 3, i + 1, h, hStyle));
+    sheet.getRow(3).height = 36;
+
+    let r = 4;
+    let globalItemNumber = 1;
+
     for (const group of tender.groups) {
-      const safeName = group.code.replace(/[^a-zA-Z0-9\-_\u1200-\u137F]/g, '_').slice(0, 31);
-      buildGroupSheet(workbook.addWorksheet(safeName), group, tender);
+      const round = group.currentRound;
+      const roundBids = (group.bids || []).filter(b => b.round === round).sort((a, b) => b.bidPrice - a.bidPrice);
+      const winner = roundBids.find(b => b.isWinner) || roundBids[0] || null;
+
+      for (let i = 0; i < group.items.length; i++) {
+        const item = group.items[i];
+        const unitPriceMap = {
+          FOB: item.fob * exRate,
+          CIF: item.cif * exRate,
+          TAX: item.tax * exRate,
+          HARAJ: item.unitPrice || 0
+        };
+        const unitPrice = unitPriceMap[round] || item.unitPrice || 0;
+        const totalPrice = unitPrice * item.totalQuantity;
+        const bidder = roundBids[i] || null;
+
+        const rowData = [
+          globalItemNumber++, item.name, item.brand || '', item.country || '', item.unit,
+          item.warehouse1 || 0, item.warehouse2 || 0, item.warehouse3 || 0, item.totalQuantity,
+          unitPrice, totalPrice, item.itemCode || item.serialNumber || '',
+          bidder ? bidder.bidPrice : '', bidder ? bidder.bidder.name : '', i === 0 ? group.code : '',
+          i === 0 ? item.fob : '', i === 0 ? item.cif : '', i === 0 ? item.tax : '', i === 0 ? exRate : '',
+          i === 0 ? group.code : '', ''
+        ];
+
+        rowData.forEach((v, colIdx) => {
+          const cl = sheet.getCell(r, colIdx + 1);
+          cl.value = v;
+          Object.assign(cl, borderStyle);
+          if (typeof v === 'number' && v !== 0) {
+            cl.numFmt = Number.isInteger(v) ? '#,##0' : '#,##0.00';
+          }
+          if (bidder && bidder.isWinner) {
+            if (colIdx === 13) applyStyle(cl, yellowFill, bold);
+            else if (colIdx === 12) applyStyle(cl, winnerFill, bold);
+          }
+        });
+        r++;
+      }
+
+      // Base price row for this group
+      sheet.mergeCells(`A${r}:J${r}`);
+      setCell(sheet, r, 1, `መነሻ ዋጋ - ${group.code}`, bold, borderStyle);
+      const bp = sheet.getCell(r, 11);
+      bp.value = group.basePrice || 0;
+      bp.numFmt = Number.isInteger(group.basePrice) ? '#,##0' : '#,##0.00';
+      applyStyle(bp, bold, borderStyle);
+      r++;
+
+      // Extra bidders
+      const remainingBidders = roundBids.slice(group.items.length);
+      for (const bid of remainingBidders) {
+        for (let col = 1; col <= 12; col++) {
+          const cell = sheet.getCell(r, col);
+          cell.value = '';
+          applyStyle(cell, borderStyle);
+        }
+        const bc = sheet.getCell(r, 13);
+        bc.value = bid.bidPrice;
+        bc.numFmt = Number.isInteger(bid.bidPrice) ? '#,##0' : '#,##0.00';
+        applyStyle(bc, borderStyle);
+        const nc = sheet.getCell(r, 14);
+        nc.value = bid.bidder.name;
+        applyStyle(nc, borderStyle);
+        if (bid.isWinner) {
+          applyStyle(bc, winnerFill, bold);
+          applyStyle(nc, yellowFill, bold);
+        }
+        r++;
+      }
     }
+
+    // Column widths
+    [8, 28, 12, 10, 10, 10, 10, 10, 12, 16, 16, 12, 12, 20, 12, 12, 12, 12, 15, 12, 15]
+      .forEach((w, i) => { sheet.getColumn(i + 1).width = w; });
+
+    sheet.views = [{ state: 'frozen', ySplit: 3 }];
 
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     const safeTN = tender.tenderNumber.replace(/[^a-zA-Z0-9\-_]/g, '_');
