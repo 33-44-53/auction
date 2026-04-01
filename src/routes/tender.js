@@ -218,8 +218,9 @@ router.post(
 
           // Parse group-level date if present
           let groupDate = null;
-          if (groupData.date) {
-            const dateStr = String(groupData.date).trim();
+          const groupMeta = groupData.metadata || {};
+          if (groupMeta.date) {
+            const dateStr = String(groupMeta.date).trim();
             if (dateStr.includes('-')) {
               const [day, month, year] = dateStr.split('-');
               groupDate = new Date(year, month - 1, day);
@@ -236,11 +237,11 @@ router.post(
               currentRound: initialRound,
               roundNumber: 1,
               status: 'OPEN',
-              title: groupData.title || null,
+              title: groupMeta.title || null,
               date: groupDate,
-              location: groupData.location || null,
-              responsibleBody: groupData.responsibleBody || null,
-              exchangeRate: groupData.exchangeRate ? parseFloat(groupData.exchangeRate) : null
+              location: groupMeta.location || null,
+              responsibleBody: groupMeta.responsibleBody || null,
+              exchangeRate: groupMeta.exchangeRate ? parseFloat(groupMeta.exchangeRate) : null
             }
           });
 
