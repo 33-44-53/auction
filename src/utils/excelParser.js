@@ -73,10 +73,13 @@ function parseTenderMeta(data, headerRowIndex) {
     for (const [field, patterns] of Object.entries(metaKeys)) {
       if (patterns.some(p => keyCell.includes(p.toLowerCase()))) {
         meta[field] = String(valCell).trim();
+        console.log(`Found metadata: ${field} = "${meta[field]}" from row ${i}`);
         break;
       }
     }
   }
+  
+  console.log('Parsed tender metadata:', meta);
   return meta;
 }
 
