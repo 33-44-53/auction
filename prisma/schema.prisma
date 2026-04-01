@@ -44,6 +44,11 @@ model Group {
   tenderId         Int
   code             String     // "ኮድ-10"
   name             String?
+  title            String?    // Group-specific title
+  date             String?    // Group-specific date (የተያዘበት ቀን)
+  location         String?    // Group-specific location (የተያዘበት ቦታ)
+  responsibleBody  String?    // Group-specific responsible body (ያዥው አካል)
+  exchangeRate     Float?     // Group-specific exchange rate
   vehiclePlate     String?    // የተሸከርካሪ ሰሌዳ - Vehicle plate
   parentGroupId    Int?
   originalGroupId  Int?       // For Yasbela: reference to the original SOLD group
