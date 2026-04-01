@@ -217,15 +217,24 @@ router.post(
           }
 
           // Parse group-level date if present
-          let groupDate = null;
+          let groupDateString = null;
           const groupMeta = groupData.metadata || {};
           if (groupMeta.date) {
             const dateStr = String(groupMeta.date).trim();
+            // Store as string in DD-MM-YYYY format
             if (dateStr.includes('-')) {
-              const [day, month, year] = dateStr.split('-');
-              groupDate = new Date(year, month - 1, day);
+              const parts = dateStr.split('-');
+              if (parts.length === 3) {
+                // If already in DD-MM-YYYY format, keep it
+                if (parts[0].length <= 2) {
+                  groupDateString = dateStr;
+                } else {
+                  // If in YYYY-MM-DD format, convert to DD-MM-YYYY
+                  groupDateString = `${parts[2]}-${parts[1]}-${parts[0]}`;
+                }
+              }
             } else {
-              groupDate = new Date(dateStr);
+              groupDateString = dateStr;
             }
           }
 
@@ -238,7 +247,7 @@ router.post(
               roundNumber: 1,
               status: 'OPEN',
               title: groupMeta.title || null,
-              date: groupDate,
+              date: groupDateString,
               location: groupMeta.location || null,
               responsibleBody: groupMeta.responsibleBody || null,
               exchangeRate: groupMeta.exchangeRate ? parseFloat(groupMeta.exchangeRate) : null
