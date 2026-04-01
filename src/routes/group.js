@@ -41,7 +41,8 @@ router.post('/:id/items', authorize('ADMIN', 'STAFF'), async (req, res, next) =>
     const wh2 = parseInt(warehouse2) || 0;
     const wh3 = parseInt(warehouse3) || 0;
     const totalQuantity = wh1 + wh2 + wh3;
-    const unitPrice = calcUnitPrice(cifVal, fobVal, taxVal, group.currentRound, group.tender.exchangeRate);
+    const exchangeRate = group.exchangeRate || group.tender.exchangeRate;
+    const unitPrice = calcUnitPrice(cifVal, fobVal, taxVal, group.currentRound, exchangeRate);
     const totalPrice = unitPrice * totalQuantity;
 
     const item = await prisma.item.create({
@@ -89,7 +90,8 @@ router.patch('/:id/items/:itemId', authorize('ADMIN', 'STAFF'), async (req, res,
     const wh2 = parseInt(warehouse2) || 0;
     const wh3 = parseInt(warehouse3) || 0;
     const totalQuantity = wh1 + wh2 + wh3;
-    const unitPrice = calcUnitPrice(cifVal, fobVal, taxVal, group.currentRound, group.tender.exchangeRate);
+    const exchangeRate = group.exchangeRate || group.tender.exchangeRate;
+    const unitPrice = calcUnitPrice(cifVal, fobVal, taxVal, group.currentRound, exchangeRate);
     const totalPrice = unitPrice * totalQuantity;
 
     const item = await prisma.item.update({
@@ -239,7 +241,7 @@ router.post('/:id/next-round', authorize('ADMIN', 'STAFF'), async (req, res, nex
     if (currentIndex >= rounds.length - 1) return res.status(400).json({ error: 'Already at final round' });
 
     const nextRound = rounds[currentIndex + 1];
-    const exchangeRate = group.tender.exchangeRate;
+    const exchangeRate = group.exchangeRate || group.tender.exchangeRate;
 
     let newBasePrice = 0;
     for (const item of group.items) {
@@ -277,7 +279,7 @@ router.post('/:id/prev-round', authorize('ADMIN', 'STAFF'), async (req, res, nex
     if (currentIndex <= 0) return res.status(400).json({ error: 'Already at first round' });
 
     const prevRound = rounds[currentIndex - 1];
-    const exchangeRate = group.tender.exchangeRate;
+    const exchangeRate = group.exchangeRate || group.tender.exchangeRate;
 
     let newBasePrice = 0;
     for (const item of group.items) {
@@ -386,9 +388,10 @@ router.post('/:id/send-to-haraj', authorize('ADMIN', 'STAFF'), async (req, res, 
     // Calculate Haraj price: use lowest of CIF, FOB, TAX for each item
     let calculatedHarajPrice = 0;
     if (group.items.length > 0) {
+      const exchangeRate = group.exchangeRate || group.tender.exchangeRate;
       for (const item of group.items) {
         const lowestPrice = Math.min(item.cif || 0, item.fob || 0, item.tax || 0);
-        const unitPrice = lowestPrice * group.tender.exchangeRate;
+        const unitPrice = lowestPrice * exchangeRate;
         const totalPrice = unitPrice * item.totalQuantity;
         calculatedHarajPrice += totalPrice;
       }
@@ -432,7 +435,7 @@ router.post('/:id/revert-from-haraj', authorize('ADMIN', 'STAFF'), async (req, r
       ? group.previousRound 
       : round1;
 
-    const exchangeRate = group.tender.exchangeRate;
+    const exchangeRate = group.exchangeRate || group.tender.exchangeRate;
 
     // Recalculate prices based on the reverted round
     let newBasePrice = 0;
