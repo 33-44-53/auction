@@ -254,16 +254,19 @@ router.post(
             }
           });
 
+          // Use group-specific exchange rate if available, otherwise use tender-level
+          const groupExchangeRate = groupMeta.exchangeRate ? parseFloat(groupMeta.exchangeRate) : effectiveExchangeRate;
+
           let groupBasePrice = 0;
           for (const itemData of groupData.items) {
             let unitPrice;
             if (tenderType === 'HARAJ') {
               // For Haraj: use LOWEST of CIF, FOB, TAX
               const lowestPrice = Math.min(itemData.cif || 0, itemData.fob || 0, itemData.tax || 0);
-              unitPrice = lowestPrice * effectiveExchangeRate;
+              unitPrice = lowestPrice * groupExchangeRate;
             } else {
-              // For Auction: use HIGHEST of CIF, FOB, TAX (Round 1)
-              unitPrice = Math.max(itemData.cif || 0, itemData.fob || 0, itemData.tax || 0) * effectiveExchangeRate;
+              // For Auction: use HIGHEST of CIF, FOB, TAX (current round price)
+              unitPrice = Math.max(itemData.cif || 0, itemData.fob || 0, itemData.tax || 0) * groupExchangeRate;
             }
             const totalPrice = unitPrice * (itemData.totalQuantity || 0);
 
