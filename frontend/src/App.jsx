@@ -1304,42 +1304,8 @@ function GroupDetailPage() {
             {group.vehiclePlate && (
               <p className="text-sm text-gray-500 mt-1">Vehicle Plate: {group.vehiclePlate}</p>
             )}
-            {/* Group-level metadata */}
-            {(group.title || group.date || group.location || group.responsibleBody || group.exchangeRate) && (
-              <div className="mt-3 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-3">
-                <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                  {group.title && (
-                    <div>
-                      <span className="text-gray-500 font-medium">Title:</span>
-                      <p className="text-gray-800 font-semibold">{group.title}</p>
-                    </div>
-                  )}
-                  {group.date && (
-                    <div>
-                      <span className="text-gray-500 font-medium">Date:</span>
-                      <p className="text-gray-800 font-semibold">{group.date}</p>
-                    </div>
-                  )}
-                  {group.location && (
-                    <div>
-                      <span className="text-gray-500 font-medium">Location:</span>
-                      <p className="text-gray-800 font-semibold">{group.location}</p>
-                    </div>
-                  )}
-                  {group.responsibleBody && (
-                    <div>
-                      <span className="text-gray-500 font-medium">Responsible Body:</span>
-                      <p className="text-gray-800 font-semibold">{group.responsibleBody}</p>
-                    </div>
-                  )}
-                  {group.exchangeRate && (
-                    <div>
-                      <span className="text-gray-500 font-medium">Exchange Rate:</span>
-                      <p className="text-gray-800 font-semibold">{group.exchangeRate}</p>
-                    </div>
-                  )}
-                </div>
-              </div>
+            {group.title && (
+              <p className="text-sm text-blue-600 font-medium mt-2">{group.title}</p>
             )}
           </div>
           <div className="flex items-center space-x-3">
@@ -1422,6 +1388,38 @@ function GroupDetailPage() {
             <p className="font-medium text-lg">{group.bids?.length || 0}</p>
           </div>
         </div>
+
+        {/* Group-level metadata above action buttons */}
+        {(group.date || group.location || group.responsibleBody || group.exchangeRate) && (
+          <div className="mt-4 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-4">
+            <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
+              {group.date && (
+                <div className="flex justify-between">
+                  <span className="text-gray-500 font-medium">Date:</span>
+                  <span className="text-gray-800 font-semibold">{group.date}</span>
+                </div>
+              )}
+              {group.location && (
+                <div className="flex justify-between">
+                  <span className="text-gray-500 font-medium">Location:</span>
+                  <span className="text-gray-800 font-semibold">{group.location}</span>
+                </div>
+              )}
+              {group.responsibleBody && (
+                <div className="flex justify-between">
+                  <span className="text-gray-500 font-medium">Responsible Body:</span>
+                  <span className="text-gray-800 font-semibold">{group.responsibleBody}</span>
+                </div>
+              )}
+              {group.exchangeRate && (
+                <div className="flex justify-between">
+                  <span className="text-gray-500 font-medium">Exchange Rate:</span>
+                  <span className="text-gray-800 font-semibold">{group.exchangeRate}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {group.status === 'OPEN' && (
           <div className="flex space-x-2 mt-4">
