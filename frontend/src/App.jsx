@@ -1525,9 +1525,27 @@ function GroupDetailPage() {
                           </td>
                           <td>
                             {group.status === 'OPEN' && (
-                              <button onClick={() => handleDeleteBid(bid.id)} className="text-red-600 hover:text-red-800" title="Delete bid">
-                                <Trash2 className="w-4 h-4" />
-                              </button>
+                              <div className="flex space-x-2">
+                                <button 
+                                  onClick={() => {
+                                    setSelectedBidder({ id: bid.bidderId, name: bid.bidder.name, companyName: bid.bidder.companyName });
+                                    setBidderSearch(`${bid.bidder.name} - ${bid.bidder.companyName}`);
+                                    setBidAmount(bid.bidPrice.toString());
+                                    setShowBidModal(true);
+                                  }}
+                                  className="text-blue-600 hover:text-blue-800 text-xs font-medium"
+                                  title="Edit bid"
+                                >
+                                  Edit
+                                </button>
+                                <button 
+                                  onClick={() => handleDeleteBid(bid.id)} 
+                                  className="text-red-600 hover:text-red-800" 
+                                  title="Delete bid"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
                             )}
                           </td>
                         </tr>
