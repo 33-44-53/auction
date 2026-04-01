@@ -121,6 +121,20 @@ function buildGroupSheet(sheet, group, tender) {
     r++;
   }
 
+  // Base price summary row (immediately after items)
+  sheet.mergeCells(`A${r}:J${r}`);
+  setCell(sheet, r, 1, 'መነሻ ዋጋ', bold, borderStyle);
+  const bp = sheet.getCell(r, 11);
+  bp.value = group.basePrice || 0;
+  bp.numFmt = Number.isInteger(group.basePrice) ? '#,##0' : '#,##0.00';
+  applyStyle(bp, bold, borderStyle);
+  r++;
+
+  // Bids label (immediately after base price)
+  sheet.mergeCells(`A${r}:O${r}`);
+  setCell(sheet, r, 1, 'ከቫት በፊት ተጫራች የሚሰጠው  ጠቅላላ ዋጋ', bold, borderStyle);
+  r++;
+
   // If there are more bidders than items, add extra rows for remaining bidders
   const remainingBidders = roundBids.slice(group.items.length);
   for (let idx = 0; idx < remainingBidders.length; idx++) {
@@ -155,20 +169,6 @@ function buildGroupSheet(sheet, group, tender) {
     groupCodeCell.value = group.code;
     Object.assign(groupCodeCell, { ...bold, ...center, ...borderStyle });
   }
-
-  // Base price summary row
-  sheet.mergeCells(`A${r}:J${r}`);
-  setCell(sheet, r, 1, 'መነሻ ዋጋ', bold, borderStyle);
-  const bp = sheet.getCell(r, 11);
-  bp.value = group.basePrice || 0;
-  bp.numFmt = Number.isInteger(group.basePrice) ? '#,##0' : '#,##0.00';
-  applyStyle(bp, bold, borderStyle);
-  r++;
-
-  // Bids label
-  sheet.mergeCells(`A${r}:O${r}`);
-  setCell(sheet, r, 1, 'ከቫት በፊት ተጫራች የሚሰጠው  ጠቅላላ ዋጋ', bold, borderStyle);
-  r++;
 
   // Column widths
   [8, 28, 12, 10, 10, 10, 10, 10, 12, 16, 16, 12, 12, 12, 12, 12, 12, 18, 22]
