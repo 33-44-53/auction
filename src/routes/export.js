@@ -131,13 +131,6 @@ function buildGroupSheet(sheet, group, tender) {
   // If there are more bidders than items, add extra rows for remaining bidders
   const remainingBidders = roundBids.slice(group.items.length);
   for (const bid of remainingBidders) {
-    // Empty cells for columns A-L
-    for (let col = 1; col <= 12; col++) {
-      const cell = sheet.getCell(r, col);
-      cell.value = '';
-      applyStyle(cell, borderStyle);
-    }
-
     // Bid price in column M (13)
     const bc = sheet.getCell(r, 13);
     bc.value = bid.bidPrice;
