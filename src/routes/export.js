@@ -255,69 +255,75 @@ router.get('/excel/:tenderId', async (req, res, next) => {
     const sheet = workbook.addWorksheet('ጨረታ');
     const exRate = tender.exchangeRate;
 
-    // Row 1: Header info (matching image)
-    sheet.mergeCells('A1:B1');
-    setCell(sheet, 1, 1, 'የተካሄደ ቁጥር፡', bold);
-    sheet.mergeCells('C1:D1');
-    setCell(sheet, 1, 3, tender.date ? new Date(tender.date).toLocaleDateString('en-GB') : '5/4/2017- 18/04/2017');
-    
-    sheet.mergeCells('E1:F1');
-    setCell(sheet, 1, 5, 'የተካሄደ ቦታ፡');
-    sheet.mergeCells('G1:H1');
-    setCell(sheet, 1, 7, tender.location || '');
-    
-    sheet.mergeCells('I1:J1');
-    setCell(sheet, 1, 9, 'ዓይነት');
-    sheet.mergeCells('K1:L1');
-    setCell(sheet, 1, 11, 'ስነዳ');
-    
-    sheet.mergeCells('M1:N1');
-    setCell(sheet, 1, 13, 'የተጨማሪ ስልት');
+    let r = 1;
 
-    // Row 2: Title
-    sheet.mergeCells('A2:N2');
-    setCell(sheet, 2, 1, 'ግልፅ ወይም ሚስጥር 01/2018 የተለያዩ የሞባይል ቀፎዎች ለመግዛት የተዘጋጀ', { font: { bold: true, size: 11, name: 'Nyala' }, ...center });
-
-    // Row 3: Column headers (13 columns + 1 for group code)
-    const HEADERS = [
-      'ተ.ቁ',
-      'የእቃው አይነት',
-      'ማርክ',
-      'ስሪት\nሀገር',
-      'መለኪያ',
-      'መጋዘን1',
-      'መጋዘን 2',
-      'መጋዝን\n3',
-      'ጠቅላላ\nድምር',
-      'የአንድ ዋጋ (CIF)',
-      'ጠቅላላ\nዋጋ',
-      'ሞዴል',
-      'ዋጋ',
-      'ዋጋ'
-    ];
-    HEADERS.forEach((h, i) => setCell(sheet, 3, i + 1, h, hStyle));
-    sheet.getRow(3).height = 36;
-
-    let r = 4;
-    let globalItemNumber = 1;
-
+    // Process each group as a separate table
     for (const group of tender.groups) {
       const round = group.currentRound;
+      const groupExRate = group.exchangeRate || exRate;
+
+      // Header row with metadata
+      sheet.mergeCells(`A${r}:B${r}`);
+      setCell(sheet, r, 1, 'የተካሄደ ቀን፡', bold);
+      sheet.mergeCells(`C${r}:D${r}`);
+      setCell(sheet, r, 3, group.date || (tender.date ? new Date(tender.date).toLocaleDateString('en-GB') : ''));
+      
+      sheet.mergeCells(`E${r}:F${r}`);
+      setCell(sheet, r, 5, 'የተካሄደ ቦታ፡');
+      sheet.mergeCells(`G${r}:H${r}`);
+      setCell(sheet, r, 7, group.location || tender.location || '');
+      
+      sheet.mergeCells(`I${r}:J${r}`);
+      setCell(sheet, r, 9, 'ዓይነት');
+      sheet.mergeCells(`K${r}:L${r}`);
+      setCell(sheet, r, 11, 'ስነዳ');
+      
+      sheet.mergeCells(`M${r}:N${r}`);
+      setCell(sheet, r, 13, 'የተጨማሪ ስልት');
+      r++;
+
+      // Title row
+      sheet.mergeCells(`A${r}:N${r}`);
+      setCell(sheet, r, 1, `ግልፅ ወይም ሚስጥር ${tender.tenderNumber} ${group.title || tender.title || ''}`, { font: { bold: true, size: 11, name: 'Nyala' }, ...center });
+      r++;
+
+      // Column headers
+      const HEADERS = [
+        'ተ.ቁ',
+        'የእቃው አይነት',
+        'ማርክ',
+        'ስሪት\nሀገር',
+        'መለኪያ',
+        'መጋዘን1',
+        'መጋዘን 2',
+        'መጋዝን\n3',
+        'ጠቅላላ\nድምር',
+        'የአንድ ዋጋ (CIF)',
+        'ጠቅላላ\nዋጋ',
+        'ሞዴል',
+        'ዋጋ',
+        'ዋጋ'
+      ];
+      HEADERS.forEach((h, i) => setCell(sheet, r, i + 1, h, hStyle));
+      sheet.getRow(r).height = 36;
+      r++;
+
+      // Items
+      let itemNumber = 1;
       const groupStartRow = r;
       
-      for (let i = 0; i < group.items.length; i++) {
-        const item = group.items[i];
+      for (const item of group.items) {
         const unitPriceMap = {
-          FOB: item.fob * exRate,
-          CIF: item.cif * exRate,
-          TAX: item.tax * exRate,
+          FOB: item.fob * groupExRate,
+          CIF: item.cif * groupExRate,
+          TAX: item.tax * groupExRate,
           HARAJ: item.unitPrice || 0
         };
         const unitPrice = unitPriceMap[round] || item.unitPrice || 0;
         const totalPrice = unitPrice * item.totalQuantity;
 
         const rowData = [
-          globalItemNumber++,
+          itemNumber++,
           item.name,
           item.brand || '',
           item.country || '',
@@ -329,8 +335,8 @@ router.get('/excel/:tenderId', async (req, res, next) => {
           unitPrice,
           totalPrice,
           item.itemCode || item.serialNumber || '',
-          '', // Empty for now
-          '' // Group code will be merged
+          '', // Empty for bids
+          '' // Group code
         ];
 
         rowData.forEach((v, colIdx) => {
@@ -344,7 +350,7 @@ router.get('/excel/:tenderId', async (req, res, next) => {
         r++;
       }
 
-      // Merge group code cell on the right (column N)
+      // Merge group code cell (column N)
       if (group.items.length > 0) {
         sheet.mergeCells(`N${groupStartRow}:N${r - 1}`);
         const groupCell = sheet.getCell(`N${groupStartRow}`);
@@ -360,18 +366,21 @@ router.get('/excel/:tenderId', async (req, res, next) => {
       bp.numFmt = Number.isInteger(group.basePrice) ? '#,##0' : '#,##0.00';
       applyStyle(bp, bold, borderStyle);
       r++;
-    }
 
-    // Final summary row
-    sheet.mergeCells(`A${r}:J${r}`);
-    setCell(sheet, r, 1, 'ከቫት በፊት ተጫራች የሚሰጠው  ጠቅላላ ዋጋ', bold, borderStyle);
-    r++;
+      // Bids label row
+      sheet.mergeCells(`A${r}:N${r}`);
+      setCell(sheet, r, 1, 'ከቫት በፊት ተጫራች የሚሰጠው ጠቅላላ ዋጋ', bold, borderStyle);
+      r++;
+
+      // Empty rows between groups
+      r += 2;
+    }
 
     // Column widths
     [6, 30, 12, 10, 10, 10, 10, 10, 12, 16, 16, 15, 12, 15]
       .forEach((w, i) => { sheet.getColumn(i + 1).width = w; });
 
-    sheet.views = [{ state: 'frozen', ySplit: 3 }];
+    sheet.views = [{ state: 'frozen', ySplit: 0 }];
 
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     const safeTN = tender.tenderNumber.replace(/[^a-zA-Z0-9\-_]/g, '_');
