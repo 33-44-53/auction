@@ -92,13 +92,13 @@ function buildGroupSheet(sheet, group, tender) {
         return; // Don't create/style these cells
       }
       
-      // Skip group code column (index 14) - will be merged later
-      if (i === 14) {
-        return;
+      const cl = sheet.getCell(r, i + 1);
+      
+      // Skip setting value for group code column (index 14) - will be set during merge
+      if (i !== 14) {
+        cl.value = v;
       }
       
-      const cl = sheet.getCell(r, i + 1);
-      cl.value = v;
       Object.assign(cl, borderStyle);
       if (typeof v === 'number' && v !== 0) {
         // Remove decimals for whole numbers
@@ -151,6 +151,10 @@ function buildGroupSheet(sheet, group, tender) {
     const nc = sheet.getCell(r, 14);
     nc.value = bid.bidder.name;
     applyStyle(nc, borderStyle);
+
+    // Create cell for group code column O (15) but don't set value - will be set during merge
+    const gc = sheet.getCell(r, 15);
+    applyStyle(gc, borderStyle);
 
     // Highlight highest bidder - yellow for name, green for price
     if (isHighest) {
