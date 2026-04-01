@@ -24,14 +24,27 @@ async function parseExcelFile(filePath, tenderId) {
 
       const groupCode = getValue(row, headerMap.groupCode);
       const groupName = getValue(row, headerMap.groupName);
+      const title = getValue(row, headerMap.title);
+      const date = getValue(row, headerMap.date);
+      const location = getValue(row, headerMap.location);
+      const responsibleBody = getValue(row, headerMap.responsibleBody);
+      const exchangeRate = getValue(row, headerMap.exchangeRate);
 
       if (groupCode !== null && String(groupCode).trim() !== '') {
         if (currentGroup) groups.push(currentGroup);
         currentGroup = {
           code: cleanGroupCode(groupCode),
           name: groupName || `Group ${++groupIndex}`,
+          metadata: {
+            title: title || tenderMeta.title,
+            date: date || tenderMeta.date,
+            location: location || tenderMeta.location,
+            responsibleBody: responsibleBody || tenderMeta.responsibleBody,
+            exchangeRate: exchangeRate ? parseFloat(String(exchangeRate).replace(/,/g, '')) : (tenderMeta.exchangeRate ? parseFloat(tenderMeta.exchangeRate) : null)
+          },
           items: []
         };
+        console.log(`Group ${currentGroup.code} metadata:`, currentGroup.metadata);
         // Also parse this row as an item
         const item = parseItemRow(row, headerMap);
         if (item) currentGroup.items.push(item);
@@ -122,6 +135,31 @@ function mapHeaders(headers) {
     if (h === 'ኮድ' || hLower === 'code' || hLower.includes('group code')) {
       map.groupCode = index;
       console.log(`Mapped groupCode to column ${index}: "${h}"`);
+    }
+    // Title (group-specific)
+    else if (h === 'Title' || h === 'ስም' || hLower === 'title') {
+      map.title = index;
+      console.log(`Mapped title to column ${index}: "${h}"`);
+    }
+    // Date (group-specific)
+    else if (h === 'የተያዘበት ቀን' || hLower.includes('date')) {
+      map.date = index;
+      console.log(`Mapped date to column ${index}: "${h}"`);
+    }
+    // Location (group-specific)
+    else if (h === 'የተያዘበት ቦታ' || hLower.includes('location')) {
+      map.location = index;
+      console.log(`Mapped location to column ${index}: "${h}"`);
+    }
+    // Responsible body (group-specific)
+    else if (h === 'ያዥው አካል' || hLower.includes('responsible')) {
+      map.responsibleBody = index;
+      console.log(`Mapped responsibleBody to column ${index}: "${h}"`);
+    }
+    // Exchange Rate (group-specific)
+    else if (h === 'Exchange Rate' || h === 'የምንዛሪ' || hLower.includes('exchange') || hLower.includes('rate')) {
+      map.exchangeRate = index;
+      console.log(`Mapped exchangeRate to column ${index}: "${h}"`);
     }
     // Item name
     else if (h === 'የእቃው አይነት' || hLower.includes('item name') || hLower.includes('item type')) {
