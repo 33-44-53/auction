@@ -38,15 +38,15 @@ function buildGroupSheet(sheet, group, tender) {
     'ተ.ቁ', 'የእቃው አይነት', 'ማርክ', 'ስሪት\n ሀገር', 'መለኪያ',
     'መጋዘን1', 'መጋዘን 2', 'መጋዝን\n3', 'ጠቅላላ ድምር',
     `መነሻ ዋጋ\n(${round})`, 'ጠቅላላ \nዋጋ', 'ሞዴል',
-    'ተጨራጩ የሰጠው ዋጋ', 'የተጨራቹ ስም',
+    'ተጨራጩ የሰጠው ዋጋ', 'የተጨራቹ ስም', 'ኮድ',
     'የአንድ ዋጋ\n(FOB)', 'የአንድ ዋጋ\n(CIF)', 'የአንድ ዋጋ\n(TAX)', 'exchange rate'
   ];
 
   // Row 1: title
   sheet.mergeCells('A1:E1');
   setCell(sheet, 1, 1, `ግልፅ ጨረታ ቁጥር ${tender.tenderNumber}`, { font: { bold: true, size: 13, name: 'Nyala' } });
-  sheet.mergeCells('F1:K1');
-  setCell(sheet, 1, 6, tender.title || group.name || '', { font: { bold: true, size: 13, name: 'Nyala' }, ...center });
+  sheet.mergeCells('F1:L1');
+  setCell(sheet, 1, 6, tender.title || '', { font: { bold: true, size: 13, name: 'Nyala' }, ...center });
 
   // Row 2: column headers
   HEADERS.forEach((h, i) => setCell(sheet, 2, i + 1, h, hStyle));
@@ -62,6 +62,7 @@ function buildGroupSheet(sheet, group, tender) {
 
   let r = 3;
   let itemNumber = 1;
+  const groupStartRow = r;
   
   for (const item of group.items) {
     const unitPriceMap = {
@@ -80,14 +81,19 @@ function buildGroupSheet(sheet, group, tender) {
       itemNumber++, item.name, item.brand || '', item.country || '', item.unit,
       item.warehouse1 || 0, item.warehouse2 || 0, item.warehouse3 || 0, item.totalQuantity,
       unitPrice, totalPrice, item.itemCode || item.serialNumber || '',
-      bidder ? bidder.bidPrice : '', bidder ? bidder.bidder.name : '',
+      bidder ? bidder.bidPrice : '', bidder ? bidder.bidder.name : '', group.code,
       itemIndex === 0 ? item.fob : '', itemIndex === 0 ? item.cif : '', itemIndex === 0 ? item.tax : '', itemIndex === 0 ? exRate : ''
     ];
 
     rowData.forEach((v, i) => {
-      // Skip rendering empty cells for FOB, CIF, TAX, Exchange Rate columns (indices 14-17)
-      if (itemIndex > 0 && i >= 14 && i <= 17) {
+      // Skip rendering empty cells for FOB, CIF, TAX, Exchange Rate columns (indices 15-18)
+      if (itemIndex > 0 && i >= 15 && i <= 18) {
         return; // Don't create/style these cells
+      }
+      
+      // Skip group code column (index 14) - will be merged later
+      if (i === 14) {
+        return;
       }
       
       const cl = sheet.getCell(r, i + 1);
@@ -102,8 +108,8 @@ function buildGroupSheet(sheet, group, tender) {
         }
       }
       
-      // Highlight winner bid - yellow for name, green for price
-      if (bidder && bidder.isWinner) {
+      // Highlight highest bidder (first in sorted list) - yellow for name, green for price
+      if (bidder && itemIndex === 0 && roundBids.length > 0 && bidder.id === roundBids[0].id) {
         if (i === 13) { // Bidder name column
           applyStyle(cl, yellowFill, bold);
         } else if (i === 12) { // Bid price column
@@ -112,6 +118,15 @@ function buildGroupSheet(sheet, group, tender) {
       }
     });
     r++;
+  }
+
+  // Merge group code column (column O, index 15) for all item rows
+  if (group.items.length > 0) {
+    const groupEndRow = r - 1;
+    sheet.mergeCells(`O${groupStartRow}:O${groupEndRow}`);
+    const groupCodeCell = sheet.getCell(`O${groupStartRow}`);
+    groupCodeCell.value = group.code;
+    Object.assign(groupCodeCell, { ...bold, ...center, ...borderStyle });
   }
 
   // Base price summary row
@@ -124,13 +139,16 @@ function buildGroupSheet(sheet, group, tender) {
   r++;
 
   // Bids label
-  sheet.mergeCells(`A${r}:N${r}`);
+  sheet.mergeCells(`A${r}:O${r}`);
   setCell(sheet, r, 1, 'ከቫት በፊት ተጫራች የሚሰጠው  ጠቅላላ ዋጋ', bold, borderStyle);
   r++;
 
   // If there are more bidders than items, add extra rows for remaining bidders
   const remainingBidders = roundBids.slice(group.items.length);
-  for (const bid of remainingBidders) {
+  for (let idx = 0; idx < remainingBidders.length; idx++) {
+    const bid = remainingBidders[idx];
+    const isHighest = (group.items.length + idx) === 0; // Check if this is the highest bidder overall
+    
     // Bid price in column M (13)
     const bc = sheet.getCell(r, 13);
     bc.value = bid.bidPrice;
@@ -142,8 +160,13 @@ function buildGroupSheet(sheet, group, tender) {
     nc.value = bid.bidder.name;
     applyStyle(nc, borderStyle);
 
-    // Highlight winner - yellow for name, green for price
-    if (bid.isWinner) {
+    // Group code in column O (15)
+    const gc = sheet.getCell(r, 15);
+    gc.value = group.code;
+    applyStyle(gc, borderStyle, bold, center);
+
+    // Highlight highest bidder - yellow for name, green for price
+    if (isHighest) {
       applyStyle(bc, winnerFill, bold);
       applyStyle(nc, yellowFill, bold);
     }
@@ -151,7 +174,7 @@ function buildGroupSheet(sheet, group, tender) {
   }
 
   // Column widths
-  [8, 28, 12, 10, 10, 10, 10, 10, 12, 16, 16, 12, 12, 12, 12, 12, 18, 22]
+  [8, 28, 12, 10, 10, 10, 10, 10, 12, 16, 16, 12, 12, 12, 12, 12, 12, 18, 22]
     .forEach((w, i) => { sheet.getColumn(i + 1).width = w; });
 
   sheet.views = [{ state: 'frozen', ySplit: 2 }];
