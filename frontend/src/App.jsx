@@ -651,19 +651,7 @@ function TenderDetailPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4 text-sm">
-          <div className="bg-gray-50 p-3 rounded">
-            <span className="text-gray-500">Date</span>
-            <p className="font-medium">{tender.date || '-'}</p>
-          </div>
-          <div className="bg-gray-50 p-3 rounded">
-            <span className="text-gray-500">Location</span>
-            <p className="font-medium">{tender.location || '-'}</p>
-          </div>
-          <div className="bg-gray-50 p-3 rounded">
-            <span className="text-gray-500">Exchange Rate</span>
-            <p className="font-medium">{tender.exchangeRate}</p>
-          </div>
+        <div className="grid grid-cols-1 gap-4 mt-4 text-sm">
           <div className="bg-gray-50 p-3 rounded">
             <span className="text-gray-500">Groups</span>
             <p className="font-medium">{tender.groups?.length || 0}</p>
