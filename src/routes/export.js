@@ -62,6 +62,7 @@ function buildGroupSheet(sheet, group, tender) {
 
   let r = 3;
   let itemNumber = 1;
+  const startRow = r;
   
   for (const item of group.items) {
     const unitPriceMap = {
@@ -81,7 +82,7 @@ function buildGroupSheet(sheet, group, tender) {
       item.warehouse1 || 0, item.warehouse2 || 0, item.warehouse3 || 0, item.totalQuantity,
       unitPrice, totalPrice, item.itemCode || item.serialNumber || '',
       bidder ? bidder.bidPrice : '', bidder ? bidder.bidder.name : '',
-      itemIndex === 0 ? item.fob : '', itemIndex === 0 ? item.cif : '', itemIndex === 0 ? item.tax : '', itemIndex === 0 ? exRate : ''
+      '', '', '', '' // FOB, CIF, TAX, Exchange Rate - will be merged
     ];
 
     rowData.forEach((v, i) => {
@@ -107,6 +108,40 @@ function buildGroupSheet(sheet, group, tender) {
       }
     });
     r++;
+  }
+
+  // Merge FOB, CIF, TAX, Exchange Rate columns (columns 15-18, O-R)
+  if (group.items.length > 0) {
+    const firstItem = group.items[0];
+    const endRow = startRow + group.items.length - 1;
+    
+    // Merge and set FOB (column 15, O)
+    sheet.mergeCells(`O${startRow}:O${endRow}`);
+    const fobCell = sheet.getCell(`O${startRow}`);
+    fobCell.value = firstItem.fob;
+    fobCell.numFmt = Number.isInteger(firstItem.fob) ? '#,##0' : '#,##0.00';
+    applyStyle(fobCell, borderStyle, center);
+    
+    // Merge and set CIF (column 16, P)
+    sheet.mergeCells(`P${startRow}:P${endRow}`);
+    const cifCell = sheet.getCell(`P${startRow}`);
+    cifCell.value = firstItem.cif;
+    cifCell.numFmt = Number.isInteger(firstItem.cif) ? '#,##0' : '#,##0.00';
+    applyStyle(cifCell, borderStyle, center);
+    
+    // Merge and set TAX (column 17, Q)
+    sheet.mergeCells(`Q${startRow}:Q${endRow}`);
+    const taxCell = sheet.getCell(`Q${startRow}`);
+    taxCell.value = firstItem.tax;
+    taxCell.numFmt = Number.isInteger(firstItem.tax) ? '#,##0' : '#,##0.00';
+    applyStyle(taxCell, borderStyle, center);
+    
+    // Merge and set Exchange Rate (column 18, R)
+    sheet.mergeCells(`R${startRow}:R${endRow}`);
+    const exRateCell = sheet.getCell(`R${startRow}`);
+    exRateCell.value = exRate;
+    exRateCell.numFmt = Number.isInteger(exRate) ? '#,##0' : '#,##0.00';
+    applyStyle(exRateCell, borderStyle, center);
   }
 
   // Base price summary row
