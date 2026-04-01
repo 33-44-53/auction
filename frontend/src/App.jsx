@@ -1291,6 +1291,43 @@ function GroupDetailPage() {
             {group.vehiclePlate && (
               <p className="text-sm text-gray-500 mt-1">Vehicle Plate: {group.vehiclePlate}</p>
             )}
+            {/* Group-level metadata */}
+            {(group.title || group.date || group.location || group.responsibleBody || group.exchangeRate) && (
+              <div className="mt-3 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-3">
+                <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                  {group.title && (
+                    <div>
+                      <span className="text-gray-500 font-medium">Title:</span>
+                      <p className="text-gray-800 font-semibold">{group.title}</p>
+                    </div>
+                  )}
+                  {group.date && (
+                    <div>
+                      <span className="text-gray-500 font-medium">Date:</span>
+                      <p className="text-gray-800 font-semibold">{group.date}</p>
+                    </div>
+                  )}
+                  {group.location && (
+                    <div>
+                      <span className="text-gray-500 font-medium">Location:</span>
+                      <p className="text-gray-800 font-semibold">{group.location}</p>
+                    </div>
+                  )}
+                  {group.responsibleBody && (
+                    <div>
+                      <span className="text-gray-500 font-medium">Responsible Body:</span>
+                      <p className="text-gray-800 font-semibold">{group.responsibleBody}</p>
+                    </div>
+                  )}
+                  {group.exchangeRate && (
+                    <div>
+                      <span className="text-gray-500 font-medium">Exchange Rate:</span>
+                      <p className="text-gray-800 font-semibold">{group.exchangeRate}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
           <div className="flex items-center space-x-3">
             <button
@@ -2467,10 +2504,6 @@ function NewTenderPage() {
             <tr>
               <th>Tender Number</th>
               <th>Type</th>
-              <th>Title</th>
-              <th>Date</th>
-              <th>Location</th>
-              <th>Exchange Rate</th>
               <th>Groups</th>
               <th>Status</th>
               <th>Actions</th>
@@ -2487,10 +2520,6 @@ function NewTenderPage() {
                     'bg-blue-100 text-blue-800'
                   }`}>{tender.tenderType || 'AUCTION'}{tender.tenderType === 'HARAJ' && tender.harajRound > 1 ? ` #${tender.harajRound}` : ''}</span>
                 </td>
-                <td>{tender.title || '-'}</td>
-                <td>{tender.date ? new Date(tender.date).toLocaleDateString() : '-'}</td>
-                <td>{tender.location || '-'}</td>
-                <td>{tender.exchangeRate}</td>
                 <td>{tender.groups?.length || 0}</td>
                 <td>
                   <span className={`px-2 py-1 rounded text-xs ${
@@ -2507,7 +2536,7 @@ function NewTenderPage() {
                   </button>
                 </td>
               </tr>
-            ))}
+            ))
           </tbody>
         </table>
         </div>
