@@ -155,8 +155,8 @@ function mapHeaders(headers) {
       map.warehouse3 = index;
       console.log(`Mapped warehouse3 to column ${index}: "${h}"`);
     }
-    // Total quantity
-    else if (h === 'ጠቅላላ ድምር' || hLower.includes('total') || hLower === 'quantity' || hLower === 'qty') {
+    // Total quantity (legacy fallback only — system calculates from warehouses)
+    else if ((hLower === 'quantity' || hLower === 'qty') && !hLower.includes('total')) {
       map.quantity = index;
       console.log(`Mapped quantity to column ${index}: "${h}"`);
     }
@@ -164,6 +164,10 @@ function mapHeaders(headers) {
     else if (h === 'ሞዴል' || hLower === 'model' || hLower.includes('item code')) {
       map.itemCode = index;
       console.log(`Mapped itemCode to column ${index}: "${h}"`);
+    }
+    // Skip calculated columns — system computes these
+    else if (h === 'ጠቅላላ ድምር' || h === 'መነሻ ዋጋ' || h === 'ጠቅላላ ዋጋ') {
+      console.log(`Skipping calculated column ${index}: "${h}"`);
     }
     // FOB
     else if (hLower.includes('fob') || h.includes('(FOB)')) {
