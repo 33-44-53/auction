@@ -707,7 +707,10 @@ function TenderDetailPage() {
           {tender.groups?.map((group) => (
             <div key={group.id} className="bg-white rounded-lg shadow p-4">
               <div className="flex justify-between items-start mb-2">
-                <h3 className="font-bold text-lg">{group.code}</h3>
+                <div>
+                  <h3 className="font-bold text-lg">{group.code}</h3>
+                  {group.title && <p className="text-xs text-gray-600 mt-1">{group.title}</p>}
+                </div>
                 <span className={`px-2 py-1 rounded text-xs ${
                   group.status === 'OPEN' ? 'bg-green-100 text-green-800' :
                   group.status === 'SOLD' ? 'bg-blue-100 text-blue-800' :
@@ -718,10 +721,16 @@ function TenderDetailPage() {
                   {group.status}
                 </span>
               </div>
-              <p className="text-sm text-gray-600 mb-3">{group.name}</p>
+              <p className="text-sm text-gray-600 mb-2">{group.name}</p>
               {group.vehiclePlate && (
-                <p className="text-xs text-gray-500 mb-3">Vehicle: {group.vehiclePlate}</p>
+                <p className="text-xs text-gray-500 mb-2">Vehicle: {group.vehiclePlate}</p>
               )}
+              <div className="bg-blue-50 rounded p-2 mb-3 text-xs space-y-1">
+                {group.date && <div><span className="text-gray-500">Date:</span> <span className="font-medium">{group.date}</span></div>}
+                {group.location && <div><span className="text-gray-500">Location:</span> <span className="font-medium">{group.location}</span></div>}
+                {group.responsibleBody && <div><span className="text-gray-500">Responsible:</span> <span className="font-medium">{group.responsibleBody}</span></div>}
+                {group.exchangeRate && <div><span className="text-gray-500">Exchange Rate:</span> <span className="font-medium">{group.exchangeRate}</span></div>}
+              </div>
               <div className="grid grid-cols-3 gap-2 text-sm mb-3">
                 <div>
                   <span className="text-gray-500">Round</span>
@@ -2241,7 +2250,6 @@ function NewTenderPage() {
     setError('');
     if (mode === 'excel' && !file) { setError('Please select an Excel file'); return; }
     if (!formData.tenderNumber) { setError('Tender Number is required'); return; }
-    if (!formData.exchangeRate) { setError('Exchange Rate is required'); return; }
     setSubmitting(true);
     try {
       const fd = new FormData();
@@ -2420,59 +2428,18 @@ function NewTenderPage() {
               </div>
             )}
 
-            {/* Tender info fields — always shown, auto-filled from Excel in excel mode */}
-            <div className="grid grid-cols-2 gap-4">
+            {/* Tender info fields — only Tender Number */}
+            <div>
               <Field label="Tender Number" required>
                 <input
                   type="text"
                   value={formData.tenderNumber}
                   onChange={(e) => setFormData({ ...formData, tenderNumber: e.target.value })}
-                  placeholder="e.g. TND-2024-001"
+                  placeholder="e.g. 033/2018"
                   required
                 />
               </Field>
-              <Field label="Title">
-                <input
-                  type="text"
-                  value={formData.title}
-                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  placeholder="e.g. Seized Goods Auction"
-                />
-              </Field>
-              <Field label="Date">
-                <input
-                  type="date"
-                  value={formData.date}
-                  onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                />
-              </Field>
-              <Field label="Location">
-                <input
-                  type="text"
-                  value={formData.location}
-                  onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                  placeholder="e.g. Dire Dawa Customs Gate 1"
-                />
-              </Field>
-              <Field label="Responsible Body">
-                <input
-                  type="text"
-                  value={formData.responsibleBody}
-                  onChange={(e) => setFormData({ ...formData, responsibleBody: e.target.value })}
-                  placeholder="e.g. Dire Dawa Customs Commission"
-                />
-              </Field>
-              <Field label="Exchange Rate" required>
-                <input
-                  type="number"
-                  value={formData.exchangeRate}
-                  onChange={(e) => setFormData({ ...formData, exchangeRate: e.target.value })}
-                  placeholder="e.g. 57.5"
-                  step="0.01"
-                  min="0"
-                  required
-                />
-              </Field>
+              <p className="text-xs text-gray-500 mt-2">ℹ Group-level metadata (Title, Date, Location, Responsible Body, Exchange Rate) will be extracted from Excel columns</p>
             </div>
 
             {mode === 'excel' && preview && (
