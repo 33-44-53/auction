@@ -130,8 +130,8 @@ function buildGroupSheet(sheet, group, tender) {
   applyStyle(bp, bold, borderStyle);
   r++;
 
-  // Bids label (immediately after base price)
-  sheet.mergeCells(`A${r}:O${r}`);
+  // Bids label (immediately after base price) - don't include column O
+  sheet.mergeCells(`A${r}:N${r}`);
   setCell(sheet, r, 1, 'ከቫት በፊት ተጫራች የሚሰጠው  ጠቅላላ ዋጋ', bold, borderStyle);
   r++;
 
