@@ -610,14 +610,36 @@ function TenderDetailPage() {
             <span className={`px-3 py-1 rounded text-sm ${tender.status === 'OPEN' ? 'bg-green-100 text-green-800' : tender.status === 'SOLD' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'}`}>
               {tender.status}
             </span>
-            <a
-              href={`/api/export/excel/${tender.id}`}
-              target="_blank"
-              rel="noreferrer"
+            <button
+              onClick={async () => {
+                try {
+                  const token = localStorage.getItem('token');
+                  const apiUrl = import.meta.env.VITE_API_URL || '/api';
+                  const response = await fetch(`${apiUrl}/export/excel/${tender.id}`, {
+                    method: 'GET',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                  });
+                  if (!response.ok) throw new Error('Download failed');
+                  const blob = await response.blob();
+                  if (blob.size === 0) throw new Error('Downloaded file is empty');
+                  const url = window.URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `tender_${tender.tenderNumber}.xlsx`;
+                  document.body.appendChild(a);
+                  a.click();
+                  setTimeout(() => {
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                  }, 100);
+                } catch (error) {
+                  alert('Failed to download Excel file: ' + error.message);
+                }
+              }}
               className="btn-success text-xs"
             >
               ⬇ Excel
-            </a>
+            </button>
             <a
               href={`/api/export/pdf/${tender.id}`}
               target="_blank"
