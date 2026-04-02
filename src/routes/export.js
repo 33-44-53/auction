@@ -371,6 +371,7 @@ router.get('/excel/:tenderId', async (req, res, next) => {
 router.get('/pdf/:tenderId', async (req, res, next) => {
   let browser;
   try {
+    console.log(`[PDF Export] Starting PDF export for tender ${req.params.tenderId}`);
     const tenderId = parseInt(req.params.tenderId);
     const tender = await prisma.tender.findUnique({
       where: { id: tenderId },
@@ -381,8 +382,12 @@ router.get('/pdf/:tenderId', async (req, res, next) => {
         }
       }
     });
-    if (!tender) return res.status(404).json({ error: 'Tender not found' });
+    if (!tender) {
+      console.log(`[PDF Export] Tender ${tenderId} not found`);
+      return res.status(404).json({ error: 'Tender not found' });
+    }
 
+    console.log(`[PDF Export] Building HTML for ${tender.groups.length} groups`);
     let groupsHtml = '';
     for (const group of tender.groups) {
       const round = group.currentRound;
@@ -458,20 +463,42 @@ router.get('/pdf/:tenderId', async (req, res, next) => {
         .bids-label td { background: #fffbe6; font-weight: bold; }
       </style></head><body>${groupsHtml}</body></html>`;
 
-    browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] });
+    console.log(`[PDF Export] Launching puppeteer...`);
+    browser = await puppeteer.launch({ 
+      headless: true, 
+      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'] 
+    });
+    console.log(`[PDF Export] Creating new page...`);
     const page = await browser.newPage();
+    console.log(`[PDF Export] Setting content...`);
     await page.setContent(html, { waitUntil: 'networkidle0' });
+    console.log(`[PDF Export] Generating PDF...`);
     const pdfBuffer = await page.pdf({ format: 'A3', landscape: true, printBackground: true, margin: { top: '10px', bottom: '10px', left: '10px', right: '10px' } });
+    console.log(`[PDF Export] PDF generated, size: ${pdfBuffer.length} bytes`);
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="tender_${tender.tenderNumber}.pdf"`);
     res.send(pdfBuffer);
+    console.log(`[PDF Export] PDF sent successfully`);
 
-    await prisma.auditLog.create({
-      data: { userId: req.userId, action: 'EXPORT_PDF', entity: 'Tender', entityId: tenderId, details: JSON.stringify({ tenderNumber: tender.tenderNumber }), ipAddress: req.ip }
-    });
-  } catch (error) { next(error); }
-  finally { if (browser) await browser.close(); }
+    if (req.userId) {
+      await prisma.auditLog.create({
+        data: { userId: req.userId, action: 'EXPORT_PDF', entity: 'Tender', entityId: tenderId, details: JSON.stringify({ tenderNumber: tender.tenderNumber }), ipAddress: req.ip }
+      }).catch(() => {});
+    }
+  } catch (error) { 
+    console.error(`[PDF Export] Error:`, error);
+    console.error(`[PDF Export] Error stack:`, error.stack);
+    if (!res.headersSent) {
+      res.status(500).json({ error: error.message || 'Failed to generate PDF' });
+    }
+  }
+  finally { 
+    if (browser) {
+      console.log(`[PDF Export] Closing browser...`);
+      await browser.close(); 
+    }
+  }
 });
 
 // ── Export closed group with calculations (70%, 30%, VAT) ────────────────────
