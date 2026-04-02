@@ -281,8 +281,7 @@ router.get('/excel/:tenderId', async (req, res, next) => {
         'የአንድ ዋጋ (CIF)',
         'ጠቅላላ\nዋጋ',
         'ሞዴል',
-        'ዋጋ',
-        'ዋጋ'
+        'ምድብ ቁጥር'
       ];
       HEADERS.forEach((h, i) => setCell(sheet, r, i + 1, h, hStyle));
       sheet.getRow(r).height = 36;
@@ -315,8 +314,7 @@ router.get('/excel/:tenderId', async (req, res, next) => {
           unitPrice,
           totalPrice,
           item.itemCode || item.serialNumber || '',
-          '', // Empty for bids
-          '' // Group code
+          ''
         ];
 
         rowData.forEach((v, colIdx) => {
@@ -330,10 +328,10 @@ router.get('/excel/:tenderId', async (req, res, next) => {
         r++;
       }
 
-      // Merge group code cell (column N)
+      // Merge group code cell (column M)
       if (group.items.length > 0) {
-        sheet.mergeCells(`N${groupStartRow}:N${r - 1}`);
-        const groupCell = sheet.getCell(`N${groupStartRow}`);
+        sheet.mergeCells(`M${groupStartRow}:M${r - 1}`);
+        const groupCell = sheet.getCell(`M${groupStartRow}`);
         groupCell.value = group.code;
         Object.assign(groupCell, { ...bold, ...center, ...borderStyle });
       }
@@ -348,7 +346,7 @@ router.get('/excel/:tenderId', async (req, res, next) => {
       r++;
 
       // Bids label row
-      sheet.mergeCells(`A${r}:N${r}`);
+      sheet.mergeCells(`A${r}:M${r}`);
       setCell(sheet, r, 1, 'ከቫት በፊት ተጫራች የሚሰጠው ጠቅላላ ዋጋ', bold, borderStyle);
       r++;
 
@@ -357,7 +355,7 @@ router.get('/excel/:tenderId', async (req, res, next) => {
     }
 
     // Column widths
-    [6, 30, 12, 10, 10, 10, 10, 10, 12, 16, 16, 15, 12, 15]
+    [6, 30, 12, 10, 10, 10, 10, 10, 12, 16, 16, 15, 15]
       .forEach((w, i) => { sheet.getColumn(i + 1).width = w; });
 
     sheet.views = [{ state: 'frozen', ySplit: 0 }];
