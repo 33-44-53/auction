@@ -391,9 +391,7 @@ router.get('/pdf/:tenderId', async (req, res, next) => {
     let groupsHtml = '';
     for (const group of tender.groups) {
       const round = group.currentRound;
-      const exRate = tender.exchangeRate;
-      const roundBids = group.bids.filter(b => b.round === round).sort((a, b) => b.bidPrice - a.bidPrice);
-      const winner = roundBids.find(b => b.isWinner) || roundBids[0] || null;
+      const exRate = group.exchangeRate || tender.exchangeRate;
 
       let itemRows = '';
       let itemNum = 1;
@@ -402,36 +400,51 @@ router.get('/pdf/:tenderId', async (req, res, next) => {
         const unitPrice = unitPriceMap[round] || item.unitPrice || 0;
         const totalPrice = unitPrice * item.totalQuantity;
         itemRows += `<tr>
-          <td>${itemNum++}</td><td>${item.name}</td><td>${item.brand||''}</td><td>${item.country||''}</td>
-          <td>${item.unit}</td><td>${item.warehouse1||0}</td><td>${item.warehouse2||0}</td><td>${item.warehouse3||0}</td>
-          <td>${item.totalQuantity}</td><td>${fmt(unitPrice)}</td><td>${fmt(totalPrice)}</td>
-          <td>${item.itemCode||item.serialNumber||''}</td><td></td><td></td>
-          <td></td><td></td><td></td><td></td><td></td>
+          <td>${itemNum++}</td>
+          <td>${item.name}</td>
+          <td>${item.brand||''}</td>
+          <td>${item.country||''}</td>
+          <td>${item.unit}</td>
+          <td>${item.warehouse1||0}</td>
+          <td>${item.warehouse2||0}</td>
+          <td>${item.warehouse3||0}</td>
+          <td>${item.totalQuantity}</td>
+          <td>${fmt(unitPrice)}</td>
+          <td>${fmt(totalPrice)}</td>
+          <td>${item.itemCode||item.serialNumber||''}</td>
+          <td rowspan="${group.items.length}" class="group-code">${itemNum === 2 ? group.code : ''}</td>
         </tr>`;
       }
 
-      let bidRows = roundBids.map(bid => `
-        <tr class="${bid.isWinner ? 'winner' : ''}">
-          <td colspan="12"></td>
-          <td>${fmt(bid.bidPrice)}</td><td>${bid.bidder.name}</td>
-        </tr>`).join('');
-
       groupsHtml += `
         <div class="group-section">
-          <div class="group-title">ግልፅ ጨረታ ቁጥር ${tender.tenderNumber} &nbsp;&nbsp; ${tender.title || group.name || ''}</div>
+          <div class="group-title">ግልፅ ጨረታ ቁጥር ${tender.tenderNumber} ${group.title || tender.title || ''}</div>
           <table>
             <thead><tr>
-              <th>ተ.ቁ</th><th>የእቃው አይነት</th><th>ማርክ</th><th>ስሪት ሀገር</th><th>መለኪያ</th>
-              <th>መጋዘን1</th><th>መጋዘን2</th><th>መጋዘን3</th><th>ጠቅላላ ድምር</th>
-              <th>መነሻ ዋጋ</th><th>ጠቅላላ ዋጋ</th><th>ሞዴል</th>
-              <th>ተጨራጩ የሰጠው ዋጋ</th><th>የተጨራቹ ስም</th><th>ኮድ</th>
-              <th>FOB</th><th>CIF</th><th>TAX</th><th>Rate</th>
+              <th>፰.ቁ</th>
+              <th>የእቃው አይነት</th>
+              <th>ማርክ</th>
+              <th>ስሪት ሀገር</th>
+              <th>መለኪያ</th>
+              <th>መጋዘን1</th>
+              <th>መጋዘን 2</th>
+              <th>መጋዝን 3</th>
+              <th>ጠቅላላ ድምር</th>
+              <th>የአንድ ዋጋ (CIF)</th>
+              <th>ጠቅላላ ዋጋ</th>
+              <th>ሞዴል</th>
+              <th>ምድብ ቁጥር</th>
             </tr></thead>
             <tbody>
               ${itemRows}
-              <tr class="summary-row"><td colspan="9"><b>መነሻ ዋጋ</b></td><td></td><td><b>${fmt(group.basePrice)}</b></td><td colspan="8"></td></tr>
-              <tr class="bids-label"><td colspan="13"><b>ከቫት በፊት ተጫራች የሚሰጠው ጠቅላላ ዋጋ</b></td><td colspan="6"></td></tr>
-              ${bidRows}
+              <tr class="summary-row">
+                <td colspan="10"><b>መነሻ ዋጋ</b></td>
+                <td><b>${fmt(group.basePrice)}</b></td>
+                <td colspan="2"></td>
+              </tr>
+              <tr class="bids-label">
+                <td colspan="13"><b>ከቫት በፊት ፰ጫራች የሚሰጠው ጠቅላላ ዋጋ</b></td>
+              </tr>
             </tbody>
           </table>
         </div>`;
@@ -440,12 +453,12 @@ router.get('/pdf/:tenderId', async (req, res, next) => {
     const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
       <style>
         body { font-family: 'Nyala', 'Segoe UI', sans-serif; font-size: 9px; margin: 10px; }
-        .group-section { margin-bottom: 20px; page-break-after: always; }
-        .group-title { font-weight: bold; font-size: 12px; margin-bottom: 6px; }
+        .group-section { margin-bottom: 30px; page-break-after: always; }
+        .group-title { font-weight: bold; font-size: 12px; margin-bottom: 6px; text-align: center; }
         table { width: 100%; border-collapse: collapse; }
         th, td { border: 1px solid #999; padding: 3px 4px; white-space: nowrap; }
         th { background: #D9E1F2; font-weight: bold; text-align: center; }
-        .winner { background: #C6EFCE; font-weight: bold; }
+        .group-code { text-align: center; vertical-align: middle; font-weight: bold; }
         .summary-row td { background: #f5f5f5; }
         .bids-label td { background: #fffbe6; font-weight: bold; }
       </style></head><body>${groupsHtml}</body></html>`;
