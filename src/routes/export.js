@@ -83,15 +83,10 @@ function buildGroupSheet(sheet, group, tender) {
       item.warehouse1 || 0, item.warehouse2 || 0, item.warehouse3 || 0, item.totalQuantity,
       unitPrice, totalPrice, item.itemCode || item.serialNumber || '',
       bidder ? bidder.bidPrice : '', bidder ? bidder.bidder.name : '', group.code,
-      itemIndex === 0 ? item.fob : '', itemIndex === 0 ? item.cif : '', itemIndex === 0 ? item.tax : '', itemIndex === 0 ? exRate : ''
+      item.fob, item.cif, item.tax, exRate
     ];
 
     rowData.forEach((v, i) => {
-      // Skip rendering empty cells for FOB, CIF, TAX, Exchange Rate columns (indices 15-18)
-      if (itemIndex > 0 && i >= 15 && i <= 18) {
-        return; // Don't create/style these cells
-      }
-      
       const cl = sheet.getCell(r, i + 1);
       
       // Skip setting value for group code column (index 14) - will be set during merge
@@ -561,14 +556,13 @@ router.get('/excel/group/:groupId/closed', async (req, res, next) => {
     
     sheet.getRow(2).height = 40;
 
-    // Merge columns for winner info and exchange rate
+    // Merge columns for winner info (not exchange rate anymore)
     const totalItems = group.items.length;
     if (totalItems > 0) {
       const lastItemRow = 2 + totalItems;
       sheet.mergeCells(`N3:N${lastItemRow}`);
       sheet.mergeCells(`O3:O${lastItemRow}`);
       sheet.mergeCells(`P3:P${lastItemRow}`);
-      sheet.mergeCells(`T3:T${lastItemRow}`);
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -614,17 +608,17 @@ router.get('/excel/group/:groupId/closed', async (req, res, next) => {
         index === 0 && winner ? winner.bidPrice : '',
         index === 0 && winner ? winner.bidder.name : '',
         index === 0 ? group.code : '',
-        index === 0 ? item.fob : '',
-        index === 0 ? item.cif : '',
-        index === 0 ? item.tax : '',
-        index === 0 ? exRate : ''
+        item.fob,
+        item.cif,
+        item.tax,
+        exRate
       ];
 
       rowData.forEach((value, colIndex) => {
         const cell = sheet.getCell(currentRow, colIndex + 1);
         
-        if ((colIndex === 13 || colIndex === 14 || colIndex === 15 || colIndex === 19) && index > 0) {
-          // Skip merged cells
+        if ((colIndex === 13 || colIndex === 14 || colIndex === 15) && index > 0) {
+          // Skip merged cells for bid price, bidder name, and group code
         } else {
           cell.value = value;
         }

@@ -640,14 +640,36 @@ function TenderDetailPage() {
             >
               ⬇ Excel
             </button>
-            <a
-              href={`/api/export/pdf/${tender.id}`}
-              target="_blank"
-              rel="noreferrer"
+            <button
+              onClick={async () => {
+                try {
+                  const token = localStorage.getItem('token');
+                  const apiUrl = import.meta.env.VITE_API_URL || '/api';
+                  const response = await fetch(`${apiUrl}/export/pdf/${tender.id}`, {
+                    method: 'GET',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                  });
+                  if (!response.ok) throw new Error('Download failed');
+                  const blob = await response.blob();
+                  if (blob.size === 0) throw new Error('Downloaded file is empty');
+                  const url = window.URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `tender_${tender.tenderNumber}.pdf`;
+                  document.body.appendChild(a);
+                  a.click();
+                  setTimeout(() => {
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                  }, 100);
+                } catch (error) {
+                  alert('Failed to download PDF file: ' + error.message);
+                }
+              }}
               className="btn-primary text-xs"
             >
               ⬇ PDF
-            </a>
+            </button>
           </div>
         </div>
 
