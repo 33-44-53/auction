@@ -262,26 +262,6 @@ router.get('/excel/:tenderId', async (req, res, next) => {
       const round = group.currentRound;
       const groupExRate = group.exchangeRate || exRate;
 
-      // Header row with metadata
-      sheet.mergeCells(`A${r}:B${r}`);
-      setCell(sheet, r, 1, 'የተካሄደ ቀን፡', bold);
-      sheet.mergeCells(`C${r}:D${r}`);
-      setCell(sheet, r, 3, group.date || (tender.date ? new Date(tender.date).toLocaleDateString('en-GB') : ''));
-      
-      sheet.mergeCells(`E${r}:F${r}`);
-      setCell(sheet, r, 5, 'የተካሄደ ቦታ፡');
-      sheet.mergeCells(`G${r}:H${r}`);
-      setCell(sheet, r, 7, group.location || tender.location || '');
-      
-      sheet.mergeCells(`I${r}:J${r}`);
-      setCell(sheet, r, 9, 'ዓይነት');
-      sheet.mergeCells(`K${r}:L${r}`);
-      setCell(sheet, r, 11, 'ስነዳ');
-      
-      sheet.mergeCells(`M${r}:N${r}`);
-      setCell(sheet, r, 13, 'የተጨማሪ ስልት');
-      r++;
-
       // Title row
       sheet.mergeCells(`A${r}:N${r}`);
       setCell(sheet, r, 1, `ግልፅ ወይም ሚስጥር ${tender.tenderNumber} ${group.title || tender.title || ''}`, { font: { bold: true, size: 11, name: 'Nyala' }, ...center });
