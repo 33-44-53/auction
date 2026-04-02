@@ -264,7 +264,7 @@ router.get('/excel/:tenderId', async (req, res, next) => {
 
       // Title row
       sheet.mergeCells(`A${r}:N${r}`);
-      setCell(sheet, r, 1, `ግልፅ ወይም ሚስጥር ${tender.tenderNumber} ${group.title || tender.title || ''}`, { font: { bold: true, size: 11, name: 'Nyala' }, ...center });
+      setCell(sheet, r, 1, `ግልፅ ጨረታ ቁጥር ${tender.tenderNumber} ${group.title || tender.title || ''}`, { font: { bold: true, size: 11, name: 'Nyala' }, ...center });
       r++;
 
       // Column headers
