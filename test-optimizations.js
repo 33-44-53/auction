@@ -1,4 +1,5 @@
 const https = require('https');
+const zlib = require('zlib');
 
 const API_URL = 'https://auction-i5wc.onrender.com';
 const EMAIL = 'admin@tender.com';
@@ -16,11 +17,31 @@ const colors = {
 function makeRequest(url, options = {}) {
   return new Promise((resolve, reject) => {
     const startTime = Date.now();
+    
+    // Add Accept-Encoding header by default
+    if (!options.headers) options.headers = {};
+    if (!options.headers['Accept-Encoding']) {
+      options.headers['Accept-Encoding'] = 'gzip, deflate, br';
+    }
+    
     const req = https.request(url, options, (res) => {
+      const endTime = Date.now();
+      const encoding = res.headers['content-encoding'];
+      
+      let stream = res;
+      
+      // Decompress if needed
+      if (encoding === 'gzip') {
+        stream = res.pipe(zlib.createGunzip());
+      } else if (encoding === 'deflate') {
+        stream = res.pipe(zlib.createInflate());
+      } else if (encoding === 'br') {
+        stream = res.pipe(zlib.createBrotliDecompress());
+      }
+      
       let data = '';
-      res.on('data', (chunk) => data += chunk);
-      res.on('end', () => {
-        const endTime = Date.now();
+      stream.on('data', (chunk) => data += chunk);
+      stream.on('end', () => {
         resolve({
           statusCode: res.statusCode,
           headers: res.headers,
@@ -28,6 +49,7 @@ function makeRequest(url, options = {}) {
           time: endTime - startTime
         });
       });
+      stream.on('error', reject);
     });
     req.on('error', reject);
     if (options.body) {
@@ -46,13 +68,17 @@ async function runTests() {
     // Test 1: Health Check & Compression
     console.log('📋 Test 1: Health Check & Compression');
     console.log('--------------------------------------');
-    const healthResponse = await makeRequest(`${API_URL}/api/health`, { method: 'HEAD' });
+    const healthResponse = await makeRequest(`${API_URL}/api/health`, { 
+      method: 'GET',  // Changed from HEAD to GET
+      headers: { 'Accept-Encoding': 'gzip, deflate, br' }
+    });
     
     console.log(`Status: ${healthResponse.statusCode}`);
     console.log(`Response Time: ${healthResponse.time}ms`);
+    console.log(`Content-Encoding: ${healthResponse.headers['content-encoding'] || 'none'}`);
     
-    if (healthResponse.headers['content-encoding'] === 'gzip') {
-      console.log(`${colors.green}✅ Compression: ENABLED${colors.reset}`);
+    if (healthResponse.headers['content-encoding'] === 'gzip' || healthResponse.headers['content-encoding'] === 'br') {
+      console.log(`${colors.green}✅ Compression: ENABLED (${healthResponse.headers['content-encoding']})${colors.reset}`);
     } else {
       console.log(`${colors.red}❌ Compression: NOT ENABLED${colors.reset}`);
     }
@@ -172,7 +198,7 @@ async function runTests() {
     console.log('📊 OPTIMIZATION SUMMARY');
     console.log('==========================================\n');
     
-    const compressionOK = healthResponse.headers['content-encoding'] === 'gzip';
+    const compressionOK = healthResponse.headers['content-encoding'] === 'gzip' || healthResponse.headers['content-encoding'] === 'br' || healthResponse.headers['content-encoding'] === 'deflate';
     const paginationOK = paginationResponse.data.includes('"pagination"');
     const performanceOK = avgTime < 1000;
     
