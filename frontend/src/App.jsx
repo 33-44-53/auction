@@ -117,6 +117,11 @@ function ProtectedRoute({ children, roles }) {
     return <Navigate to="/login" replace />;
   }
   
+  // Check if roles are specified and user has required role
+  if (roles && roles.length > 0 && !roles.includes(user.role)) {
+    return <Navigate to="/dashboard" replace />;
+  }
+  
   return children;
 }
 
