@@ -964,7 +964,9 @@ function GroupDetailPage() {
   const loadAllTenders = async () => {
     try {
       const res = await api.get('/tenders');
-      setAllTenders(res.data);
+      // Handle both paginated and non-paginated responses
+      const tendersData = res.data.data || res.data;
+      setAllTenders(Array.isArray(tendersData) ? tendersData : []);
     } catch (e) { console.error(e); }
   };
 
@@ -2290,7 +2292,9 @@ function NewTenderPage() {
   const loadTenders = async () => {
     try {
       const response = await api.get('/tenders');
-      setTenders(response.data);
+      // Handle both paginated and non-paginated responses
+      const tendersData = response.data.data || response.data;
+      setTenders(Array.isArray(tendersData) ? tendersData : []);
     } catch (e) {
       console.error(e);
     } finally {
