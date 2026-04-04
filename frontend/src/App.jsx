@@ -2580,7 +2580,7 @@ function NewTenderPage() {
                     'bg-blue-100 text-blue-800'
                   }`}>{tender.tenderType || 'AUCTION'}{tender.tenderType === 'HARAJ' && tender.harajRound > 1 ? ` #${tender.harajRound}` : ''}</span>
                 </td>
-                <td>{tender.groups?.length || 0}</td>
+                <td>{tender._count?.groups || tender.groups?.length || 0}</td>
                 <td>
                   <span className={`px-2 py-1 rounded text-xs ${
                     tender.status === 'OPEN' ? 'bg-green-100 text-green-800' :
