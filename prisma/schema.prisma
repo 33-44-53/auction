@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
@@ -37,6 +37,10 @@ model Tender {
   files          File[]
   originalTender Tender?    @relation("TenderReference", fields: [originalTenderId], references: [id])
   referencedTenders Tender[] @relation("TenderReference")
+  
+  @@index([status])
+  @@index([createdAt])
+  @@index([tenderNumber])
 }
 
 model Group {
@@ -73,6 +77,10 @@ model Group {
   items            Item[]
   bids             Bid[]
   bidders          BidderGroup[]
+  
+  @@index([tenderId])
+  @@index([status])
+  @@index([tenderId, status])
 }
 
 model Item {
@@ -98,6 +106,8 @@ model Item {
   updatedAt   DateTime  @updatedAt
   
   group       Group     @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  
+  @@index([groupId])
 }
 
 model Bidder {
@@ -139,6 +149,8 @@ model Bid {
   bidder     Bidder   @relation(fields: [bidderId], references: [id], onDelete: Cascade)
   
   @@unique([groupId, bidderId, round])
+  @@index([groupId])
+  @@index([bidderId])
 }
 
 model File {
@@ -164,4 +176,8 @@ model AuditLog {
   timestamp DateTime  @default(now())
   
   user      User      @relation(fields: [userId], references: [id])
+  
+  @@index([userId])
+  @@index([timestamp])
+  @@index([entity, entityId])
 }

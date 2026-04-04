@@ -59,28 +59,50 @@ router.post(
   }
 );
 
-// Get all tenders
+// Get all tenders with pagination and selective loading
 router.get('/', async (req, res, next) => {
   try {
-    const tenders = await prisma.tender.findMany({
-      include: {
-        groups: {
-          include: {
-            items: true,
-            bids: {
-              include: { bidder: true }
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const skip = (page - 1) * limit;
+    const includeDetails = req.query.details === 'true';
+
+    const [tenders, total] = await Promise.all([
+      prisma.tender.findMany({
+        skip,
+        take: limit,
+        include: includeDetails ? {
+          groups: {
+            include: {
+              items: true,
+              bids: {
+                include: { bidder: true }
+              }
             }
+          },
+          files: true,
+          _count: {
+            select: { groups: true }
+          }
+        } : {
+          _count: {
+            select: { groups: true }
           }
         },
-        files: true,
-        _count: {
-          select: { groups: true }
-        }
-      },
-      orderBy: { createdAt: 'desc' }
-    });
+        orderBy: { createdAt: 'desc' }
+      }),
+      prisma.tender.count()
+    ]);
 
-    res.json(tenders);
+    res.json({
+      data: tenders,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit)
+      }
+    });
   } catch (error) {
     next(error);
   }

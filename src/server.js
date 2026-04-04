@@ -3,6 +3,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const compression = require('compression');
 const { PrismaClient } = require('@prisma/client');
 const prisma = require('./prisma');
 
@@ -21,6 +22,9 @@ const { authenticate } = require('./middleware/auth');
 const { auditLogger } = require('./middleware/audit');
 
 const app = express();
+
+// Enable compression for all responses
+app.use(compression());
 
 // Middleware - CORS Configuration
 const allowedOrigins = [
