@@ -1,0 +1,5 @@
+# Vercel Deployment Trigger
+
+This file is used to trigger Vercel redeployment after environment variables are added.
+
+Last updated: 2026-04-04
