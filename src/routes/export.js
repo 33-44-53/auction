@@ -3,6 +3,10 @@ const router = express.Router();
 const ExcelJS = require('exceljs');
 const puppeteer = require('puppeteer');
 const { Document, Packer, Paragraph, TextRun, AlignmentType, HeadingLevel, TabStopType, TabStopPosition } = require('docx');
+const PizZip = require('pizzip');
+const Docxtemplater = require('docxtemplater');
+const fs = require('fs');
+const path = require('path');
 const prisma = require('../prisma');
 
 const fmt = (n) => new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n || 0);
@@ -855,126 +859,50 @@ router.get('/winner-letter/:groupId', async (req, res, next) => {
     const ethiopianYear = today.getFullYear() - 7;
     const ethiopianDate = `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${ethiopianYear}`;
 
-    // Create Word document
-    const doc = new Document({
-      sections: [{
-        properties: {
-          page: {
-            margin: { top: 1440, right: 1440, bottom: 1440, left: 1440 } // 1 inch margins
-          }
-        },
-        children: [
-          // Reference Number
-          new Paragraph({
-            text: `ቁጥር/Ref.No: ${group.tender.tenderNumber}/${group.code}`,
-            spacing: { after: 200 }
-          }),
-          
-          // Date
-          new Paragraph({
-            text: `ቀን /Date: ${ethiopianDate}`,
-            spacing: { after: 400 }
-          }),
-          
-          // Recipient
-          new Paragraph({
-            text: 'ለገቢ አሰባሰብና ዋስትና አያያዝ ቡድን',
-            spacing: { after: 200 }
-          }),
-          
-          // Subject
-          new Paragraph({
-            children: [
-              new TextRun({ text: 'ጉዳዩ፤ ', bold: true }),
-              new TextRun({ text: 'ክፊያ መቀበለን ይመለከታል' })
-            ],
-            spacing: { after: 400 }
-          }),
-          
-          // Body paragraph 1
-          new Paragraph({
-            text: `በቅ/ጽ/ቤታችን ግልፅ ጨረታ ቁጥር ${group.tender.tenderNumber} በ${ethiopianDate} ዓ.ም የተካሄደ መሆኑ ይታወቃል። በዚህ መሠረት ስት ${winner.bidder.name} በኮድ-${group.code} የተለየዩ ${group.tender.title || 'የሞባይል ቀፎ'} በብር ${fmt(winnerPrice)} ተወዳድረው አሸናፊ መሆናቸውን እየገለፅን የክፍያ ሁኔታው ከዚህ በታች እንደሚከተለው ቀርቧል።`,
-            spacing: { after: 400 },
-            alignment: AlignmentType.JUSTIFIED
-          }),
-          
-          // Payment breakdown
-          new Paragraph({
-            children: [
-              new TextRun({ text: '70% ', bold: true }),
-              new TextRun({ text: '----------------------------------------------------' }),
-              new TextRun({ text: ` ${fmt(calc70)}`, bold: true })
-            ],
-            spacing: { after: 100 }
-          }),
-          
-          new Paragraph({
-            children: [
-              new TextRun({ text: '30% ', bold: true }),
-              new TextRun({ text: '----------------------------------------------------' }),
-              new TextRun({ text: ` ${fmt(calc30)}`, bold: true })
-            ],
-            spacing: { after: 100 }
-          }),
-          
-          new Paragraph({
-            children: [
-              new TextRun({ text: '15% (ቫት) ', bold: true }),
-              new TextRun({ text: '---------------------------------------------' }),
-              new TextRun({ text: ` ${fmt(vat)}`, bold: true })
-            ],
-            spacing: { after: 100 }
-          }),
-          
-          new Paragraph({
-            children: [
-              new TextRun({ text: 'ጠቅላላ ድምር ', bold: true }),
-              new TextRun({ text: '-------------------------------------------' }),
-              new TextRun({ text: ` ${fmt(totalWithVAT)}`, bold: true })
-            ],
-            spacing: { after: 400 }
-          }),
-          
-          // Instructions paragraph
-          new Paragraph({
-            text: 'ስለሆነም ተጫራቹ ገንዘቡን በድሬዳዋ ጉምሩክ ኮሚሽን ቅ/ጽ/ቤት ስም በተከፈተው 70% በቀጥታ ገቢ አካውት ቁጥር 1000014311762 በጉምርክ ኮሚሽን እና ለፍትህ ሚንስቴር 30%ቱን እና ቫቱን በዲፖዚት አካውንት 1000014260092 ሪሲት አሰርተው ሲያቀርቡ ተቆርጦ እንዲሰጣቸው እያሳሰብን የውርስ እቃ መጋዘን ሀላፊ የክፍያውን መረጃ ይዘው ሲቀርቡ ከዚህ ደብዳቤ ጋር ተያይዞ በቀረበው ዝርዝር መሰረት በሞዴል 266 ወጪ በማድረግ ንብረቱን እንድታስረክቡ እያሳሰብን ለርክክብ ይረዳ ዘንድ የእቃው ዝርዝር 1 ገጽ ከዚህ ደብዳቤ ጋር ያያዝን ሲሆን የእቃ አያያዝ ቡድንም ያሸነፉትን እቃ ክፍያ መፈፀሙን በማረጋገጥ በ 5 የስራ ቀናት ውስጥ ከመጋዘን እናዲያወጡ ለርክክብ ይረዳ ዘንድ ግልባጭ ተደርጎለታል፡፡',
-            spacing: { after: 600 },
-            alignment: AlignmentType.JUSTIFIED
-          }),
-          
-          // Closing
-          new Paragraph({
-            text: '‹‹ከሰላምታ ጋር››',
-            alignment: AlignmentType.CENTER,
-            spacing: { after: 600 }
-          }),
-          
-          // Copy distribution header
-          new Paragraph({
-            children: [
-              new TextRun({ text: 'ግልባጭ፡-', bold: true, underline: {} })
-            ],
-            spacing: { after: 200 }
-          }),
-          
-          // Copy distribution list
-          new Paragraph({ text: 'ለጉምሩክ ኦፕሬሽን ም/ስ/አስኪያጅ', spacing: { after: 100 } }),
-          new Paragraph({ text: 'የተያዙና የተወረሱ ንብ/አስ/የስራ ሂደት', spacing: { after: 100 } }),
-          new Paragraph({ text: 'ለኢንተለጀንስ እና ኮተረበንድ ክትትል የስራ ሂደት', spacing: { after: 100 } }),
-          new Paragraph({ text: 'ለእቃ አያያዝ ቡድን', spacing: { after: 100 } }),
-          new Paragraph({ text: 'ለውርስ እቃ አስወጋጅ ኮሚቴ', spacing: { after: 100 } }),
-          new Paragraph({ text: 'መጋዘን 1', spacing: { after: 100 } }),
-          new Paragraph({ text: 'ለበር ጥበቃ', spacing: { after: 100 } }),
-          new Paragraph({ text: 'ለድ/ለኮን/ቁጥ/ድን/ተሻ/ፖሊ/መምሪያ ሪጅመንት 14', spacing: { after: 100 } }),
-          new Paragraph({ text: 'ድ/ዳ/ጉ/ኮምሽን', spacing: { after: 100 } }),
-          new Paragraph({ text: `አቶ ${winner.bidder.name}`, spacing: { after: 100 } }),
-          new Paragraph({ text: 'በ/መ', spacing: { after: 100 } })
-        ]
-      }]
-    });
+    // Try to load template file
+    const templatePath = path.join(__dirname, '../../የመሸኛ ደብደዳቤ winnerformat.docx');
+    
+    let buffer;
+    
+    if (fs.existsSync(templatePath)) {
+      // Use template with background
+      try {
+        const content = fs.readFileSync(templatePath, 'binary');
+        const zip = new PizZip(content);
+        const doc = new Docxtemplater(zip, {
+          paragraphLoop: true,
+          linebreaks: true,
+        });
 
-    // Generate and send document
-    const buffer = await Packer.toBuffer(doc);
+        // Set template variables
+        doc.setData({
+          refNumber: `${group.tender.tenderNumber}/${group.code}`,
+          date: ethiopianDate,
+          tenderNumber: group.tender.tenderNumber,
+          winnerName: winner.bidder.name,
+          groupCode: group.code,
+          itemDescription: group.tender.title || 'የሞባይል ቀፎ',
+          winnerPrice: fmt(winnerPrice),
+          calc70: fmt(calc70),
+          calc30: fmt(calc30),
+          vat: fmt(vat),
+          totalWithVAT: fmt(totalWithVAT)
+        });
+
+        doc.render();
+        buffer = doc.getZip().generate({ type: 'nodebuffer' });
+      } catch (templateError) {
+        console.error('Template error:', templateError);
+        // Fall back to creating document from scratch
+        buffer = await createWinnerLetterFromScratch(group, winner, winnerPrice, calc70, calc30, vat, totalWithVAT, ethiopianDate);
+      }
+    } else {
+      // Template not found, create from scratch
+      console.log('Template file not found, creating from scratch');
+      buffer = await createWinnerLetterFromScratch(group, winner, winnerPrice, calc70, calc30, vat, totalWithVAT, ethiopianDate);
+    }
+
+    // Send document
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
     const safeCode = group.code.replace(/[^a-zA-Z0-9\-_]/g, '_');
     res.setHeader('Content-Disposition', `attachment; filename="Winner_Letter_${safeCode}.docx"`);
@@ -998,6 +926,128 @@ router.get('/winner-letter/:groupId', async (req, res, next) => {
     }
   } catch (error) { next(error); }
 });
+
+// Helper function to create winner letter from scratch (fallback)
+async function createWinnerLetterFromScratch(group, winner, winnerPrice, calc70, calc30, vat, totalWithVAT, ethiopianDate) {
+  const doc = new Document({
+    sections: [{
+      properties: {
+        page: {
+          margin: { top: 1440, right: 1440, bottom: 1440, left: 1440 } // 1 inch margins
+        }
+      },
+      children: [
+        // Reference Number
+        new Paragraph({
+          text: `ቁጥር/Ref.No: ${group.tender.tenderNumber}/${group.code}`,
+          spacing: { after: 200 }
+        }),
+        
+        // Date
+        new Paragraph({
+          text: `ቀን /Date: ${ethiopianDate}`,
+          spacing: { after: 400 }
+        }),
+        
+        // Recipient
+        new Paragraph({
+          text: 'ለገቢ አሰባሰብና ዋስትና አያያዝ ቡድን',
+          spacing: { after: 200 }
+        }),
+        
+        // Subject
+        new Paragraph({
+          children: [
+            new TextRun({ text: 'ጉዳዩ፤ ', bold: true }),
+            new TextRun({ text: 'ክፊያ መቀበለን ይመለከታል' })
+          ],
+          spacing: { after: 400 }
+        }),
+        
+        // Body paragraph 1
+        new Paragraph({
+          text: `በቅ/ጽ/ቤታችን ግልፅ ጨረታ ቁጥር ${group.tender.tenderNumber} በ${ethiopianDate} ዓ.ም የተካሄደ መሆኑ ይታወቃል። በዚህ መሠረት ስት ${winner.bidder.name} በኮድ-${group.code} የተለየዩ ${group.tender.title || 'የሞባይል ቀፎ'} በብር ${fmt(winnerPrice)} ተወዳድረው አሸናፊ መሆናቸውን እየገለፅን የክፍያ ሁኔታው ከዚህ በታች እንደሚከተለው ቀርቧል።`,
+          spacing: { after: 400 },
+          alignment: AlignmentType.JUSTIFIED
+        }),
+        
+        // Payment breakdown
+        new Paragraph({
+          children: [
+            new TextRun({ text: '70% ', bold: true }),
+            new TextRun({ text: '----------------------------------------------------' }),
+            new TextRun({ text: ` ${fmt(calc70)}`, bold: true })
+          ],
+          spacing: { after: 100 }
+        }),
+        
+        new Paragraph({
+          children: [
+            new TextRun({ text: '30% ', bold: true }),
+            new TextRun({ text: '----------------------------------------------------' }),
+            new TextRun({ text: ` ${fmt(calc30)}`, bold: true })
+          ],
+          spacing: { after: 100 }
+        }),
+        
+        new Paragraph({
+          children: [
+            new TextRun({ text: '15% (ቫት) ', bold: true }),
+            new TextRun({ text: '---------------------------------------------' }),
+            new TextRun({ text: ` ${fmt(vat)}`, bold: true })
+          ],
+          spacing: { after: 100 }
+        }),
+        
+        new Paragraph({
+          children: [
+            new TextRun({ text: 'ጠቅላላ ድምር ', bold: true }),
+            new TextRun({ text: '-------------------------------------------' }),
+            new TextRun({ text: ` ${fmt(totalWithVAT)}`, bold: true })
+          ],
+          spacing: { after: 400 }
+        }),
+        
+        // Instructions paragraph
+        new Paragraph({
+          text: 'ስለሆነም ተጫራቹ ገንዘቡን በድሬዳዋ ጉምሩክ ኮሚሽን ቅ/ጽ/ቤት ስም በተከፈተው 70% በቀጥታ ገቢ አካውት ቁጥር 1000014311762 በጉምርክ ኮሚሽን እና ለፍትህ ሚንስቴር 30%ቱን እና ቫቱን በዲፖዚት አካውንት 1000014260092 ሪሲት አሰርተው ሲያቀርቡ ተቆርጦ እንዲሰጣቸው እያሳሰብን የውርስ እቃ መጋዘን ሀላፊ የክፍያውን መረጃ ይዘው ሲቀርቡ ከዚህ ደብዳቤ ጋር ተያይዞ በቀረበው ዝርዝር መሰረት በሞዴል 266 ወጪ በማድረግ ንብረቱን እንድታስረክቡ እያሳሰብን ለርክክብ ይረዳ ዘንድ የእቃው ዝርዝር 1 ገጽ ከዚህ ደብዳቤ ጋር ያያዝን ሲሆን የእቃ አያያዝ ቡድንም ያሸነፉትን እቃ ክፍያ መፈፀሙን በማረጋገጥ በ 5 የስራ ቀናት ውስጥ ከመጋዘን እናዲያወጡ ለርክክብ ይረዳ ዘንድ ግልባጭ ተደርጎለታል፡፡',
+          spacing: { after: 600 },
+          alignment: AlignmentType.JUSTIFIED
+        }),
+        
+        // Closing
+        new Paragraph({
+          text: '‹‹ከሰላምታ ጋር››',
+          alignment: AlignmentType.CENTER,
+          spacing: { after: 600 }
+        }),
+        
+        // Copy distribution header
+        new Paragraph({
+          children: [
+            new TextRun({ text: 'ግልባጭ፡-', bold: true, underline: {} })
+          ],
+          spacing: { after: 200 }
+        }),
+        
+        // Copy distribution list
+        new Paragraph({ text: 'ለጉምሩክ ኦፕሬሽን ም/ስ/አስኪያጅ', spacing: { after: 100 } }),
+        new Paragraph({ text: 'የተያዙና የተወረሱ ንብ/አስ/የስራ ሂደት', spacing: { after: 100 } }),
+        new Paragraph({ text: 'ለኢንተለጀንስ እና ኮተረበንድ ክትትል የስራ ሂደት', spacing: { after: 100 } }),
+        new Paragraph({ text: 'ለእቃ አያያዝ ቡድን', spacing: { after: 100 } }),
+        new Paragraph({ text: 'ለውርስ እቃ አስወጋጅ ኮሚቴ', spacing: { after: 100 } }),
+        new Paragraph({ text: 'መጋዘን 1', spacing: { after: 100 } }),
+        new Paragraph({ text: 'ለበር ጥበቃ', spacing: { after: 100 } }),
+        new Paragraph({ text: 'ለድ/ለኮን/ቁጥ/ድን/ተሻ/ፖሊ/መምሪያ ሪጅመንት 14', spacing: { after: 100 } }),
+        new Paragraph({ text: 'ድ/ዳ/ጉ/ኮምሽን', spacing: { after: 100 } }),
+        new Paragraph({ text: `አቶ ${winner.bidder.name}`, spacing: { after: 100 } }),
+        new Paragraph({ text: 'በ/መ', spacing: { after: 100 } })
+      ]
+    }]
+  });
+
+  return await Packer.toBuffer(doc);
+}
 
 // ── Generate Winner Letter Excel (የመሸኛ ደብደዳቤ) - Legacy ────────────────────────
 router.get('/winner-letter-excel/:groupId', async (req, res, next) => {
