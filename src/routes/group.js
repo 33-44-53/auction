@@ -193,7 +193,7 @@ router.post('/:id/bids', authorize('ADMIN', 'STAFF'), async (req, res, next) => 
     if (group.status !== 'OPEN') return res.status(400).json({ error: 'Group is not open for bidding' });
     if (group.basePrice && bidPrice < group.basePrice) return res.status(400).json({ error: `Bid price must be at least ${group.basePrice}` });
 
-    const bidder = await prisma.bidder.findUnique({ where: { id: bidderId } });
+    const bidder = await prisma.bidder.findUnique({ where: { id: bidderId }, select: { id: true, name: true } });
     if (!bidder) return res.status(404).json({ error: 'Bidder not found' });
 
     const existing = await prisma.bidderGroup.findFirst({ where: { groupId, bidderId } });
@@ -203,9 +203,9 @@ router.post('/:id/bids', authorize('ADMIN', 'STAFF'), async (req, res, next) => 
     const existingBid = await prisma.bid.findFirst({ where: { groupId, bidderId, round } });
     let bid;
     if (existingBid) {
-      bid = await prisma.bid.update({ where: { id: existingBid.id }, data: { bidPrice }, include: { bidder: true } });
+      bid = await prisma.bid.update({ where: { id: existingBid.id }, data: { bidPrice }, include: { bidder: { select: { id: true, name: true } } } });
     } else {
-      bid = await prisma.bid.create({ data: { groupId, bidderId, bidPrice, round }, include: { bidder: true } });
+      bid = await prisma.bid.create({ data: { groupId, bidderId, bidPrice, round }, include: { bidder: { select: { id: true, name: true } } } });
     }
 
     await prisma.auditLog.create({ data: { userId: req.userId, action: 'BID', entity: 'Group', entityId: groupId, details: JSON.stringify({ bidderId, bidPrice, round: group.currentRound }), ipAddress: req.ip } });
