@@ -932,9 +932,7 @@ function GroupDetailPage() {
   const [showBidderDropdown, setShowBidderDropdown] = useState(false);
   const [useNewBidder, setUseNewBidder] = useState(false);
   const [newBidderData, setNewBidderData] = useState({
-    name: '',
-    companyName: '',
-    phone: ''
+    name: ''
   });
   const [editingItem, setEditingItem] = useState(null);
   const [itemFormData, setItemFormData] = useState({
@@ -1020,11 +1018,15 @@ function GroupDetailPage() {
     try {
       let bidderId;
       if (useNewBidder) {
-        if (!newBidderData.name || !newBidderData.companyName || !newBidderData.phone) {
-          alert('Please fill in all bidder fields (Name, Company, Phone)');
+        if (!newBidderData.name) {
+          alert('Please fill in bidder name');
           return;
         }
-        const bidderResponse = await api.post('/bidders', newBidderData);
+        const bidderResponse = await api.post('/bidders', { 
+          name: newBidderData.name,
+          companyName: newBidderData.name,
+          phone: 'N/A'
+        });
         bidderId = bidderResponse.data.id;
       } else {
         if (!selectedBidder) { alert('Please select a bidder'); return; }
@@ -1032,7 +1034,7 @@ function GroupDetailPage() {
       }
       setShowBidModal(false);
       setSelectedBidder(null); setBidderSearch(''); setBidAmount('');
-      setUseNewBidder(false); setNewBidderData({ name: '', companyName: '', phone: '' });
+      setUseNewBidder(false); setNewBidderData({ name: '' });
       api.post(`/groups/${groupId}/bids`, { bidderId: parseInt(bidderId), bidPrice: parseFloat(bidAmount) })
         .then(() => { loadGroup(); loadAllBidders(); })
         .catch(e => { alert(e.response?.data?.error || 'Failed to submit bid'); loadGroup(); });
@@ -2177,46 +2179,17 @@ function GroupDetailPage() {
 
               {/* New Bidder Form */}
               {useNewBidder && (
-                <div className="mb-4 space-y-3">
-                  <div>
-                    <label className="block text-gray-700 text-sm font-bold mb-2">
-                      Bidder Name *
-                    </label>
-                    <input
-                      type="text"
-                      value={newBidderData.name}
-                      onChange={(e) => setNewBidderData({ ...newBidderData, name: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded"
-                      placeholder="Enter bidder name"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-gray-700 text-sm font-bold mb-2">
-                      Company Name *
-                    </label>
-                    <input
-                      type="text"
-                      value={newBidderData.companyName}
-                      onChange={(e) => setNewBidderData({ ...newBidderData, companyName: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded"
-                      placeholder="Enter company name"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-gray-700 text-sm font-bold mb-2">
-                      Phone Number *
-                    </label>
-                    <input
-                      type="text"
-                      value={newBidderData.phone}
-                      onChange={(e) => setNewBidderData({ ...newBidderData, phone: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded"
-                      placeholder="Enter phone number"
-                    />
-                  </div>
-                  <p className="text-xs text-blue-600">
-                    ℹ This bidder will be added to the system
-                  </p>
+                <div className="mb-4">
+                  <label className="block text-gray-700 text-sm font-bold mb-2">
+                    Bidder Name *
+                  </label>
+                  <input
+                    type="text"
+                    value={newBidderData.name}
+                    onChange={(e) => setNewBidderData({ ...newBidderData, name: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded"
+                    placeholder="Enter bidder name"
+                  />
                 </div>
               )}
               
@@ -2255,7 +2228,7 @@ function GroupDetailPage() {
                     setBidAmount('');
                     setShowBidderDropdown(false);
                     setUseNewBidder(false);
-                    setNewBidderData({ name: '', companyName: '', phone: '' });
+                    setNewBidderData({ name: '' });
                   }}
                   className="flex-1 bg-gray-300 text-gray-700 py-2 rounded hover:bg-gray-400"
                 >
