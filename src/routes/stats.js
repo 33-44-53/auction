@@ -38,22 +38,36 @@ router.get('/', async (req, res, next) => {
     const tenderWhere = req.user?.role === 'STAFF' 
       ? { createdBy: req.user.id } 
       : {};
-    
-    const bidderWhere = req.user?.role === 'STAFF' 
-      ? { createdBy: req.user.id } 
-      : {};
 
     // For groups, filter by tender ownership
     const groupWhere = req.user?.role === 'STAFF'
       ? { tender: { createdBy: req.user.id } }
       : {};
 
+    // For bids, filter by groups that belong to staff user's tenders
+    const bidWhere = req.user?.role === 'STAFF'
+      ? { group: { tender: { createdBy: req.user.id } } }
+      : {};
+
+    // For bidders, show unique bidders who have bid on staff user's tenders
+    let totalBidders;
+    if (req.user?.role === 'STAFF') {
+      // Count unique bidders who have placed bids on this staff's tenders
+      const uniqueBidders = await prisma.bid.findMany({
+        where: { group: { tender: { createdBy: req.user.id } } },
+        select: { bidderId: true },
+        distinct: ['bidderId']
+      });
+      totalBidders = uniqueBidders.length;
+    } else {
+      totalBidders = await prisma.bidder.count();
+    }
+
     const [
       totalTenders,
       openTenders,
       soldGroups,
       totalGroups,
-      totalBidders,
       totalBids,
       recentTenders,
       groupsByStatus
@@ -62,8 +76,7 @@ router.get('/', async (req, res, next) => {
       prisma.tender.count({ where: { ...tenderWhere, status: 'OPEN' } }),
       prisma.group.count({ where: { ...groupWhere, status: 'SOLD' } }),
       prisma.group.count({ where: groupWhere }),
-      prisma.bidder.count({ where: bidderWhere }),
-      prisma.bid.count(),
+      prisma.bid.count({ where: bidWhere }),
       prisma.tender.findMany({
         where: tenderWhere,
         take: 5,
