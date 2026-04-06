@@ -338,6 +338,7 @@ function DashboardLayout({ children }) {
 
 // Dashboard Page
 function DashboardPage() {
+  const { user } = useAuth();
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
 
