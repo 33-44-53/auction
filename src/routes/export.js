@@ -532,62 +532,85 @@ router.get('/excel/group/:groupId/closed', async (req, res, next) => {
     
     let currentRow = 1;
     
-    // Bids table title
-    sheet.mergeCells(`A${currentRow}:E${currentRow}`);
-    const bidsTitle = sheet.getCell(`A${currentRow}`);
-    bidsTitle.value = 'የተጫራቾች ዝርዝር (Bidders List)';
-    bidsTitle.font = { name: 'Arial', size: 14, bold: true };
-    bidsTitle.alignment = { horizontal: 'center', vertical: 'middle' };
-    bidsTitle.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9E1F2' } };
-    sheet.getRow(currentRow).height = 25;
-    currentRow++;
-
-    // Bids table headers
-    const bidsHeaders = ['ተ.ቁ', 'የተጨራቹ ስም', 'ተጨራጩ የሰጠው ዋጋ', 'ቀን', 'ሁኔታ'];
-    bidsHeaders.forEach((header, index) => {
-      const cell = sheet.getCell(currentRow, index + 1);
-      cell.value = header;
-      Object.assign(cell, headerStyle);
-    });
-    sheet.getRow(currentRow).height = 25;
-    currentRow++;
-
-    // Bids data rows
-    roundBids.forEach((bid, index) => {
-      const isWinner = bid.isWinner || index === 0;
-      
-      const rowData = [
-        index + 1,
-        bid.bidder.name,
-        bid.bidPrice,
-        new Date(bid.createdAt).toLocaleDateString('en-GB'),
-        isWinner ? '✓ አሸናፊ' : ''
-      ];
-
-      rowData.forEach((value, colIndex) => {
-        const cell = sheet.getCell(currentRow, colIndex + 1);
-        cell.value = value;
-        cell.border = dataBorder;
-        cell.font = { name: 'Arial', size: 10 };
-        cell.alignment = { horizontal: colIndex === 1 ? 'left' : 'center', vertical: 'middle' };
-        
-        if (colIndex === 2 && typeof value === 'number') {
-          cell.numFmt = '#,##0.00';
-        }
-        
-        // Highlight winner row
-        if (isWinner) {
-          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFC6EFCE' } };
-          cell.font = { name: 'Arial', size: 10, bold: true };
-        }
-      });
-      
-      sheet.getRow(currentRow).height = 20;
+    // Only show bids table if there are bids
+    if (roundBids.length > 0) {
+      // Bids table title
+      sheet.mergeCells(`A${currentRow}:E${currentRow}`);
+      const bidsTitle = sheet.getCell(`A${currentRow}`);
+      bidsTitle.value = 'የተጫራቾች ዝርዝር (Bidders List)';
+      bidsTitle.font = { name: 'Arial', size: 14, bold: true };
+      bidsTitle.alignment = { horizontal: 'center', vertical: 'middle' };
+      bidsTitle.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9E1F2' } };
+      sheet.getRow(currentRow).height = 25;
       currentRow++;
-    });
 
-    // Empty rows for spacing
-    currentRow += 2;
+      // Define styles here before using them
+      const headerStyle = {
+        font: { name: 'Arial', size: 11, bold: true },
+        alignment: { horizontal: 'center', vertical: 'middle', wrapText: true },
+        fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9E1F2' } },
+        border: {
+          top: { style: 'thin' },
+          left: { style: 'thin' },
+          bottom: { style: 'thin' },
+          right: { style: 'thin' }
+        }
+      };
+
+      const dataBorder = {
+        top: { style: 'thin' },
+        left: { style: 'thin' },
+        bottom: { style: 'thin' },
+        right: { style: 'thin' }
+      };
+
+      // Bids table headers
+      const bidsHeaders = ['ተ.ቁ', 'የተጨራቹ ስም', 'ተጨራጩ የሰጠው ዋጋ', 'ቀን', 'ሁኔታ'];
+      bidsHeaders.forEach((header, index) => {
+        const cell = sheet.getCell(currentRow, index + 1);
+        cell.value = header;
+        Object.assign(cell, headerStyle);
+      });
+      sheet.getRow(currentRow).height = 25;
+      currentRow++;
+
+      // Bids data rows
+      roundBids.forEach((bid, index) => {
+        const isWinner = bid.isWinner || index === 0;
+        
+        const rowData = [
+          index + 1,
+          bid.bidder.name,
+          bid.bidPrice,
+          new Date(bid.createdAt).toLocaleDateString('en-GB'),
+          isWinner ? '✓ አሸናፊ' : ''
+        ];
+
+        rowData.forEach((value, colIndex) => {
+          const cell = sheet.getCell(currentRow, colIndex + 1);
+          cell.value = value;
+          cell.border = dataBorder;
+          cell.font = { name: 'Arial', size: 10 };
+          cell.alignment = { horizontal: colIndex === 1 ? 'left' : 'center', vertical: 'middle' };
+          
+          if (colIndex === 2 && typeof value === 'number') {
+            cell.numFmt = '#,##0.00';
+          }
+          
+          // Highlight winner row
+          if (isWinner) {
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFC6EFCE' } };
+            cell.font = { name: 'Arial', size: 10, bold: true };
+          }
+        });
+        
+        sheet.getRow(currentRow).height = 20;
+        currentRow++;
+      });
+
+      // Empty rows for spacing
+      currentRow += 2;
+    }
 
     // ═══════════════════════════════════════════════════════════════════════════
     // HEADER SECTION
@@ -607,7 +630,7 @@ router.get('/excel/group/:groupId/closed', async (req, res, next) => {
     // TABLE HEADERS
     // ═══════════════════════════════════════════════════════════════════════════
     
-    const headerStyle = {
+    const mainHeaderStyle = {
       font: { name: 'Arial', size: 11, bold: true },
       alignment: { horizontal: 'center', vertical: 'middle', wrapText: true },
       fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9E1F2' } },
@@ -646,7 +669,7 @@ router.get('/excel/group/:groupId/closed', async (req, res, next) => {
     headers.forEach((header, index) => {
       const cell = sheet.getCell(currentRow, index + 1);
       cell.value = header;
-      Object.assign(cell, headerStyle);
+      Object.assign(cell, mainHeaderStyle);
     });
     
     sheet.getRow(currentRow).height = 40;
