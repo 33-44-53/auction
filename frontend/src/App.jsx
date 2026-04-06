@@ -1207,6 +1207,11 @@ function GroupDetailPage() {
     if (!group || !group.items || group.items.length === 0) return { canNext: false };
     if (group.currentRound === 'HARAJ') return { canNext: false };
     
+    // Check if there are any bids - if there are bids, cannot move to next round
+    const hasBids = group.bids && group.bids.length > 0;
+    if (hasBids) return { canNext: false };
+    
+    // Only allow next round if no bids AND not at last round
     const firstItem = group.items[0];
     const prices = [
       { name: 'CIF', value: firstItem.cif },
@@ -1216,6 +1221,7 @@ function GroupDetailPage() {
     prices.sort((a, b) => b.value - a.value);
     const rounds = [prices[0].name, prices[1].name, prices[2].name];
     const currentIndex = rounds.indexOf(group.currentRound);
+    
     return {
       canNext: currentIndex < rounds.length - 1
     };
@@ -2048,7 +2054,7 @@ function GroupDetailPage() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                 >
                   <option value="">-- Create New Tender (Auto-increment) --</option>
-                  {allTenders.filter(t => t.id !== group.tenderId && t.status === 'OPEN').map(t => (
+                  {allTenders.filter(t => t.id !== group.tenderId && t.status === 'OPEN' && t.tenderType !== 'YASBELA').map(t => (
                     <option key={t.id} value={t.id}>{t.tenderNumber} ({t.tenderType})</option>
                   ))}
                 </select>
@@ -2134,7 +2140,7 @@ function GroupDetailPage() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                 >
                   <option value="">-- Create New Tender (Auto-increment) --</option>
-                  {allTenders.filter(t => t.id !== group.tenderId && t.status === 'OPEN').map(t => (
+                  {allTenders.filter(t => t.id !== group.tenderId && t.status === 'OPEN' && t.tenderType !== 'YASBELA').map(t => (
                     <option key={t.id} value={t.id}>{t.tenderNumber} ({t.tenderType})</option>
                   ))}
                 </select>
@@ -2944,6 +2950,12 @@ function ProfilePage() {
     setPasswordError('');
     setPasswordSuccess('');
 
+    // Prevent ADMIN from changing password
+    if (user?.role === 'ADMIN') {
+      setPasswordError('Admins cannot change their own password. Contact system administrator.');
+      return;
+    }
+
     if (passwordData.newPassword !== passwordData.confirmPassword) {
       setPasswordError('New passwords do not match');
       return;
@@ -3036,85 +3048,94 @@ function ProfilePage() {
             <span>Change Password</span>
           </h3>
 
-          {passwordError && (
-            <div className="bg-red-100 border border-red-300 text-red-700 px-4 py-3 rounded-xl mb-4 text-sm">
-              ✖ {passwordError}
+          {user?.role === 'ADMIN' ? (
+            <div className="bg-yellow-50 border border-yellow-300 text-yellow-800 px-4 py-3 rounded-xl">
+              <p className="font-semibold mb-2">🔒 Admin Password Protection</p>
+              <p className="text-sm">Admins cannot change their own password for security reasons. Please contact the system administrator if you need to reset your password.</p>
             </div>
+          ) : (
+            <>
+              {passwordError && (
+                <div className="bg-red-100 border border-red-300 text-red-700 px-4 py-3 rounded-xl mb-4 text-sm">
+                  ✖ {passwordError}
+                </div>
+              )}
+
+              {passwordSuccess && (
+                <div className="bg-green-100 border border-green-300 text-green-700 px-4 py-3 rounded-xl mb-4 text-sm">
+                  ✓ {passwordSuccess}
+                </div>
+              )}
+
+              <form onSubmit={handleChangePassword} className="space-y-4">
+                <div>
+                  <label className="block text-gray-700 text-sm font-bold mb-2">
+                    Current Password *
+                  </label>
+                  <input
+                    type="password"
+                    value={passwordData.currentPassword}
+                    onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Enter current password"
+                    required
+                    disabled={loading}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-gray-700 text-sm font-bold mb-2">
+                    New Password *
+                  </label>
+                  <input
+                    type="password"
+                    value={passwordData.newPassword}
+                    onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Enter new password (min 6 characters)"
+                    minLength={6}
+                    required
+                    disabled={loading}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-gray-700 text-sm font-bold mb-2">
+                    Confirm New Password *
+                  </label>
+                  <input
+                    type="password"
+                    value={passwordData.confirmPassword}
+                    onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Confirm new password"
+                    minLength={6}
+                    required
+                    disabled={loading}
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {loading ? 'Changing Password...' : 'Change Password'}
+                </button>
+              </form>
+
+              <div className="mt-6 p-4 bg-blue-50 rounded-xl">
+                <p className="text-sm text-gray-600">
+                  <strong>Password Requirements:</strong>
+                </p>
+                <ul className="text-xs text-gray-600 mt-2 space-y-1 list-disc list-inside">
+                  <li>Minimum 6 characters</li>
+                  <li>Must match confirmation</li>
+                  <li>Current password required for verification</li>
+                </ul>
+              </div>
+            </>
           )}
-
-          {passwordSuccess && (
-            <div className="bg-green-100 border border-green-300 text-green-700 px-4 py-3 rounded-xl mb-4 text-sm">
-              ✓ {passwordSuccess}
-            </div>
-          )}
-
-          <form onSubmit={handleChangePassword} className="space-y-4">
-            <div>
-              <label className="block text-gray-700 text-sm font-bold mb-2">
-                Current Password *
-              </label>
-              <input
-                type="password"
-                value={passwordData.currentPassword}
-                onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="Enter current password"
-                required
-                disabled={loading}
-              />
-            </div>
-
-            <div>
-              <label className="block text-gray-700 text-sm font-bold mb-2">
-                New Password *
-              </label>
-              <input
-                type="password"
-                value={passwordData.newPassword}
-                onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="Enter new password (min 6 characters)"
-                minLength={6}
-                required
-                disabled={loading}
-              />
-            </div>
-
-            <div>
-              <label className="block text-gray-700 text-sm font-bold mb-2">
-                Confirm New Password *
-              </label>
-              <input
-                type="password"
-                value={passwordData.confirmPassword}
-                onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="Confirm new password"
-                minLength={6}
-                required
-                disabled={loading}
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? 'Changing Password...' : 'Change Password'}
-            </button>
-          </form>
-
-          <div className="mt-6 p-4 bg-blue-50 rounded-xl">
-            <p className="text-sm text-gray-600">
-              <strong>Password Requirements:</strong>
-            </p>
-            <ul className="text-xs text-gray-600 mt-2 space-y-1 list-disc list-inside">
-              <li>Minimum 6 characters</li>
-              <li>Must match confirmation</li>
-              <li>Current password required for verification</li>
-            </ul>
-          </div>
         </div>
       </div>
     </div>
