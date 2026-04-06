@@ -1182,16 +1182,22 @@ function GroupDetailPage() {
   const handleNextRound = (e) => {
     if (e) e.preventDefault();
     setShowNextRoundModal(false);
+    
     const data = nextRoundFormData.targetTenderId ? { targetTenderId: parseInt(nextRoundFormData.targetTenderId) } : {};
+    
+    console.log('Sending next-round request with data:', data);
+    
     api.post(`/groups/${groupId}/next-round`, data)
       .then((res) => {
+        console.log('Next round response:', res.data);
         const msg = nextRoundFormData.targetTenderId 
           ? `Group moved to next round in existing tender` 
-          : `Group moved to next round in new tender: ${res.data.newTenderId}`;
+          : `Group moved to next round in new tender`;
         alert(msg);
         window.location.href = `/groups/${res.data.newGroup.id}`;
       })
       .catch(e => {
+        console.error('Next round error:', e.response?.data || e);
         alert(e.response?.data?.error || 'Failed to advance round');
       });
   };
