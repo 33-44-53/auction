@@ -2873,6 +2873,9 @@ function UsersPage() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [showResetModal, setShowResetModal] = useState(false);
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [newPassword, setNewPassword] = useState('');
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -2921,6 +2924,29 @@ function UsersPage() {
   const handleToggleActive = (userId) => {
     setUsers(us => us.map(u => u.id === userId ? { ...u, isActive: !u.isActive } : u));
     api.patch(`/users/${userId}/toggle-active`).catch(e => { alert(e.response?.data?.error || 'Failed to toggle user status'); loadUsers(); });
+  };
+
+  const handleResetPassword = async (e) => {
+    e.preventDefault();
+    if (!newPassword || newPassword.length < 6) {
+      alert('Password must be at least 6 characters');
+      return;
+    }
+    try {
+      await api.post(`/users/${selectedUser.id}/reset-password`, { newPassword });
+      alert(`Password reset successfully for ${selectedUser.email}`);
+      setShowResetModal(false);
+      setSelectedUser(null);
+      setNewPassword('');
+    } catch (error) {
+      alert(error.response?.data?.error || 'Failed to reset password');
+    }
+  };
+
+  const openResetModal = (user) => {
+    setSelectedUser(user);
+    setNewPassword('');
+    setShowResetModal(true);
   };
 
   if (loading) {
@@ -2990,6 +3016,13 @@ function UsersPage() {
                 <td className="text-sm">{new Date(user.createdAt).toLocaleDateString()}</td>
                 <td className="space-x-2">
                   <button
+                    onClick={() => openResetModal(user)}
+                    className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                    title="Reset Password"
+                  >
+                    🔑 Reset
+                  </button>
+                  <button
                     onClick={() => handleToggleActive(user.id)}
                     className={`text-sm inline-flex items-center ${
                       user.isActive 
@@ -3017,6 +3050,52 @@ function UsersPage() {
           </div>
         )}
       </div>
+
+      {/* Reset Password Modal */}
+      {showResetModal && selectedUser && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <h3 className="text-xl font-bold mb-4">🔑 Reset Password</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Reset password for: <strong>{selectedUser.name}</strong> ({selectedUser.email})
+            </p>
+            <form onSubmit={handleResetPassword}>
+              <div className="mb-4">
+                <label className="block text-sm font-bold mb-2">New Password *</label>
+                <input
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  className="w-full px-3 py-2 border rounded"
+                  placeholder="Enter new password (min 6 characters)"
+                  minLength={6}
+                  required
+                />
+                <p className="text-xs text-gray-500 mt-1">Minimum 6 characters</p>
+              </div>
+              <div className="flex space-x-2">
+                <button
+                  type="submit"
+                  className="flex-1 bg-blue-600 text-white py-2 rounded hover:bg-blue-700 font-medium"
+                >
+                  Reset Password
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowResetModal(false);
+                    setSelectedUser(null);
+                    setNewPassword('');
+                  }}
+                  className="flex-1 bg-gray-300 text-gray-700 py-2 rounded hover:bg-gray-400"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Add User Modal */}
       {showModal && (

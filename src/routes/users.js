@@ -3,7 +3,7 @@ const router = express.Router();
 const bcrypt = require('bcryptjs');
 const { body, validationResult } = require('express-validator');
 const prisma = require('../prisma');
-const { authorize } = require('../middleware/auth');
+const { authorize, authenticate } = require('../middleware/auth');
 
 // List all users (admin only)
 router.get('/', authorize('ADMIN'), async (req, res, next) => {
@@ -125,6 +125,53 @@ router.delete('/:id', authorize('ADMIN'), async (req, res, next) => {
     }
     await prisma.user.delete({ where: { id: targetId } });
     res.json({ message: 'User deleted' });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Admin: Reset user password
+router.post('/:id/reset-password', authorize('ADMIN'), async (req, res, next) => {
+  try {
+    const targetId = parseInt(req.params.id);
+    const { newPassword } = req.body;
+
+    if (!newPassword || newPassword.length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    }
+
+    const targetUser = await prisma.user.findUnique({
+      where: { id: targetId }
+    });
+
+    if (!targetUser) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const bcrypt = require('bcryptjs');
+    const hashedPassword = await bcrypt.hash(newPassword, 12);
+
+    await prisma.user.update({
+      where: { id: targetId },
+      data: {
+        password: hashedPassword,
+        resetToken: null,
+        resetTokenExpiry: null
+      }
+    });
+
+    await prisma.auditLog.create({
+      data: {
+        userId: req.userId,
+        action: 'ADMIN_PASSWORD_RESET',
+        entity: 'User',
+        entityId: targetId,
+        details: JSON.stringify({ targetEmail: targetUser.email }),
+        ipAddress: req.ip
+      }
+    });
+
+    res.json({ message: `Password reset successfully for ${targetUser.email}` });
   } catch (error) {
     next(error);
   }
