@@ -5,8 +5,10 @@ services:
     buildCommand: |
       npm install && 
       npx prisma generate && 
+      node ensure-users.js && 
       npx prisma migrate resolve --applied 20240101000000_init || true && 
       npx prisma migrate resolve --applied 20250101000000_add_group_metadata || true && 
+      npx prisma migrate resolve --rolled-back 20250201000000_add_created_by || true && 
       npx prisma migrate deploy
     startCommand: npm start
     envVars:
