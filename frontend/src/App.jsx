@@ -264,6 +264,7 @@ function DashboardLayout({ children }) {
               title="View Profile"
             >
               <div className="flex items-center space-x-2">
+                <UserCircle className="w-5 h-5 text-white" />
                 <div className="w-8 h-8 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-white font-bold text-sm border-2 border-white/30">
                   {user?.name?.charAt(0).toUpperCase()}
                 </div>
@@ -317,12 +318,6 @@ function DashboardLayout({ children }) {
                 <a href="/tenders" className="flex items-center space-x-3 px-3 py-2 rounded-lg hover:bg-white/40 backdrop-blur-sm hover:shadow-md transition-all text-sm font-medium text-white hover:text-blue-900">
                   <FileText className="w-5 h-5 flex-shrink-0" />
                   {sidebarExpanded && <span>Tenders</span>}
-                </a>
-              </li>
-              <li>
-                <a href="/profile" className="flex items-center space-x-3 px-3 py-2 rounded-lg hover:bg-white/40 backdrop-blur-sm hover:shadow-md transition-all text-sm font-medium text-white hover:text-blue-900">
-                  <UserCircle className="w-5 h-5 flex-shrink-0" />
-                  {sidebarExpanded && <span>Profile</span>}
                 </a>
               </li>
               <li>
