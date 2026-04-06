@@ -227,7 +227,7 @@ router.delete('/:id/bids/:bidId', authorize('ADMIN', 'STAFF'), async (req, res, 
 router.post('/:id/next-round', authorize('ADMIN', 'STAFF'), async (req, res, next) => {
   try {
     const groupId = parseInt(req.params.id);
-    const { targetTenderId } = req.body; // Optional: specify target tender
+    const { targetTenderId, newGroupCode } = req.body; // Optional: specify target tender and new group code
     
     const group = await prisma.group.findUnique({ 
       where: { id: groupId }, 
@@ -299,7 +299,7 @@ router.post('/:id/next-round', authorize('ADMIN', 'STAFF'), async (req, res, nex
     const newGroup = await prisma.group.create({
       data: {
         tenderId: newTenderId,
-        code: group.code,
+        code: newGroupCode || group.code,
         name: group.name,
         title: group.title,
         vehiclePlate: group.vehiclePlate,
@@ -647,7 +647,7 @@ router.post('/:id/reopen', authorize('ADMIN'), async (req, res, next) => {
 router.post('/:id/yasbela', authorize('ADMIN', 'STAFF'), async (req, res, next) => {
   try {
     const groupId = parseInt(req.params.id);
-    const { reason, yasbelaTenderId } = req.body;
+    const { reason, yasbelaTenderId, newGroupCode } = req.body;
 
     const group = await prisma.group.findUnique({ 
       where: { id: groupId }, 
@@ -731,7 +731,7 @@ router.post('/:id/yasbela', authorize('ADMIN', 'STAFF'), async (req, res, next) 
     const newGroup = await prisma.group.create({
       data: {
         tenderId: targetTenderId,
-        code: group.code,
+        code: newGroupCode || group.code,
         name: group.name,
         title: group.title,
         vehiclePlate: group.vehiclePlate,

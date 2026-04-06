@@ -565,6 +565,8 @@ function TenderDetailPage() {
   const [activeTab, setActiveTab] = useState('groups');
   const [showGroupModal, setShowGroupModal] = useState(false);
   const [groupFormData, setGroupFormData] = useState({ code: '', name: '', vehiclePlate: '' });
+  const [editingTender, setEditingTender] = useState(false);
+  const [tenderEditData, setTenderEditData] = useState({ tenderNumber: '', title: '' });
 
   const { id: tenderId } = useParams();
 
@@ -595,6 +597,21 @@ function TenderDetailPage() {
     api.post('/groups', data).then(() => loadTender()).catch(e => alert(e.response?.data?.error || 'Failed to create group'));
   };
 
+  const handleEditTender = () => {
+    setTenderEditData({ tenderNumber: tender.tenderNumber, title: tender.title || '' });
+    setEditingTender(true);
+  };
+
+  const handleSaveTender = async () => {
+    try {
+      await api.patch(`/tenders/${tenderId}`, tenderEditData);
+      setEditingTender(false);
+      loadTender();
+    } catch (e) {
+      alert(e.response?.data?.error || 'Failed to update tender');
+    }
+  };
+
   if (loading) {
     return <div className="text-center py-8">Loading...</div>;
   }
@@ -616,9 +633,46 @@ function TenderDetailPage() {
       </div>
       <div className="bg-white rounded-lg shadow-md p-6 mb-6">
         <div className="flex justify-between items-start">
-          <div>
-            <h2 className="text-2xl font-bold text-gray-800">{tender.tenderNumber}</h2>
-            <p className="text-gray-600">{tender.title || 'No title'}</p>
+          <div className="flex-1">
+            {editingTender ? (
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">Tender Number</label>
+                  <input
+                    type="text"
+                    value={tenderEditData.tenderNumber}
+                    onChange={(e) => setTenderEditData({ ...tenderEditData, tenderNumber: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">Title</label>
+                  <input
+                    type="text"
+                    value={tenderEditData.title}
+                    onChange={(e) => setTenderEditData({ ...tenderEditData, title: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                    placeholder="Optional"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={handleSaveTender} className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-sm">Save</button>
+                  <button onClick={() => setEditingTender(false)} className="px-3 py-1 bg-gray-300 text-gray-700 rounded hover:bg-gray-400 text-sm">Cancel</button>
+                </div>
+              </div>
+            ) : (
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-2xl font-bold text-gray-800">{tender.tenderNumber}</h2>
+                  <button onClick={handleEditTender} className="text-blue-600 hover:text-blue-800" title="Edit tender details">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                  </button>
+                </div>
+                <p className="text-gray-600">{tender.title || 'No title'}</p>
+              </div>
+            )}
             <div className="flex gap-2 mt-1">
               <span className={`px-2 py-1 rounded text-xs font-semibold ${
                 tender.tenderType === 'HARAJ' ? 'bg-orange-100 text-orange-800' :
@@ -947,8 +1001,10 @@ function GroupDetailPage() {
   const [showYasbelaModal, setShowYasbelaModal] = useState(false);
   const [showNextRoundModal, setShowNextRoundModal] = useState(false);
   const [harajFormData, setHarajFormData] = useState({ harajPrice: '', harajRound: '1' });
-  const [yasbelaFormData, setYasbelaFormData] = useState({ reason: '', yasbelaTenderId: '' });
-  const [nextRoundFormData, setNextRoundFormData] = useState({ targetTenderId: '' });
+  const [yasbelaFormData, setYasbelaFormData] = useState({ reason: '', yasbelaTenderId: '', newGroupCode: '' });
+  const [nextRoundFormData, setNextRoundFormData] = useState({ targetTenderId: '', newGroupCode: '' });
+  const [editingGroup, setEditingGroup] = useState(false);
+  const [groupEditData, setGroupEditData] = useState({ code: '', title: '' });
   const [allTenders, setAllTenders] = useState([]);
   const [selectedBidder, setSelectedBidder] = useState(null);
   const [bidderSearch, setBidderSearch] = useState('');
@@ -1184,6 +1240,7 @@ function GroupDetailPage() {
     setShowNextRoundModal(false);
     
     const data = nextRoundFormData.targetTenderId ? { targetTenderId: parseInt(nextRoundFormData.targetTenderId) } : {};
+    if (nextRoundFormData.newGroupCode) data.newGroupCode = nextRoundFormData.newGroupCode;
     
     console.log('Sending next-round request with data:', data);
     
@@ -1269,10 +1326,12 @@ function GroupDetailPage() {
     e.preventDefault();
     if (!confirm('Apply Yasbela? A 5% penalty will be deducted and the group will be moved to a tender.')) return;
     setShowYasbelaModal(false);
-    api.post(`/groups/${groupId}/yasbela`, {
+    const data = {
       reason: yasbelaFormData.reason,
       yasbelaTenderId: yasbelaFormData.yasbelaTenderId ? parseInt(yasbelaFormData.yasbelaTenderId) : undefined
-    }).then(res => {
+    };
+    if (yasbelaFormData.newGroupCode) data.newGroupCode = yasbelaFormData.newGroupCode;
+    api.post(`/groups/${groupId}/yasbela`, data).then(res => {
       const msg = yasbelaFormData.yasbelaTenderId 
         ? `Yasbela applied. Penalty: ${formatCurrency(res.data.penalty)}. Group moved to existing tender` 
         : `Yasbela applied. Penalty: ${formatCurrency(res.data.penalty)}. New tender created: ${res.data.newTenderId}`;
@@ -1343,6 +1402,21 @@ function GroupDetailPage() {
     setShowEditItemModal(true);
   };
 
+  const handleEditGroup = () => {
+    setGroupEditData({ code: group.code, title: group.title || '' });
+    setEditingGroup(true);
+  };
+
+  const handleSaveGroup = async () => {
+    try {
+      await api.patch(`/groups/${groupId}`, groupEditData);
+      setEditingGroup(false);
+      loadGroup();
+    } catch (e) {
+      alert(e.response?.data?.error || 'Failed to update group');
+    }
+  };
+
 
 
   if (loading) {
@@ -1366,14 +1440,51 @@ function GroupDetailPage() {
       </div>
       <div className="bg-white rounded-lg shadow-md p-6 mb-6">
         <div className="flex justify-between items-start mb-4">
-          <div>
-            <h2 className="text-2xl font-bold text-gray-800">{group.code}</h2>
-            <p className="text-gray-600">{group.name}</p>
-            {group.vehiclePlate && (
-              <p className="text-sm text-gray-500 mt-1">Vehicle Plate: {group.vehiclePlate}</p>
-            )}
-            {group.title && (
-              <p className="text-sm text-blue-600 font-medium mt-2">{group.title}</p>
+          <div className="flex-1">
+            {editingGroup ? (
+              <div className="space-y-3 max-w-md">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">Group Code</label>
+                  <input
+                    type="text"
+                    value={groupEditData.code}
+                    onChange={(e) => setGroupEditData({ ...groupEditData, code: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">Group Title</label>
+                  <input
+                    type="text"
+                    value={groupEditData.title}
+                    onChange={(e) => setGroupEditData({ ...groupEditData, title: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                    placeholder="Optional"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={handleSaveGroup} className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-sm">Save</button>
+                  <button onClick={() => setEditingGroup(false)} className="px-3 py-1 bg-gray-300 text-gray-700 rounded hover:bg-gray-400 text-sm">Cancel</button>
+                </div>
+              </div>
+            ) : (
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-2xl font-bold text-gray-800">{group.code}</h2>
+                  <button onClick={handleEditGroup} className="text-blue-600 hover:text-blue-800" title="Edit group details">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                  </button>
+                </div>
+                <p className="text-gray-600">{group.name}</p>
+                {group.vehiclePlate && (
+                  <p className="text-sm text-gray-500 mt-1">Vehicle Plate: {group.vehiclePlate}</p>
+                )}
+                {group.title && (
+                  <p className="text-sm text-blue-600 font-medium mt-2">{group.title}</p>
+                )}
+              </div>
             )}
           </div>
           <div className="flex items-center space-x-3">
@@ -2050,7 +2161,7 @@ function GroupDetailPage() {
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Target Tender</label>
                 <select
                   value={nextRoundFormData.targetTenderId}
-                  onChange={(e) => setNextRoundFormData({ targetTenderId: e.target.value })}
+                  onChange={(e) => setNextRoundFormData({ ...nextRoundFormData, targetTenderId: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                 >
                   <option value="">-- Create New Tender (Auto-increment) --</option>
@@ -2064,6 +2175,19 @@ function GroupDetailPage() {
                     : `New tender will be created (e.g., ${group.tender?.tenderNumber?.replace(/(\d+)/, (m) => String(parseInt(m) + 1).padStart(3, '0'))})`}
                 </p>
               </div>
+              {!nextRoundFormData.targetTenderId && (
+                <div className="mb-4">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">New Group Code (optional)</label>
+                  <input
+                    type="text"
+                    value={nextRoundFormData.newGroupCode}
+                    onChange={(e) => setNextRoundFormData({ ...nextRoundFormData, newGroupCode: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                    placeholder={`Leave empty to keep: ${group.code}`}
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Assign a new code for the group in the new tender</p>
+                </div>
+              )}
               <div className="flex gap-2">
                 <button type="submit" className="flex-1 bg-purple-600 text-white py-2 rounded hover:bg-purple-700 font-semibold">
                   Move to Next Round
@@ -2150,6 +2274,19 @@ function GroupDetailPage() {
                     : `New tender will be created (e.g., ${group.tender?.tenderNumber?.replace(/(\d+)/, (m) => String(parseInt(m) + 1).padStart(3, '0'))})`}
                 </p>
               </div>
+              {!yasbelaFormData.yasbelaTenderId && (
+                <div className="mb-4">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">New Group Code (optional)</label>
+                  <input
+                    type="text"
+                    value={yasbelaFormData.newGroupCode}
+                    onChange={(e) => setYasbelaFormData({ ...yasbelaFormData, newGroupCode: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                    placeholder={`Leave empty to keep: ${group.code}`}
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Assign a new code for the group in the new tender</p>
+                </div>
+              )}
               <div className="flex gap-2">
                 <button type="submit" className="flex-1 bg-purple-600 text-white py-2 rounded hover:bg-purple-700 font-semibold">Apply Yasbela</button>
                 <button type="button" onClick={() => setShowYasbelaModal(false)} className="flex-1 btn-secondary">Cancel</button>
