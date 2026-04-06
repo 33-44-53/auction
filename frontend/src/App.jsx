@@ -217,41 +217,6 @@ function DashboardLayout({ children }) {
   const { user, logout } = useAuth();
   const { isDark, toggleTheme } = useTheme();
   const [sidebarExpanded, setSidebarExpanded] = useState(true);
-  const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
-  const [passwordData, setPasswordData] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
-  const [passwordError, setPasswordError] = useState('');
-  const [passwordSuccess, setPasswordSuccess] = useState('');
-
-  const handleChangePassword = async (e) => {
-    e.preventDefault();
-    setPasswordError('');
-    setPasswordSuccess('');
-
-    if (passwordData.newPassword !== passwordData.confirmPassword) {
-      setPasswordError('New passwords do not match');
-      return;
-    }
-
-    if (passwordData.newPassword.length < 6) {
-      setPasswordError('New password must be at least 6 characters');
-      return;
-    }
-
-    try {
-      await api.post('/auth/change-password', {
-        currentPassword: passwordData.currentPassword,
-        newPassword: passwordData.newPassword
-      });
-      setPasswordSuccess('Password changed successfully!');
-      setTimeout(() => {
-        setShowChangePasswordModal(false);
-        setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
-        setPasswordSuccess('');
-      }, 2000);
-    } catch (error) {
-      setPasswordError(error.response?.data?.error || 'Failed to change password');
-    }
-  };
 
   return (
     <div className={`min-h-screen flex flex-col ${isDark ? 'bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900' : 'bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50'}`}>
@@ -293,22 +258,16 @@ function DashboardLayout({ children }) {
                 </>
               )}
             </button>
-            <button
-              onClick={() => setShowChangePasswordModal(true)}
-              className="bg-white/20 backdrop-blur-sm px-3 py-1.5 rounded-lg hover:bg-white/30 transition text-sm font-medium flex items-center space-x-2"
-              title="Change Password"
+            <a
+              href="/profile"
+              className="glass px-3 py-1.5 rounded-lg hover:bg-white/30 transition cursor-pointer"
+              title="View Profile"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
-              </svg>
-              <span>Change Password</span>
-            </button>
-            <div className="glass px-3 py-1.5 rounded-lg">
               <span className="text-sm font-medium">
                 {user?.name}
               </span>
               <span className="text-xs text-blue-200 ml-2">({user?.role})</span>
-            </div>
+            </a>
             <button
               onClick={logout}
               className="bg-white/20 backdrop-blur-sm px-3 py-1.5 rounded-lg hover:bg-white/30 transition text-sm font-medium"
@@ -346,6 +305,12 @@ function DashboardLayout({ children }) {
                 </a>
               </li>
               <li>
+                <a href="/profile" className="flex items-center space-x-3 px-3 py-2 rounded-lg hover:bg-white/40 backdrop-blur-sm hover:shadow-md transition-all text-sm font-medium text-white hover:text-blue-900">
+                  <UserCircle className="w-5 h-5 flex-shrink-0" />
+                  {sidebarExpanded && <span>Profile</span>}
+                </a>
+              </li>
+              <li>
                 <a href="/bidders" className="flex items-center space-x-3 px-3 py-2 rounded-lg hover:bg-white/40 backdrop-blur-sm hover:shadow-md transition-all text-sm font-medium text-white hover:text-blue-900">
                   <Users className="w-5 h-5 flex-shrink-0" />
                   {sidebarExpanded && <span>Bidders</span>}
@@ -361,7 +326,7 @@ function DashboardLayout({ children }) {
                   </li>
                   <li>
                     <a href="/users" className="flex items-center space-x-3 px-3 py-2 rounded-lg hover:bg-white/40 backdrop-blur-sm hover:shadow-md transition-all text-sm font-medium text-white hover:text-blue-900">
-                      <UserCircle className="w-5 h-5 flex-shrink-0" />
+                      <Settings className="w-5 h-5 flex-shrink-0" />
                       {sidebarExpanded && <span>Users</span>}
                     </a>
                   </li>
@@ -377,94 +342,6 @@ function DashboardLayout({ children }) {
           </div>
         </main>
       </div>
-
-      {/* Change Password Modal */}
-      {showChangePasswordModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <h3 className="text-xl font-bold mb-4 text-gray-800">🔑 Change Password</h3>
-            
-            {passwordError && (
-              <div className="bg-red-100 border border-red-300 text-red-700 px-4 py-3 rounded-xl mb-4 text-sm">
-                {passwordError}
-              </div>
-            )}
-            
-            {passwordSuccess && (
-              <div className="bg-green-100 border border-green-300 text-green-700 px-4 py-3 rounded-xl mb-4 text-sm">
-                ✓ {passwordSuccess}
-              </div>
-            )}
-            
-            <form onSubmit={handleChangePassword}>
-              <div className="mb-4">
-                <label className="block text-gray-700 text-sm font-bold mb-2">
-                  Current Password *
-                </label>
-                <input
-                  type="password"
-                  value={passwordData.currentPassword}
-                  onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded"
-                  placeholder="Enter current password"
-                  required
-                />
-              </div>
-              
-              <div className="mb-4">
-                <label className="block text-gray-700 text-sm font-bold mb-2">
-                  New Password *
-                </label>
-                <input
-                  type="password"
-                  value={passwordData.newPassword}
-                  onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded"
-                  placeholder="Enter new password (min 6 characters)"
-                  minLength={6}
-                  required
-                />
-              </div>
-              
-              <div className="mb-4">
-                <label className="block text-gray-700 text-sm font-bold mb-2">
-                  Confirm New Password *
-                </label>
-                <input
-                  type="password"
-                  value={passwordData.confirmPassword}
-                  onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded"
-                  placeholder="Confirm new password"
-                  minLength={6}
-                  required
-                />
-              </div>
-              
-              <div className="flex space-x-2">
-                <button
-                  type="submit"
-                  className="flex-1 bg-blue-600 text-white py-2 rounded hover:bg-blue-700 font-medium"
-                >
-                  Change Password
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowChangePasswordModal(false);
-                    setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
-                    setPasswordError('');
-                    setPasswordSuccess('');
-                  }}
-                  className="flex-1 bg-gray-300 text-gray-700 py-2 rounded hover:bg-gray-400"
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -3001,6 +2878,196 @@ function AuditPage() {
   );
 }
 
+// Profile Page
+function ProfilePage() {
+  const { user } = useAuth();
+  const [passwordData, setPasswordData] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
+  const [passwordError, setPasswordError] = useState('');
+  const [passwordSuccess, setPasswordSuccess] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleChangePassword = async (e) => {
+    e.preventDefault();
+    setPasswordError('');
+    setPasswordSuccess('');
+
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      setPasswordError('New passwords do not match');
+      return;
+    }
+
+    if (passwordData.newPassword.length < 6) {
+      setPasswordError('New password must be at least 6 characters');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await api.post('/auth/change-password', {
+        currentPassword: passwordData.currentPassword,
+        newPassword: passwordData.newPassword
+      });
+      setPasswordSuccess('Password changed successfully!');
+      setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      setTimeout(() => setPasswordSuccess(''), 3000);
+    } catch (error) {
+      setPasswordError(error.response?.data?.error || 'Failed to change password');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div>
+      <div className="mb-4">
+        <button
+          onClick={() => window.history.back()}
+          className="flex items-center space-x-2 text-gray-600 hover:text-gray-800 font-medium"
+        >
+          <ChevronLeft className="w-5 h-5" />
+          <span>Back</span>
+        </button>
+      </div>
+
+      <h2 className="text-3xl font-bold gradient-text mb-6">My Profile</h2>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Profile Information */}
+        <div className="glass rounded-2xl shadow-xl p-6">
+          <div className="flex items-center space-x-4 mb-6">
+            <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center text-white text-3xl font-bold shadow-lg">
+              {user?.name?.charAt(0).toUpperCase()}
+            </div>
+            <div>
+              <h3 className="text-2xl font-bold text-gray-800">{user?.name}</h3>
+              <p className="text-gray-600">{user?.email}</p>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-4">
+              <label className="text-sm font-semibold text-gray-600">Role</label>
+              <p className="text-lg font-bold text-gray-800 mt-1">
+                <span className={`px-3 py-1 rounded-lg text-sm ${
+                  user?.role === 'ADMIN' ? 'bg-purple-100 text-purple-800' :
+                  user?.role === 'STAFF' ? 'bg-blue-100 text-blue-800' :
+                  'bg-gray-100 text-gray-800'
+                }`}>
+                  {user?.role}
+                </span>
+              </p>
+            </div>
+
+            <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-4">
+              <label className="text-sm font-semibold text-gray-600">Account Status</label>
+              <p className="text-lg font-bold text-green-600 mt-1">
+                ✓ Active
+              </p>
+            </div>
+
+            <div className="bg-gradient-to-r from-yellow-50 to-orange-50 rounded-xl p-4">
+              <label className="text-sm font-semibold text-gray-600">Member Since</label>
+              <p className="text-lg font-bold text-gray-800 mt-1">
+                {user?.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A'}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Change Password */}
+        <div className="glass rounded-2xl shadow-xl p-6">
+          <h3 className="text-xl font-bold gradient-text mb-4 flex items-center space-x-2">
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+            </svg>
+            <span>Change Password</span>
+          </h3>
+
+          {passwordError && (
+            <div className="bg-red-100 border border-red-300 text-red-700 px-4 py-3 rounded-xl mb-4 text-sm">
+              ✖ {passwordError}
+            </div>
+          )}
+
+          {passwordSuccess && (
+            <div className="bg-green-100 border border-green-300 text-green-700 px-4 py-3 rounded-xl mb-4 text-sm">
+              ✓ {passwordSuccess}
+            </div>
+          )}
+
+          <form onSubmit={handleChangePassword} className="space-y-4">
+            <div>
+              <label className="block text-gray-700 text-sm font-bold mb-2">
+                Current Password *
+              </label>
+              <input
+                type="password"
+                value={passwordData.currentPassword}
+                onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="Enter current password"
+                required
+                disabled={loading}
+              />
+            </div>
+
+            <div>
+              <label className="block text-gray-700 text-sm font-bold mb-2">
+                New Password *
+              </label>
+              <input
+                type="password"
+                value={passwordData.newPassword}
+                onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="Enter new password (min 6 characters)"
+                minLength={6}
+                required
+                disabled={loading}
+              />
+            </div>
+
+            <div>
+              <label className="block text-gray-700 text-sm font-bold mb-2">
+                Confirm New Password *
+              </label>
+              <input
+                type="password"
+                value={passwordData.confirmPassword}
+                onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="Confirm new password"
+                minLength={6}
+                required
+                disabled={loading}
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loading ? 'Changing Password...' : 'Change Password'}
+            </button>
+          </form>
+
+          <div className="mt-6 p-4 bg-blue-50 rounded-xl">
+            <p className="text-sm text-gray-600">
+              <strong>Password Requirements:</strong>
+            </p>
+            <ul className="text-xs text-gray-600 mt-2 space-y-1 list-disc list-inside">
+              <li>Minimum 6 characters</li>
+              <li>Must match confirmation</li>
+              <li>Current password required for verification</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // Users Page (Admin)
 function UsersPage() {
   const [users, setUsers] = useState([]);
@@ -3347,6 +3414,16 @@ function App() {
               <ProtectedRoute roles={['ADMIN', 'STAFF']}>
                 <DashboardLayout>
                   <GroupDetailPage />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/profile"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <ProfilePage />
                 </DashboardLayout>
               </ProtectedRoute>
             }
