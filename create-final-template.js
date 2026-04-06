@@ -1,113 +1,197 @@
-const ExcelJS = require('exceljs');
+const { Document, Packer, Paragraph, TextRun, AlignmentType } = require('docx');
+const fs = require('fs');
 
-async function createFormattedExcel() {
-  const workbook = new ExcelJS.Workbook();
-  const sheet = workbook.addWorksheet('Tender Data');
-
-  // Row 1: Header row with all metadata columns
-  const headers = [
-    'ኮድ',
-    'Title',
-    'የተያዘበት ቀን',
-    'የተያዘበት ቦታ',
-    'ያዥው አካል',
-    'Exchange Rate',
-    'የእቃው አይነት',
-    'ማርክ',
-    'ስሪት ሀገር',
-    'መለኪያ',
-    'መጋዘን1',
-    'መጋዘን 2',
-    'መጋዝን 3',
-    'ሞዴል',
-    'የአንድ ዋጋ (FOB)',
-    'የአንድ ዋጋ (CIF)',
-    'የአንድ ዋጋ (TAX)'
-  ];
+async function createCompleteTemplate() {
+  console.log('📝 Creating complete winner letter template with placeholders...\n');
   
-  headers.forEach((header, index) => {
-    const cell = sheet.getCell(1, index + 1);
-    cell.value = header;
-    cell.font = { bold: true };
-    cell.fill = {
-      type: 'pattern',
-      pattern: 'solid',
-      fgColor: { argb: 'FFD9E1F2' }
-    };
+  const doc = new Document({
+    sections: [{
+      properties: {
+        page: {
+          margin: { top: 1440, right: 1440, bottom: 1440, left: 1440 }
+        }
+      },
+      children: [
+        // Reference Number
+        new Paragraph({
+          children: [
+            new TextRun({
+              text: 'ቁጥር/Ref.No: {refNumber}',
+              font: 'Nyala',
+              size: 24
+            })
+          ],
+          spacing: { after: 200 }
+        }),
+        
+        // Date
+        new Paragraph({
+          children: [
+            new TextRun({
+              text: 'ቀን /Date: {date}',
+              font: 'Nyala',
+              size: 24
+            })
+          ],
+          spacing: { after: 400 }
+        }),
+        
+        // Recipient
+        new Paragraph({
+          children: [
+            new TextRun({
+              text: 'ለገቢ አሰባሰብና ዋስትና አያያዝ ቡድን',
+              font: 'Nyala',
+              size: 24
+            })
+          ],
+          spacing: { after: 200 }
+        }),
+        
+        // Subject
+        new Paragraph({
+          children: [
+            new TextRun({
+              text: 'ጉዳዩ፤ ',
+              font: 'Nyala',
+              size: 24,
+              bold: true
+            }),
+            new TextRun({
+              text: 'ክፊያ መቀበለን ይመለከታል',
+              font: 'Nyala',
+              size: 24
+            })
+          ],
+          spacing: { after: 400 }
+        }),
+        
+        // Body paragraph
+        new Paragraph({
+          children: [
+            new TextRun({
+              text: 'በቅ/ጽ/ቤታችን ግልፅ ጨረታ ቁጥር {tenderNumber} በ{date} ዓ.ም የተካሄደ መሆኑ ይታወቃል። በዚህ መሠረት ስት {winnerName} በኮድ-{groupCode} የተለየዩ {itemDescription} በብር {winnerPrice} ተወዳድረው አሸናፊ መሆናቸውን እየገለፅን የክፍያ ሁኔታው ከዚህ በታች እንደሚከተለው ቀርቧል።',
+              font: 'Nyala',
+              size: 24
+            })
+          ],
+          spacing: { after: 400 },
+          alignment: AlignmentType.JUSTIFIED
+        }),
+        
+        // Payment breakdown
+        new Paragraph({
+          children: [
+            new TextRun({ text: '70% ', font: 'Nyala', size: 24, bold: true }),
+            new TextRun({ text: '----------------------------------------------------', font: 'Nyala', size: 24 }),
+            new TextRun({ text: ' {calc70}', font: 'Nyala', size: 24, bold: true })
+          ],
+          spacing: { after: 100 }
+        }),
+        
+        new Paragraph({
+          children: [
+            new TextRun({ text: '30% ', font: 'Nyala', size: 24, bold: true }),
+            new TextRun({ text: '----------------------------------------------------', font: 'Nyala', size: 24 }),
+            new TextRun({ text: ' {calc30}', font: 'Nyala', size: 24, bold: true })
+          ],
+          spacing: { after: 100 }
+        }),
+        
+        new Paragraph({
+          children: [
+            new TextRun({ text: '15% (ቫት) ', font: 'Nyala', size: 24, bold: true }),
+            new TextRun({ text: '---------------------------------------------', font: 'Nyala', size: 24 }),
+            new TextRun({ text: ' {vat}', font: 'Nyala', size: 24, bold: true })
+          ],
+          spacing: { after: 100 }
+        }),
+        
+        new Paragraph({
+          children: [
+            new TextRun({ text: 'ጠቅላላ ድምር ', font: 'Nyala', size: 24, bold: true }),
+            new TextRun({ text: '-------------------------------------------', font: 'Nyala', size: 24 }),
+            new TextRun({ text: ' {totalWithVAT}', font: 'Nyala', size: 24, bold: true })
+          ],
+          spacing: { after: 400 }
+        }),
+        
+        // Instructions
+        new Paragraph({
+          children: [
+            new TextRun({
+              text: 'ስለሆነም ተጫራቹ ገንዘቡን በድሬዳዋ ጉምሩክ ኮሚሽን ቅ/ጽ/ቤት ስም በተከፈተው 70% በቀጥታ ገቢ አካውት ቁጥር 1000014311762 በጉምርክ ኮሚሽን እና ለፍትህ ሚንስቴር 30%ቱን እና ቫቱን በዲፖዚት አካውንት 1000014260092 ሪሲት አሰርተው ሲያቀርቡ ተቆርጦ እንዲሰጣቸው እያሳሰብን የውርስ እቃ መጋዘን ሀላፊ የክፍያውን መረጃ ይዘው ሲቀርቡ ከዚህ ደብዳቤ ጋር ተያይዞ በቀረበው ዝርዝር መሰረት በሞዴል 266 ወጪ በማድረግ ንብረቱን እንድታስረክቡ እያሳሰብን ለርክክብ ይረዳ ዘንድ የእቃው ዝርዝር 1 ገጽ ከዚህ ደብዳቤ ጋር ያያዝን ሲሆን የእቃ አያያዝ ቡድንም ያሸነፉትን እቃ ክፍያ መፈፀሙን በማረጋገጥ በ 5 የስራ ቀናት ውስጥ ከመጋዘን እናዲያወጡ ለርክክብ ይረዳ ዘንድ ግልባጭ ተደርጎለታል፡፡',
+              font: 'Nyala',
+              size: 24
+            })
+          ],
+          spacing: { after: 600 },
+          alignment: AlignmentType.JUSTIFIED
+        }),
+        
+        // Closing
+        new Paragraph({
+          children: [
+            new TextRun({ text: '‹‹ከሰላምታ ጋር››', font: 'Nyala', size: 24 })
+          ],
+          alignment: AlignmentType.CENTER,
+          spacing: { after: 600 }
+        }),
+        
+        // Copy distribution
+        new Paragraph({
+          children: [
+            new TextRun({ text: 'ግልባጭ፡-', font: 'Nyala', size: 24, bold: true, underline: {} })
+          ],
+          spacing: { after: 200 }
+        }),
+        
+        new Paragraph({ children: [new TextRun({ text: 'ለጉምሩክ ኦፕሬሽን ም/ስ/አስኪያጅ', font: 'Nyala', size: 22 })], spacing: { after: 100 } }),
+        new Paragraph({ children: [new TextRun({ text: 'የተያዙና የተወረሱ ንብ/አስ/የስራ ሂደት', font: 'Nyala', size: 22 })], spacing: { after: 100 } }),
+        new Paragraph({ children: [new TextRun({ text: 'ለኢንተለጀንስ እና ኮተረበንድ ክትትል የስራ ሂደት', font: 'Nyala', size: 22 })], spacing: { after: 100 } }),
+        new Paragraph({ children: [new TextRun({ text: 'ለእቃ አያያዝ ቡድን', font: 'Nyala', size: 22 })], spacing: { after: 100 } }),
+        new Paragraph({ children: [new TextRun({ text: 'ለውርስ እቃ አስወጋጅ ኮሚቴ', font: 'Nyala', size: 22 })], spacing: { after: 100 } }),
+        new Paragraph({ children: [new TextRun({ text: 'መጋዘን 1', font: 'Nyala', size: 22 })], spacing: { after: 100 } }),
+        new Paragraph({ children: [new TextRun({ text: 'ለበር ጥበቃ', font: 'Nyala', size: 22 })], spacing: { after: 100 } }),
+        new Paragraph({ children: [new TextRun({ text: 'ለድ/ለኮን/ቁጥ/ድን/ተሻ/ፖሊ/መምሪያ ሪጅመንት 14', font: 'Nyala', size: 22 })], spacing: { after: 100 } }),
+        new Paragraph({ children: [new TextRun({ text: 'ድ/ዳ/ጉ/ኮምሽን', font: 'Nyala', size: 22 })], spacing: { after: 100 } }),
+        new Paragraph({ children: [new TextRun({ text: 'አቶ {winnerName}', font: 'Nyala', size: 22 })], spacing: { after: 100 } }),
+        new Paragraph({ children: [new TextRun({ text: 'በ/መ', font: 'Nyala', size: 22 })], spacing: { after: 100 } })
+      ]
+    }]
   });
 
-  // Group 1 - first item with metadata
-  sheet.getCell('A2').value = 'ኮድ-10';
-  sheet.getCell('B2').value = 'የተለያዩ የምግብነኮች';
-  sheet.getCell('C2').value = '16-05-2018';
-  sheet.getCell('D2').value = 'ከሀረር';
-  sheet.getCell('E2').value = 'Dire Dawa Customs Commission';
-  sheet.getCell('F2').value = 157.098;
-  sheet.getCell('G2').value = 'የሞባይል ቀፎ KL4.64gb tr3 pop 9';
-  sheet.getCell('H2').value = 'tecno';
-  sheet.getCell('I2').value = 'china';
-  sheet.getCell('J2').value = 'ዘቁጥር';
-  sheet.getCell('K2').value = 0;
-  sheet.getCell('L2').value = 445;
-  sheet.getCell('M2').value = 0;
-  sheet.getCell('N2').value = '99861';
-  sheet.getCell('O2').value = 13673.11;
-  sheet.getCell('P2').value = 13673.11;
-  sheet.getCell('Q2').value = 13673.11;
-
-  // Group 1 - second item (no metadata)
-  sheet.getCell('G3').value = 'የሞባይል ቀፎ kl128 GB R4';
-  sheet.getCell('H3').value = 'tecno';
-  sheet.getCell('I3').value = 'china';
-  sheet.getCell('J3').value = 'ዘቁጥር';
-  sheet.getCell('K3').value = 0;
-  sheet.getCell('L3').value = 488;
-  sheet.getCell('M3').value = 0;
-  sheet.getCell('N3').value = '99861';
-  sheet.getCell('O3').value = 18919.55;
-  sheet.getCell('P3').value = 18919.55;
-  sheet.getCell('Q3').value = 18919.55;
-
-  // Group 2 - first item with different metadata and exchange rate
-  sheet.getCell('A4').value = 'ኮድ-7';
-  sheet.getCell('B4').value = 'የተለያዩ የኤሌክትሮኒክስ እቃዎች';
-  sheet.getCell('C4').value = '20-06-2018';
-  sheet.getCell('D4').value = 'ከድሬዳዋ';
-  sheet.getCell('E4').value = 'Dire Dawa Customs Commission';
-  sheet.getCell('F4').value = 160.5;
-  sheet.getCell('G4').value = 'የሞባይል ቀፎ M14 64GB RM4';
-  sheet.getCell('H4').value = 'samsung';
-  sheet.getCell('I4').value = 'India';
-  sheet.getCell('J4').value = 'ዘቁጥር';
-  sheet.getCell('K4').value = 0;
-  sheet.getCell('L4').value = 110;
-  sheet.getCell('M4').value = 0;
-  sheet.getCell('N4').value = '99856';
-  sheet.getCell('O4').value = 15836.74;
-  sheet.getCell('P4').value = 15836.74;
-  sheet.getCell('Q4').value = 15836.74;
-
-  // Column widths
-  sheet.getColumn(1).width = 12;
-  sheet.getColumn(2).width = 30;
-  sheet.getColumn(3).width = 15;
-  sheet.getColumn(4).width = 15;
-  sheet.getColumn(5).width = 30;
-  sheet.getColumn(6).width = 15;
-  sheet.getColumn(7).width = 35;
-  sheet.getColumn(8).width = 12;
-  sheet.getColumn(9).width = 12;
-  sheet.getColumn(10).width = 10;
-  sheet.getColumn(11).width = 10;
-  sheet.getColumn(12).width = 10;
-  sheet.getColumn(13).width = 10;
-  sheet.getColumn(14).width = 15;
-  sheet.getColumn(15).width = 15;
-  sheet.getColumn(16).width = 15;
-  sheet.getColumn(17).width = 15;
-
-  await workbook.xlsx.writeFile('c:\\Users\\Oumer\\Desktop\\auction\\Tender_GroupMetadata_Final.xlsx');
-  console.log('✓ Created Tender_GroupMetadata_Final.xlsx');
+  const buffer = await Packer.toBuffer(doc);
+  
+  // Save with a new name (you can rename it later)
+  fs.writeFileSync('WINNER_LETTER_TEMPLATE_READY.docx', buffer);
+  
+  console.log('✅ SUCCESS! Template created with placeholders!\n');
+  console.log('📄 File: WINNER_LETTER_TEMPLATE_READY.docx');
+  console.log('📊 Size:', buffer.length, 'bytes\n');
+  console.log('✅ Placeholders included:');
+  console.log('   • {refNumber}');
+  console.log('   • {date}');
+  console.log('   • {tenderNumber}');
+  console.log('   • {winnerName}');
+  console.log('   • {groupCode}');
+  console.log('   • {itemDescription}');
+  console.log('   • {winnerPrice}');
+  console.log('   • {calc70}');
+  console.log('   • {calc30}');
+  console.log('   • {vat}');
+  console.log('   • {totalWithVAT}\n');
+  console.log('🎨 To add your background:');
+  console.log('   1. Open the file in Microsoft Word');
+  console.log('   2. Go to: Design → Watermark → Custom Watermark');
+  console.log('   3. Or: Design → Page Color → Fill Effects → Picture');
+  console.log('   4. Add your logo/background');
+  console.log('   5. Save the file\n');
+  console.log('🚀 The system is ready to use this template!');
+  console.log('   When you download a winner letter, it will:');
+  console.log('   ✅ Use this template');
+  console.log('   ✅ Replace all placeholders with real data');
+  console.log('   ✅ Include your background/logo\n');
 }
 
-createFormattedExcel().catch(console.error);
+createCompleteTemplate().catch(console.error);

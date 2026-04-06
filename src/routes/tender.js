@@ -67,8 +67,14 @@ router.get('/', async (req, res, next) => {
     const skip = (page - 1) * limit;
     const includeDetails = req.query.details === 'true';
 
+    // Build where clause based on user role
+    const whereClause = req.user?.role === 'STAFF' 
+      ? { createdBy: req.userId } 
+      : {}; // Admin sees all
+
     const [tenders, total] = await Promise.all([
       prisma.tender.findMany({
+        where: whereClause,
         skip,
         take: limit,
         include: includeDetails ? {
@@ -91,7 +97,7 @@ router.get('/', async (req, res, next) => {
         },
         orderBy: { createdAt: 'desc' }
       }),
-      prisma.tender.count()
+      prisma.tender.count({ where: whereClause })
     ]);
 
     res.json({
@@ -111,8 +117,16 @@ router.get('/', async (req, res, next) => {
 // Get single tender
 router.get('/:id', async (req, res, next) => {
   try {
-    const tender = await prisma.tender.findUnique({
-      where: { id: parseInt(req.params.id) },
+    const tenderId = parseInt(req.params.id);
+    
+    // Build where clause with ownership check
+    const whereClause = { id: tenderId };
+    if (req.user?.role === 'STAFF') {
+      whereClause.createdBy = req.userId;
+    }
+
+    const tender = await prisma.tender.findFirst({
+      where: whereClause,
       include: {
         groups: {
           include: {
@@ -206,7 +220,8 @@ router.post(
             tenderType: tenderType || 'AUCTION',
             originalTenderId: originalTenderId ? parseInt(originalTenderId) : null,
             harajRound: harajRound ? parseInt(harajRound) : 1,
-            status: 'OPEN'
+            status: 'OPEN',
+            createdBy: req.userId
           }
         });
 
@@ -357,10 +372,21 @@ router.patch(
   authorize('ADMIN', 'STAFF'),
   async (req, res, next) => {
     try {
+      const tenderId = parseInt(req.params.id);
       const { title, tenderNumber, exchangeRate, location, date, status, responsibleBody } = req.body;
 
+      // Check ownership for staff
+      if (req.user.role === 'STAFF') {
+        const existing = await prisma.tender.findFirst({
+          where: { id: tenderId, createdBy: req.userId }
+        });
+        if (!existing) {
+          return res.status(403).json({ error: 'Not authorized to update this tender' });
+        }
+      }
+
       const tender = await prisma.tender.update({
-        where: { id: parseInt(req.params.id) },
+        where: { id: tenderId },
         data: {
           ...(title && { title }),
           ...(tenderNumber && { tenderNumber }),
@@ -394,18 +420,21 @@ router.patch(
 // Delete tender
 router.delete(
   '/:id',
-  authorize('ADMIN'),
+  authorize('ADMIN', 'STAFF'),
   async (req, res, next) => {
     try {
       const tenderId = parseInt(req.params.id);
 
-      // Check if tender exists
-      const tender = await prisma.tender.findUnique({
-        where: { id: tenderId }
-      });
+      // Check ownership for staff
+      const whereClause = { id: tenderId };
+      if (req.user.role === 'STAFF') {
+        whereClause.createdBy = req.userId;
+      }
+
+      const tender = await prisma.tender.findFirst({ where: whereClause });
 
       if (!tender) {
-        return res.status(404).json({ error: 'Tender not found' });
+        return res.status(404).json({ error: 'Tender not found or not authorized' });
       }
 
       // Delete tender (cascade will handle related records)

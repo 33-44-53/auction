@@ -15,7 +15,7 @@ const registerValidation = [
   body('name').notEmpty().withMessage('Name required'),
   body('email').isEmail().withMessage('Valid email required'),
   body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
-  body('role').optional().isIn(['ADMIN', 'STAFF', 'VIEWER'])
+  body('role').optional().isIn(['ADMIN', 'STAFF'])
 ];
 
 // Login
@@ -86,7 +86,7 @@ router.post('/register', registerValidation, async (req, res, next) => {
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { name, email, password, role = 'VIEWER' } = req.body;
+    const { name, email, password, role = 'STAFF' } = req.body;
 
     // Check if user exists
     const existingUser = await prisma.user.findUnique({

@@ -26,7 +26,7 @@ router.post(
     body('name').notEmpty().withMessage('Name required'),
     body('email').isEmail().withMessage('Valid email required'),
     body('password').isLength({ min: 6 }).withMessage('Password min 6 chars'),
-    body('role').isIn(['ADMIN', 'STAFF', 'VIEWER']).withMessage('Invalid role')
+    body('role').isIn(['ADMIN', 'STAFF']).withMessage('Invalid role')
   ],
   async (req, res, next) => {
     try {
@@ -66,7 +66,7 @@ router.post(
 router.patch('/:id', authorize('ADMIN'), async (req, res, next) => {
   try {
     const { role } = req.body;
-    if (!['ADMIN', 'STAFF', 'VIEWER'].includes(role)) {
+    if (!['ADMIN', 'STAFF'].includes(role)) {
       return res.status(400).json({ error: 'Invalid role' });
     }
     const user = await prisma.user.update({

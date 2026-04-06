@@ -300,29 +300,27 @@ function DashboardLayout({ children }) {
                   {sidebarExpanded && <span>Tenders</span>}
                 </a>
               </li>
+              <li>
+                <a href="/bidders" className="flex items-center space-x-3 px-3 py-2 rounded-lg hover:bg-white/40 backdrop-blur-sm hover:shadow-md transition-all text-sm font-medium text-white hover:text-blue-900">
+                  <Users className="w-5 h-5 flex-shrink-0" />
+                  {sidebarExpanded && <span>Bidders</span>}
+                </a>
+              </li>
               {user?.role === 'ADMIN' && (
-                <li>
-                  <a href="/bidders" className="flex items-center space-x-3 px-3 py-2 rounded-lg hover:bg-white/40 backdrop-blur-sm hover:shadow-md transition-all text-sm font-medium text-white hover:text-blue-900">
-                    <Users className="w-5 h-5 flex-shrink-0" />
-                    {sidebarExpanded && <span>Bidders</span>}
-                  </a>
-                </li>
-              )}
-              {user?.role === 'ADMIN' && (
-                <li>
-                  <a href="/audit" className="flex items-center space-x-3 px-3 py-2 rounded-lg hover:bg-white/40 backdrop-blur-sm hover:shadow-md transition-all text-sm font-medium text-white hover:text-blue-900">
-                    <ClipboardList className="w-5 h-5 flex-shrink-0" />
-                    {sidebarExpanded && <span>Audit Logs</span>}
-                  </a>
-                </li>
-              )}
-              {user?.role === 'ADMIN' && (
-                <li>
-                  <a href="/users" className="flex items-center space-x-3 px-3 py-2 rounded-lg hover:bg-white/40 backdrop-blur-sm hover:shadow-md transition-all text-sm font-medium text-white hover:text-blue-900">
-                    <UserCircle className="w-5 h-5 flex-shrink-0" />
-                    {sidebarExpanded && <span>Users</span>}
-                  </a>
-                </li>
+                <>
+                  <li>
+                    <a href="/audit" className="flex items-center space-x-3 px-3 py-2 rounded-lg hover:bg-white/40 backdrop-blur-sm hover:shadow-md transition-all text-sm font-medium text-white hover:text-blue-900">
+                      <ClipboardList className="w-5 h-5 flex-shrink-0" />
+                      {sidebarExpanded && <span>Audit Logs</span>}
+                    </a>
+                  </li>
+                  <li>
+                    <a href="/users" className="flex items-center space-x-3 px-3 py-2 rounded-lg hover:bg-white/40 backdrop-blur-sm hover:shadow-md transition-all text-sm font-medium text-white hover:text-blue-900">
+                      <UserCircle className="w-5 h-5 flex-shrink-0" />
+                      {sidebarExpanded && <span>Users</span>}
+                    </a>
+                  </li>
+                </>
               )}
             </ul>
           </nav>
@@ -481,9 +479,11 @@ function DashboardPage() {
             <a href="/bidders" className="block p-3 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-xl hover:shadow-lg transition-all text-sm font-medium">
               Manage Bidders
             </a>
-            <a href="/audit" className="block p-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl hover:shadow-lg transition-all text-sm font-medium">
-              View Audit Logs
-            </a>
+            {user?.role === 'ADMIN' && (
+              <a href="/audit" className="block p-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl hover:shadow-lg transition-all text-sm font-medium">
+                View Audit Logs
+              </a>
+            )}
           </div>
         </div>
       </div>
@@ -528,7 +528,8 @@ function DashboardPage() {
           </div>
         ) : (
           <div className="p-8 text-center text-gray-500">
-            No tenders yet
+            <p className="text-lg font-semibold mb-2">No tenders yet</p>
+            <p className="text-sm">Create your first tender to get started</p>
           </div>
         )}
       </div>
@@ -799,7 +800,8 @@ function TenderDetailPage() {
           ))}
           {tender.groups?.length === 0 && (
             <div className="col-span-full text-center py-8 text-gray-500">
-              No groups found
+              <p className="text-lg font-semibold mb-2">No groups found</p>
+              <p className="text-sm">Add groups to this tender to start bidding</p>
             </div>
           )}
           </div>
@@ -2574,7 +2576,10 @@ function NewTenderPage() {
         </table>
         </div>
         {tenders.length === 0 && (
-          <div className="p-8 text-center text-gray-500">No tenders found</div>
+          <div className="p-8 text-center text-gray-500">
+            <p className="text-lg font-semibold mb-2">No tenders yet</p>
+            <p className="text-sm">Create your first tender by clicking the "+ New Tender" button above</p>
+          </div>
         )}
       </div>
     </div>
@@ -2670,7 +2675,8 @@ function BiddersPage() {
         </div>
         {bidders.length === 0 && (
           <div className="p-8 text-center text-gray-500">
-            No bidders found
+            <p className="text-lg font-semibold mb-2">No bidders yet</p>
+            <p className="text-sm">Add bidders to participate in tenders</p>
           </div>
         )}
       </div>
@@ -3135,7 +3141,7 @@ function App() {
           <Route
             path="/bidders"
             element={
-              <ProtectedRoute roles={['ADMIN']}>
+              <ProtectedRoute roles={['ADMIN', 'STAFF']}>
                 <DashboardLayout>
                   <BiddersPage />
                 </DashboardLayout>

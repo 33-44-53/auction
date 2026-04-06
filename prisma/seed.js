@@ -40,9 +40,9 @@ async function main() {
 
   // Create sample bidders
   const bidders = [
-    { name: 'አበበ ወርቅ', companyName: 'አዲስ ንግድ ኩባንያ', phone: '0911123456', email: 'abebe@example.com', tin: '0012345678' },
-    { name: 'ደስታ ኃይለ', companyName: 'ሀይማኖት ንግድ ድርጅት', phone: '0911987654', email: 'desta@example.com', tin: '0023456789' },
-    { name: 'ሚካኤል ገብረ', companyName: 'ግብር ንግድ ማህበር', phone: '0911567890', email: 'michael@example.com', tin: '0034567890' }
+    { name: 'አበበ ወርቅ', companyName: 'አዲስ ንግድ ኩባንያ', phone: '0911123456', email: 'abebe@example.com', tin: '0012345678', createdBy: admin.id },
+    { name: 'ደስታ ኃይለ', companyName: 'ሀይማኖት ንግድ ድርጅት', phone: '0911987654', email: 'desta@example.com', tin: '0023456789', createdBy: admin.id },
+    { name: 'ሚካኤል ገብረ', companyName: 'ግብር ንግድ ማህበር', phone: '0911567890', email: 'michael@example.com', tin: '0034567890', createdBy: admin.id }
   ];
 
   for (const bidder of bidders) {

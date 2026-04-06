@@ -7,7 +7,13 @@ const { authorize } = require('../middleware/auth');
 // Get all bidders
 router.get('/', async (req, res, next) => {
   try {
+    // Build where clause based on user role
+    const whereClause = req.user?.role === 'STAFF' 
+      ? { createdBy: req.userId } 
+      : {}; // Admin sees all
+
     const bidders = await prisma.bidder.findMany({
+      where: whereClause,
       include: {
         groups: {
           include: { group: true }
@@ -84,7 +90,8 @@ router.post(
           phone,
           email,
           address,
-          tin
+          tin,
+          createdBy: req.userId
         }
       });
 
@@ -115,6 +122,16 @@ router.patch(
     try {
       const bidderId = parseInt(req.params.id);
       const { name, companyName, phone, email, address, tin } = req.body;
+
+      // Check ownership for staff
+      if (req.user.role === 'STAFF') {
+        const existing = await prisma.bidder.findFirst({
+          where: { id: bidderId, createdBy: req.userId }
+        });
+        if (!existing) {
+          return res.status(403).json({ error: 'Not authorized to update this bidder' });
+        }
+      }
 
       const bidder = await prisma.bidder.update({
         where: { id: bidderId },
@@ -150,17 +167,21 @@ router.patch(
 // Delete bidder
 router.delete(
   '/:id',
-  authorize('ADMIN'),
+  authorize('ADMIN', 'STAFF'),
   async (req, res, next) => {
     try {
       const bidderId = parseInt(req.params.id);
 
-      const bidder = await prisma.bidder.findUnique({
-        where: { id: bidderId }
-      });
+      // Check ownership for staff
+      const whereClause = { id: bidderId };
+      if (req.user.role === 'STAFF') {
+        whereClause.createdBy = req.userId;
+      }
+
+      const bidder = await prisma.bidder.findFirst({ where: whereClause });
 
       if (!bidder) {
-        return res.status(404).json({ error: 'Bidder not found' });
+        return res.status(404).json({ error: 'Bidder not found or not authorized' });
       }
 
       // Check if bidder has any bids
