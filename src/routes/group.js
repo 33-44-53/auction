@@ -223,11 +223,17 @@ router.delete('/:id/bids/:bidId', authorize('ADMIN', 'STAFF'), async (req, res, 
   } catch (error) { next(error); }
 });
 
-// Move to next round
+// Move to next round - creates new tender and moves group
 router.post('/:id/next-round', authorize('ADMIN', 'STAFF'), async (req, res, next) => {
   try {
     const groupId = parseInt(req.params.id);
-    const group = await prisma.group.findUnique({ where: { id: groupId }, include: { tender: true, items: true } });
+    const { targetTenderId } = req.body; // Optional: specify target tender
+    
+    const group = await prisma.group.findUnique({ 
+      where: { id: groupId }, 
+      include: { tender: true, items: true } 
+    });
+    
     if (!group) return res.status(404).json({ error: 'Group not found' });
     if (group.status !== 'OPEN') return res.status(400).json({ error: 'Group is not open' });
     if (group.items.length === 0) return res.status(400).json({ error: 'Group has no items' });
@@ -238,26 +244,134 @@ router.post('/:id/next-round', authorize('ADMIN', 'STAFF'), async (req, res, nex
     const rounds = [round1, round2, round3];
     
     const currentIndex = rounds.indexOf(group.currentRound);
-    if (currentIndex >= rounds.length - 1) return res.status(400).json({ error: 'Already at final round' });
+    if (currentIndex >= rounds.length - 1) {
+      return res.status(400).json({ error: 'Already at final round' });
+    }
 
     const nextRound = rounds[currentIndex + 1];
+    
+    // Determine target tender
+    let newTenderId;
+    if (targetTenderId) {
+      newTenderId = parseInt(targetTenderId);
+    } else {
+      // Auto-generate next tender number
+      const currentTenderNumber = group.tender.tenderNumber;
+      const match = currentTenderNumber.match(/(\d+)\/(\d+)/);
+      
+      let newTenderNumber;
+      if (match) {
+        const num = parseInt(match[1]);
+        const year = match[2];
+        newTenderNumber = `${String(num + 1).padStart(3, '0')}/${year}`;
+      } else {
+        newTenderNumber = `${currentTenderNumber}-NEXT`;
+      }
+      
+      // Create new tender
+      const newTender = await prisma.tender.create({
+        data: {
+          tenderNumber: newTenderNumber,
+          title: group.tender.title,
+          location: group.tender.location,
+          exchangeRate: group.tender.exchangeRate,
+          date: group.tender.date,
+          responsibleBody: group.tender.responsibleBody,
+          tenderType: 'AUCTION',
+          status: 'OPEN',
+          createdBy: req.userId
+        }
+      });
+      newTenderId = newTender.id;
+    }
+
     const exchangeRate = group.exchangeRate || group.tender.exchangeRate;
 
+    // Calculate new base price for next round
     let newBasePrice = 0;
     for (const item of group.items) {
       const unitPrice = calcUnitPrice(item.cif, item.fob, item.tax, nextRound, exchangeRate);
       const totalPrice = unitPrice * item.totalQuantity;
       newBasePrice += totalPrice;
-      await prisma.item.update({ where: { id: item.id }, data: { unitPrice, totalPrice } });
     }
 
-    const updatedGroup = await prisma.group.update({
-      where: { id: groupId },
-      data: { currentRound: nextRound, roundNumber: group.roundNumber + 1, basePrice: newBasePrice }
+    // Create new group in new tender
+    const newGroup = await prisma.group.create({
+      data: {
+        tenderId: newTenderId,
+        code: group.code,
+        name: group.name,
+        title: group.title,
+        vehiclePlate: group.vehiclePlate,
+        date: group.date,
+        location: group.location,
+        responsibleBody: group.responsibleBody,
+        exchangeRate: group.exchangeRate,
+        originalGroupId: groupId,
+        basePrice: newBasePrice,
+        currentRound: nextRound,
+        roundNumber: group.roundNumber + 1,
+        status: 'OPEN'
+      }
     });
 
-    await prisma.auditLog.create({ data: { userId: req.userId, action: 'NEXT_ROUND', entity: 'Group', entityId: groupId, details: JSON.stringify({ fromRound: group.currentRound, toRound: nextRound, newBasePrice }), ipAddress: req.ip } });
-    res.json({ message: `Moved to ${nextRound}`, group: updatedGroup, newBasePrice });
+    // Copy items to new group with updated prices
+    for (const item of group.items) {
+      const unitPrice = calcUnitPrice(item.cif, item.fob, item.tax, nextRound, exchangeRate);
+      const totalPrice = unitPrice * item.totalQuantity;
+      
+      await prisma.item.create({
+        data: {
+          groupId: newGroup.id,
+          itemCode: item.itemCode,
+          serialNumber: item.serialNumber,
+          name: item.name,
+          itemType: item.itemType,
+          brand: item.brand,
+          country: item.country,
+          unit: item.unit,
+          warehouse1: item.warehouse1,
+          warehouse2: item.warehouse2,
+          warehouse3: item.warehouse3,
+          totalQuantity: item.totalQuantity,
+          fob: item.fob,
+          cif: item.cif,
+          tax: item.tax,
+          unitPrice,
+          totalPrice
+        }
+      });
+    }
+
+    // Mark original group as moved to next round
+    await prisma.group.update({
+      where: { id: groupId },
+      data: { status: 'CLOSED' }
+    });
+
+    await prisma.auditLog.create({ 
+      data: { 
+        userId: req.userId, 
+        action: 'NEXT_ROUND', 
+        entity: 'Group', 
+        entityId: groupId, 
+        details: JSON.stringify({ 
+          fromRound: group.currentRound, 
+          toRound: nextRound, 
+          newTenderId,
+          newGroupId: newGroup.id,
+          newBasePrice 
+        }), 
+        ipAddress: req.ip 
+      } 
+    });
+
+    res.json({ 
+      message: `Moved to ${nextRound} in new tender`, 
+      newGroup, 
+      newTenderId,
+      newBasePrice 
+    });
   } catch (error) { next(error); }
 });
 
@@ -529,13 +643,17 @@ router.post('/:id/reopen', authorize('ADMIN'), async (req, res, next) => {
   } catch (error) { next(error); }
 });
 
-// Yasbela: winner cancels — apply 5% penalty, reopen group for re-auction
+// Yasbela: winner cancels — apply 5% penalty, create new tender and group
 router.post('/:id/yasbela', authorize('ADMIN', 'STAFF'), async (req, res, next) => {
   try {
     const groupId = parseInt(req.params.id);
     const { reason, yasbelaTenderId } = req.body;
 
-    const group = await prisma.group.findUnique({ where: { id: groupId }, include: { items: true, tender: true } });
+    const group = await prisma.group.findUnique({ 
+      where: { id: groupId }, 
+      include: { items: true, tender: true } 
+    });
+    
     if (!group) return res.status(404).json({ error: 'Group not found' });
     if (group.status !== 'SOLD') return res.status(400).json({ error: 'Group must be SOLD to apply Yasbela' });
     if (!group.winnerPrice) return res.status(400).json({ error: 'No winner price found' });
@@ -545,22 +663,65 @@ router.post('/:id/yasbela', authorize('ADMIN', 'STAFF'), async (req, res, next) 
     // Mark original group as YASBELA
     await prisma.group.update({
       where: { id: groupId },
-      data: { status: 'YASBELA', yasbelaPenalty: penalty, yasbelaReason: reason || null, yasbelaDate: new Date() }
+      data: { 
+        status: 'YASBELA', 
+        yasbelaPenalty: penalty, 
+        yasbelaReason: reason || null, 
+        yasbelaDate: new Date() 
+      }
     });
 
-    // Determine target tender: yasbelaTenderId or same tender
-    const targetTenderId = yasbelaTenderId ? parseInt(yasbelaTenderId) : group.tenderId;
+    // Determine target tender
+    let targetTenderId;
+    if (yasbelaTenderId) {
+      targetTenderId = parseInt(yasbelaTenderId);
+    } else {
+      // Auto-generate next tender number
+      const currentTenderNumber = group.tender.tenderNumber;
+      const match = currentTenderNumber.match(/(\d+)\/(\d+)/);
+      
+      let newTenderNumber;
+      if (match) {
+        const num = parseInt(match[1]);
+        const year = match[2];
+        newTenderNumber = `${String(num + 1).padStart(3, '0')}/${year}`;
+      } else {
+        newTenderNumber = `${currentTenderNumber}-YASBELA`;
+      }
+      
+      // Create new tender
+      const newTender = await prisma.tender.create({
+        data: {
+          tenderNumber: newTenderNumber,
+          title: group.tender.title,
+          location: group.tender.location,
+          exchangeRate: group.tender.exchangeRate,
+          date: group.tender.date,
+          responsibleBody: group.tender.responsibleBody,
+          tenderType: 'YASBELA',
+          originalTenderId: group.tenderId,
+          status: 'OPEN',
+          createdBy: req.userId
+        }
+      });
+      targetTenderId = newTender.id;
+    }
+
     const targetTender = await prisma.tender.findUnique({ where: { id: targetTenderId } });
     if (!targetTender) return res.status(404).json({ error: 'Target tender not found' });
 
     // Determine initial round based on tender type
     let initialRound = group.currentRound;
-    if (targetTender.tenderType === 'HARAJ') initialRound = 'HARAJ';
-    else if (targetTender.tenderType === 'AUCTION' || targetTender.tenderType === 'YASBELA') {
-      // Use same round logic as original auction
+    if (targetTender.tenderType === 'HARAJ') {
+      initialRound = 'HARAJ';
+    } else if (targetTender.tenderType === 'AUCTION' || targetTender.tenderType === 'YASBELA') {
       if (group.items.length > 0) {
         const fi = group.items[0];
-        const prices = [{ name: 'CIF', value: fi.cif }, { name: 'FOB', value: fi.fob }, { name: 'TAX', value: fi.tax }];
+        const prices = [
+          { name: 'CIF', value: fi.cif }, 
+          { name: 'FOB', value: fi.fob }, 
+          { name: 'TAX', value: fi.tax }
+        ];
         prices.sort((a, b) => b.value - a.value);
         initialRound = prices[0].name;
       }
@@ -572,7 +733,12 @@ router.post('/:id/yasbela', authorize('ADMIN', 'STAFF'), async (req, res, next) 
         tenderId: targetTenderId,
         code: group.code,
         name: group.name,
+        title: group.title,
         vehiclePlate: group.vehiclePlate,
+        date: group.date,
+        location: group.location,
+        responsibleBody: group.responsibleBody,
+        exchangeRate: group.exchangeRate,
         originalGroupId: groupId,
         basePrice: group.basePrice,
         harajPrice: targetTender.tenderType === 'HARAJ' ? group.basePrice : null,
@@ -586,17 +752,48 @@ router.post('/:id/yasbela', authorize('ADMIN', 'STAFF'), async (req, res, next) 
       await prisma.item.create({
         data: {
           groupId: newGroup.id,
-          itemCode: item.itemCode, serialNumber: item.serialNumber, name: item.name,
-          itemType: item.itemType, brand: item.brand, country: item.country, unit: item.unit,
-          warehouse1: item.warehouse1, warehouse2: item.warehouse2, warehouse3: item.warehouse3,
-          totalQuantity: item.totalQuantity, fob: item.fob, cif: item.cif, tax: item.tax,
-          unitPrice: item.unitPrice, totalPrice: item.totalPrice
+          itemCode: item.itemCode, 
+          serialNumber: item.serialNumber, 
+          name: item.name,
+          itemType: item.itemType, 
+          brand: item.brand, 
+          country: item.country, 
+          unit: item.unit,
+          warehouse1: item.warehouse1, 
+          warehouse2: item.warehouse2, 
+          warehouse3: item.warehouse3,
+          totalQuantity: item.totalQuantity, 
+          fob: item.fob, 
+          cif: item.cif, 
+          tax: item.tax,
+          unitPrice: item.unitPrice, 
+          totalPrice: item.totalPrice
         }
       });
     }
 
-    await prisma.auditLog.create({ data: { userId: req.userId, action: 'YASBELA', entity: 'Group', entityId: groupId, details: JSON.stringify({ penalty, reason, newGroupId: newGroup.id, targetTenderId }), ipAddress: req.ip } });
-    res.json({ message: 'Yasbela applied', penalty, newGroup });
+    await prisma.auditLog.create({ 
+      data: { 
+        userId: req.userId, 
+        action: 'YASBELA', 
+        entity: 'Group', 
+        entityId: groupId, 
+        details: JSON.stringify({ 
+          penalty, 
+          reason, 
+          newGroupId: newGroup.id, 
+          targetTenderId 
+        }), 
+        ipAddress: req.ip 
+      } 
+    });
+    
+    res.json({ 
+      message: 'Yasbela applied - group moved to new tender', 
+      penalty, 
+      newGroup,
+      newTenderId: targetTenderId
+    });
   } catch (error) { next(error); }
 });
 
