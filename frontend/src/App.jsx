@@ -217,6 +217,41 @@ function DashboardLayout({ children }) {
   const { user, logout } = useAuth();
   const { isDark, toggleTheme } = useTheme();
   const [sidebarExpanded, setSidebarExpanded] = useState(true);
+  const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
+  const [passwordData, setPasswordData] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
+  const [passwordError, setPasswordError] = useState('');
+  const [passwordSuccess, setPasswordSuccess] = useState('');
+
+  const handleChangePassword = async (e) => {
+    e.preventDefault();
+    setPasswordError('');
+    setPasswordSuccess('');
+
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      setPasswordError('New passwords do not match');
+      return;
+    }
+
+    if (passwordData.newPassword.length < 6) {
+      setPasswordError('New password must be at least 6 characters');
+      return;
+    }
+
+    try {
+      await api.post('/auth/change-password', {
+        currentPassword: passwordData.currentPassword,
+        newPassword: passwordData.newPassword
+      });
+      setPasswordSuccess('Password changed successfully!');
+      setTimeout(() => {
+        setShowChangePasswordModal(false);
+        setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+        setPasswordSuccess('');
+      }, 2000);
+    } catch (error) {
+      setPasswordError(error.response?.data?.error || 'Failed to change password');
+    }
+  };
 
   return (
     <div className={`min-h-screen flex flex-col ${isDark ? 'bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900' : 'bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50'}`}>
@@ -257,6 +292,16 @@ function DashboardLayout({ children }) {
                   <span>Dark</span>
                 </>
               )}
+            </button>
+            <button
+              onClick={() => setShowChangePasswordModal(true)}
+              className="bg-white/20 backdrop-blur-sm px-3 py-1.5 rounded-lg hover:bg-white/30 transition text-sm font-medium flex items-center space-x-2"
+              title="Change Password"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+              </svg>
+              <span>Change Password</span>
             </button>
             <div className="glass px-3 py-1.5 rounded-lg">
               <span className="text-sm font-medium">
@@ -332,6 +377,94 @@ function DashboardLayout({ children }) {
           </div>
         </main>
       </div>
+
+      {/* Change Password Modal */}
+      {showChangePasswordModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <h3 className="text-xl font-bold mb-4 text-gray-800">🔑 Change Password</h3>
+            
+            {passwordError && (
+              <div className="bg-red-100 border border-red-300 text-red-700 px-4 py-3 rounded-xl mb-4 text-sm">
+                {passwordError}
+              </div>
+            )}
+            
+            {passwordSuccess && (
+              <div className="bg-green-100 border border-green-300 text-green-700 px-4 py-3 rounded-xl mb-4 text-sm">
+                ✓ {passwordSuccess}
+              </div>
+            )}
+            
+            <form onSubmit={handleChangePassword}>
+              <div className="mb-4">
+                <label className="block text-gray-700 text-sm font-bold mb-2">
+                  Current Password *
+                </label>
+                <input
+                  type="password"
+                  value={passwordData.currentPassword}
+                  onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded"
+                  placeholder="Enter current password"
+                  required
+                />
+              </div>
+              
+              <div className="mb-4">
+                <label className="block text-gray-700 text-sm font-bold mb-2">
+                  New Password *
+                </label>
+                <input
+                  type="password"
+                  value={passwordData.newPassword}
+                  onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded"
+                  placeholder="Enter new password (min 6 characters)"
+                  minLength={6}
+                  required
+                />
+              </div>
+              
+              <div className="mb-4">
+                <label className="block text-gray-700 text-sm font-bold mb-2">
+                  Confirm New Password *
+                </label>
+                <input
+                  type="password"
+                  value={passwordData.confirmPassword}
+                  onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded"
+                  placeholder="Confirm new password"
+                  minLength={6}
+                  required
+                />
+              </div>
+              
+              <div className="flex space-x-2">
+                <button
+                  type="submit"
+                  className="flex-1 bg-blue-600 text-white py-2 rounded hover:bg-blue-700 font-medium"
+                >
+                  Change Password
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowChangePasswordModal(false);
+                    setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+                    setPasswordError('');
+                    setPasswordSuccess('');
+                  }}
+                  className="flex-1 bg-gray-300 text-gray-700 py-2 rounded hover:bg-gray-400"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
