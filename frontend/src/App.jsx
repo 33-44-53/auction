@@ -1178,36 +1178,21 @@ function GroupDetailPage() {
   };
 
   const handleNextRound = () => {
+    if (!confirm('Move this group to next round? A new tender will be created automatically.')) return;
     api.post(`/groups/${groupId}/next-round`)
       .then((res) => {
-        loadGroup();
+        alert(`Group moved to next round in new tender: ${res.data.newTenderId}`);
+        window.location.href = `/groups/${res.data.newGroup.id}`;
       })
       .catch(e => {
         alert(e.response?.data?.error || 'Failed to advance round');
       });
   };
 
-  const handlePrevRound = () => {
-    api.post(`/groups/${groupId}/prev-round`)
-      .then((res) => {
-        loadGroup();
-      })
-      .catch(e => {
-        alert(e.response?.data?.error || 'Failed to go back round');
-      });
-  };
-
-  // Determine if we can navigate rounds
+  // Determine if we can navigate to next round
   const canNavigateRounds = () => {
-    if (!group || !group.items || group.items.length === 0) return { canNext: false, canPrev: false };
-    if (group.currentRound === 'HARAJ') return { canNext: false, canPrev: false };
-    
-    // Check if there are any bids in the current round
-    const currentRoundBids = group.bids?.filter(b => b.round === group.currentRound) || [];
-    if (currentRoundBids.length > 0) {
-      // If there are bids in current round, disable navigation
-      return { canNext: false, canPrev: false };
-    }
+    if (!group || !group.items || group.items.length === 0) return { canNext: false };
+    if (group.currentRound === 'HARAJ') return { canNext: false };
     
     const firstItem = group.items[0];
     const prices = [
@@ -1219,12 +1204,11 @@ function GroupDetailPage() {
     const rounds = [prices[0].name, prices[1].name, prices[2].name];
     const currentIndex = rounds.indexOf(group.currentRound);
     return {
-      canNext: currentIndex < rounds.length - 1,
-      canPrev: currentIndex > 0
+      canNext: currentIndex < rounds.length - 1
     };
   };
 
-  const { canNext, canPrev } = group ? canNavigateRounds() : { canNext: false, canPrev: false };
+  const { canNext } = group ? canNavigateRounds() : { canNext: false };
 
   const handleCloseGroup = () => {
     if (!confirm('Are you sure you want to close this group? The highest bidder will be selected as winner and the group will be marked as SOLD.')) return;
@@ -1264,14 +1248,14 @@ function GroupDetailPage() {
 
   const handleYasbela = (e) => {
     e.preventDefault();
-    if (!confirm('Apply Yasbela? A 5% penalty will be deducted from the winner price and the group will be re-auctioned.')) return;
+    if (!confirm('Apply Yasbela? A 5% penalty will be deducted and the group will be moved to a new tender.')) return;
     setShowYasbelaModal(false);
     api.post(`/groups/${groupId}/yasbela`, {
       reason: yasbelaFormData.reason,
       yasbelaTenderId: yasbelaFormData.yasbelaTenderId ? parseInt(yasbelaFormData.yasbelaTenderId) : undefined
     }).then(res => {
-      alert(`Yasbela applied. Penalty: ${formatCurrency(res.data.penalty)}. New group created in tender.`);
-      loadGroup();
+      alert(`Yasbela applied. Penalty: ${formatCurrency(res.data.penalty)}. Group moved to new tender: ${res.data.newTenderId}`);
+      window.location.href = `/groups/${res.data.newGroup.id}`;
     }).catch(e => { alert(e.response?.data?.error || 'Failed to apply Yasbela'); loadGroup(); });
   };
 
@@ -1491,22 +1475,12 @@ function GroupDetailPage() {
               </button>
             ) : (
               <>
-                {canPrev && (
-                  <button onClick={handlePrevRound} className="bg-orange-600 text-white px-4 py-2 rounded hover:bg-orange-700">
-                    ← Prev Round
-                  </button>
-                )}
                 {canNext && (
                   <button onClick={handleNextRound} className="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700">
                     Next Round →
                   </button>
                 )}
               </>
-            )}
-            {!canNext && !canPrev && group.currentRound !== 'HARAJ' && group.bids?.filter(b => b.round === group.currentRound).length > 0 && (
-              <div className="bg-yellow-50 border border-yellow-300 text-yellow-800 px-4 py-2 rounded-lg text-sm">
-                ⚠️ Cannot change rounds - bids have been placed in current round
-              </div>
             )}
             <button onClick={handleCloseGroup} className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 font-semibold">
               ✓ Close Group
