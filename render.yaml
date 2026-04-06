@@ -2,7 +2,12 @@ services:
   - type: web
     name: auction-backend
     env: node
-    buildCommand: bash deploy.sh
+    buildCommand: |
+      npm install && 
+      npx prisma generate && 
+      npx prisma migrate resolve --applied 20240101000000_init || true && 
+      npx prisma migrate resolve --applied 20250101000000_add_group_metadata || true && 
+      npx prisma migrate deploy
     startCommand: npm start
     envVars:
       - key: NODE_ENV

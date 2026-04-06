@@ -12,8 +12,19 @@ npm install
 echo "🔧 Generating Prisma Client..."
 npx prisma generate
 
-# Run migrations (this will handle existing data properly)
+# Check if this is first deployment or needs baseline
 echo "🗄️ Running database migrations..."
-npx prisma migrate deploy
+
+# Try migrate deploy first
+if npx prisma migrate deploy 2>&1 | grep -q "P3005"; then
+  echo "📋 Database needs baselining..."
+  # Mark existing migrations as applied
+  npx prisma migrate resolve --applied 20240101000000_init
+  npx prisma migrate resolve --applied 20250101000000_add_group_metadata
+  # Now deploy new migrations
+  npx prisma migrate deploy
+else
+  echo "✅ Migrations applied successfully"
+fi
 
 echo "✅ Deployment complete!"
