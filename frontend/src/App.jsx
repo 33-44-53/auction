@@ -945,8 +945,10 @@ function GroupDetailPage() {
   const [showEditItemModal, setShowEditItemModal] = useState(false);
   const [showHarajModal, setShowHarajModal] = useState(false);
   const [showYasbelaModal, setShowYasbelaModal] = useState(false);
+  const [showNextRoundModal, setShowNextRoundModal] = useState(false);
   const [harajFormData, setHarajFormData] = useState({ harajPrice: '', harajRound: '1' });
   const [yasbelaFormData, setYasbelaFormData] = useState({ reason: '', yasbelaTenderId: '' });
+  const [nextRoundFormData, setNextRoundFormData] = useState({ targetTenderId: '' });
   const [allTenders, setAllTenders] = useState([]);
   const [selectedBidder, setSelectedBidder] = useState(null);
   const [bidderSearch, setBidderSearch] = useState('');
@@ -1177,11 +1179,16 @@ function GroupDetailPage() {
     }
   };
 
-  const handleNextRound = () => {
-    if (!confirm('Move this group to next round? A new tender will be created automatically.')) return;
-    api.post(`/groups/${groupId}/next-round`)
+  const handleNextRound = (e) => {
+    if (e) e.preventDefault();
+    setShowNextRoundModal(false);
+    const data = nextRoundFormData.targetTenderId ? { targetTenderId: parseInt(nextRoundFormData.targetTenderId) } : {};
+    api.post(`/groups/${groupId}/next-round`, data)
       .then((res) => {
-        alert(`Group moved to next round in new tender: ${res.data.newTenderId}`);
+        const msg = nextRoundFormData.targetTenderId 
+          ? `Group moved to next round in existing tender` 
+          : `Group moved to next round in new tender: ${res.data.newTenderId}`;
+        alert(msg);
         window.location.href = `/groups/${res.data.newGroup.id}`;
       })
       .catch(e => {
@@ -1248,13 +1255,16 @@ function GroupDetailPage() {
 
   const handleYasbela = (e) => {
     e.preventDefault();
-    if (!confirm('Apply Yasbela? A 5% penalty will be deducted and the group will be moved to a new tender.')) return;
+    if (!confirm('Apply Yasbela? A 5% penalty will be deducted and the group will be moved to a tender.')) return;
     setShowYasbelaModal(false);
     api.post(`/groups/${groupId}/yasbela`, {
       reason: yasbelaFormData.reason,
       yasbelaTenderId: yasbelaFormData.yasbelaTenderId ? parseInt(yasbelaFormData.yasbelaTenderId) : undefined
     }).then(res => {
-      alert(`Yasbela applied. Penalty: ${formatCurrency(res.data.penalty)}. Group moved to new tender: ${res.data.newTenderId}`);
+      const msg = yasbelaFormData.yasbelaTenderId 
+        ? `Yasbela applied. Penalty: ${formatCurrency(res.data.penalty)}. Group moved to existing tender` 
+        : `Yasbela applied. Penalty: ${formatCurrency(res.data.penalty)}. New tender created: ${res.data.newTenderId}`;
+      alert(msg);
       window.location.href = `/groups/${res.data.newGroup.id}`;
     }).catch(e => { alert(e.response?.data?.error || 'Failed to apply Yasbela'); loadGroup(); });
   };
@@ -1476,7 +1486,7 @@ function GroupDetailPage() {
             ) : (
               <>
                 {canNext && (
-                  <button onClick={handleNextRound} className="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700">
+                  <button onClick={() => setShowNextRoundModal(true)} className="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700">
                     Next Round →
                   </button>
                 )}
@@ -2017,6 +2027,42 @@ function GroupDetailPage() {
         </div>
       )}
 
+      {/* Next Round Modal */}
+      {showNextRoundModal && (
+        <div className="modal-backdrop">
+          <div className="modal-content p-6 w-full max-w-md">
+            <h3 className="text-xl font-bold gradient-text mb-1">→ Move to Next Round</h3>
+            <p className="text-sm text-gray-500 mb-4">Choose where to move this group for the next round</p>
+            <form onSubmit={handleNextRound}>
+              <div className="mb-4">
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Target Tender</label>
+                <select
+                  value={nextRoundFormData.targetTenderId}
+                  onChange={(e) => setNextRoundFormData({ targetTenderId: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                >
+                  <option value="">-- Create New Tender (Auto-increment) --</option>
+                  {allTenders.filter(t => t.id !== group.tenderId && t.status === 'OPEN').map(t => (
+                    <option key={t.id} value={t.id}>{t.tenderNumber} ({t.tenderType})</option>
+                  ))}
+                </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  {nextRoundFormData.targetTenderId 
+                    ? 'Group will be moved to the selected tender' 
+                    : `New tender will be created (e.g., ${group.tender?.tenderNumber?.replace(/(\d+)/, (m) => String(parseInt(m) + 1).padStart(3, '0'))})`}
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <button type="submit" className="flex-1 bg-purple-600 text-white py-2 rounded hover:bg-purple-700 font-semibold">
+                  Move to Next Round
+                </button>
+                <button type="button" onClick={() => setShowNextRoundModal(false)} className="flex-1 btn-secondary">Cancel</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* Send to Haraj Modal */}
       {showHarajModal && (
         <div className="modal-backdrop">
@@ -2079,14 +2125,18 @@ function GroupDetailPage() {
                 <select
                   value={yasbelaFormData.yasbelaTenderId}
                   onChange={(e) => setYasbelaFormData({ ...yasbelaFormData, yasbelaTenderId: e.target.value })}
-                  className="w-full"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                 >
-                  <option value="">-- Same tender (default) --</option>
-                  {allTenders.filter(t => t.id !== group.tenderId).map(t => (
+                  <option value="">-- Create New Tender (Auto-increment) --</option>
+                  {allTenders.filter(t => t.id !== group.tenderId && t.status === 'OPEN').map(t => (
                     <option key={t.id} value={t.id}>{t.tenderNumber} ({t.tenderType})</option>
                   ))}
                 </select>
-                <p className="text-xs text-gray-500 mt-1">Select a different tender number if re-announced under new auction</p>
+                <p className="text-xs text-gray-500 mt-1">
+                  {yasbelaFormData.yasbelaTenderId 
+                    ? 'Group will be moved to the selected tender' 
+                    : `New tender will be created (e.g., ${group.tender?.tenderNumber?.replace(/(\d+)/, (m) => String(parseInt(m) + 1).padStart(3, '0'))})`}
+                </p>
               </div>
               <div className="flex gap-2">
                 <button type="submit" className="flex-1 bg-purple-600 text-white py-2 rounded hover:bg-purple-700 font-semibold">Apply Yasbela</button>
