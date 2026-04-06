@@ -527,17 +527,81 @@ router.get('/excel/group/:groupId/closed', async (req, res, next) => {
     const winner = roundBids.find(b => b.isWinner) || roundBids[0] || null;
 
     // ═══════════════════════════════════════════════════════════════════════════
+    // BIDS TABLE (ABOVE MAIN TABLE)
+    // ═══════════════════════════════════════════════════════════════════════════
+    
+    let currentRow = 1;
+    
+    // Bids table title
+    sheet.mergeCells(`A${currentRow}:E${currentRow}`);
+    const bidsTitle = sheet.getCell(`A${currentRow}`);
+    bidsTitle.value = 'የተጫራቾች ዝርዝር (Bidders List)';
+    bidsTitle.font = { name: 'Arial', size: 14, bold: true };
+    bidsTitle.alignment = { horizontal: 'center', vertical: 'middle' };
+    bidsTitle.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9E1F2' } };
+    sheet.getRow(currentRow).height = 25;
+    currentRow++;
+
+    // Bids table headers
+    const bidsHeaders = ['ተ.ቁ', 'የተጨራቹ ስም', 'ተጨራጩ የሰጠው ዋጋ', 'ቀን', 'ሁኔታ'];
+    bidsHeaders.forEach((header, index) => {
+      const cell = sheet.getCell(currentRow, index + 1);
+      cell.value = header;
+      Object.assign(cell, headerStyle);
+    });
+    sheet.getRow(currentRow).height = 25;
+    currentRow++;
+
+    // Bids data rows
+    roundBids.forEach((bid, index) => {
+      const isWinner = bid.isWinner || index === 0;
+      
+      const rowData = [
+        index + 1,
+        bid.bidder.name,
+        bid.bidPrice,
+        new Date(bid.createdAt).toLocaleDateString('en-GB'),
+        isWinner ? '✓ አሸናፊ' : ''
+      ];
+
+      rowData.forEach((value, colIndex) => {
+        const cell = sheet.getCell(currentRow, colIndex + 1);
+        cell.value = value;
+        cell.border = dataBorder;
+        cell.font = { name: 'Arial', size: 10 };
+        cell.alignment = { horizontal: colIndex === 1 ? 'left' : 'center', vertical: 'middle' };
+        
+        if (colIndex === 2 && typeof value === 'number') {
+          cell.numFmt = '#,##0.00';
+        }
+        
+        // Highlight winner row
+        if (isWinner) {
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFC6EFCE' } };
+          cell.font = { name: 'Arial', size: 10, bold: true };
+        }
+      });
+      
+      sheet.getRow(currentRow).height = 20;
+      currentRow++;
+    });
+
+    // Empty rows for spacing
+    currentRow += 2;
+
+    // ═══════════════════════════════════════════════════════════════════════════
     // HEADER SECTION
     // ═══════════════════════════════════════════════════════════════════════════
     
-    // Row 1: Main Title (merged across full width)
-    sheet.mergeCells('A1:T1');
-    const titleCell = sheet.getCell('A1');
+    // Row: Main Title (merged across full width)
+    sheet.mergeCells(`A${currentRow}:T${currentRow}`);
+    const titleCell = sheet.getCell(`A${currentRow}`);
     titleCell.value = `ግልፅ ጨረታ ቁጥር ${tender.tenderNumber} ${tender.title || group.name || 'የተለያዩ አልባሰት'}`;
     titleCell.font = { name: 'Arial', size: 16, bold: true };
     titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
     titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE7E6E6' } };
-    sheet.getRow(1).height = 30;
+    sheet.getRow(currentRow).height = 30;
+    currentRow++;
 
     // ═══════════════════════════════════════════════════════════════════════════
     // TABLE HEADERS
@@ -555,45 +619,46 @@ router.get('/excel/group/:groupId/closed', async (req, res, next) => {
       }
     };
 
-    // Row 2: Column Headers
+    // Row: Column Headers
     const headers = [
-      'ተ.ቁ',                    // A2
-      'የእቃው አይነት',             // B2
-      'ማርክ',                    // C2
-      'ስሪት ሀገር',               // D2
-      'መለኪያ',                  // E2
-      'መጋዘን 1',                // F2
-      'መጋዘን 2',                // G2
-      'መጋዘን 3',                // H2
-      'መጋዘን 3ሀ',               // I2
-      'ጠቅላላ ድምር',             // J2
-      'የአንድ ዋጋ (TAX)',         // K2
-      'ጠቅላላ ዋጋ',              // L2
-      'ሞዴል',                   // M2
-      'ተጨራጩ የሰጠው ዋጋ',        // N2
-      'የተጨራቹ ስም',             // O2
-      'ኮድ',                    // P2
-      'FOB',                   // Q2
-      'CIF',                   // R2
-      'TAX',                   // S2
-      'exchange rate'          // T2
+      'ተ.ቁ',                    // A
+      'የእቃው አይነት',             // B
+      'ማርክ',                    // C
+      'ስሪት ሀገር',               // D
+      'መለኪያ',                  // E
+      'መጋዘን 1',                // F
+      'መጋዘን 2',                // G
+      'መጋዘን 3',                // H
+      'መጋዘን 3ሀ',               // I
+      'ጠቅላላ ድምር',             // J
+      'የአንድ ዋጋ (TAX)',         // K
+      'ጠቅላላ ዋጋ',              // L
+      'ሞዴል',                   // M
+      'ተጨራጩ የሰጠው ዋጋ',        // N
+      'የተጨራቹ ስም',             // O
+      'ኮድ',                    // P
+      'FOB',                   // Q
+      'CIF',                   // R
+      'TAX',                   // S
+      'exchange rate'          // T
     ];
 
     headers.forEach((header, index) => {
-      const cell = sheet.getCell(2, index + 1);
+      const cell = sheet.getCell(currentRow, index + 1);
       cell.value = header;
       Object.assign(cell, headerStyle);
     });
     
-    sheet.getRow(2).height = 40;
+    sheet.getRow(currentRow).height = 40;
+    currentRow++;
 
     // Merge columns for winner info (not exchange rate anymore)
     const totalItems = group.items.length;
     if (totalItems > 0) {
-      const lastItemRow = 2 + totalItems;
-      sheet.mergeCells(`N3:N${lastItemRow}`);
-      sheet.mergeCells(`O3:O${lastItemRow}`);
-      sheet.mergeCells(`P3:P${lastItemRow}`);
+      const lastItemRow = currentRow + totalItems - 1;
+      sheet.mergeCells(`N${currentRow}:N${lastItemRow}`);
+      sheet.mergeCells(`O${currentRow}:O${lastItemRow}`);
+      sheet.mergeCells(`P${currentRow}:P${lastItemRow}`);
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -607,7 +672,6 @@ router.get('/excel/group/:groupId/closed', async (req, res, next) => {
       right: { style: 'thin' }
     };
 
-    let currentRow = 3;
     let totalBasePrice = 0;
 
     group.items.forEach((item, index) => {
@@ -678,10 +742,18 @@ router.get('/excel/group/:groupId/closed', async (req, res, next) => {
     // ═══════════════════════════════════════════════════════════════════════════
     
     const winnerPrice = winner ? winner.bidPrice : 0;
-    const calc70 = winnerPrice * 0.70;
-    const calc30 = winnerPrice * 0.30;
-    const vat = winnerPrice * 0.15;
-    const finalTotal = winnerPrice + vat;
+    
+    // Calculate percentages based on base price
+    const basePrice70Percent = totalBasePrice * 0.70;
+    const basePrice30Percent = totalBasePrice * 0.30;
+    const basePriceVAT = totalBasePrice * 0.15;
+    const basePriceFinalTotal = totalBasePrice + basePriceVAT;
+    
+    // Calculate percentages based on winner price
+    const winnerPrice70Percent = winnerPrice * 0.70;
+    const winnerPrice30Percent = winnerPrice * 0.30;
+    const winnerPriceVAT = winnerPrice * 0.15;
+    const winnerPriceFinalTotal = winnerPrice + winnerPriceVAT;
 
     const summaryStyle = {
       font: { name: 'Arial', size: 11, bold: true },
@@ -708,6 +780,16 @@ router.get('/excel/group/:groupId/closed', async (req, res, next) => {
     const basePriceValue = sheet.getCell(`L${currentRow}`);
     basePriceValue.value = totalBasePrice;
     Object.assign(basePriceValue, summaryValueStyle);
+    
+    // Winner price in parallel column
+    sheet.mergeCells(`M${currentRow}:M${currentRow}`);
+    const winnerPriceLabel = sheet.getCell(`M${currentRow}`);
+    winnerPriceLabel.value = '';
+    
+    const winnerPriceValue = sheet.getCell(`N${currentRow}`);
+    winnerPriceValue.value = winnerPrice;
+    Object.assign(winnerPriceValue, summaryValueStyle);
+    
     sheet.getRow(currentRow).height = 25;
     currentRow++;
 
@@ -718,8 +800,14 @@ router.get('/excel/group/:groupId/closed', async (req, res, next) => {
     Object.assign(label70, summaryStyle);
     
     const value70 = sheet.getCell(`L${currentRow}`);
-    value70.value = calc70;
+    value70.value = basePrice70Percent;
     Object.assign(value70, summaryValueStyle);
+    
+    // Winner 70% in parallel
+    const winnerValue70 = sheet.getCell(`N${currentRow}`);
+    winnerValue70.value = winnerPrice70Percent;
+    Object.assign(winnerValue70, summaryValueStyle);
+    
     sheet.getRow(currentRow).height = 25;
     currentRow++;
 
@@ -730,8 +818,14 @@ router.get('/excel/group/:groupId/closed', async (req, res, next) => {
     Object.assign(label30, summaryStyle);
     
     const value30 = sheet.getCell(`L${currentRow}`);
-    value30.value = calc30;
+    value30.value = basePrice30Percent;
     Object.assign(value30, summaryValueStyle);
+    
+    // Winner 30% in parallel
+    const winnerValue30 = sheet.getCell(`N${currentRow}`);
+    winnerValue30.value = winnerPrice30Percent;
+    Object.assign(winnerValue30, summaryValueStyle);
+    
     sheet.getRow(currentRow).height = 25;
     currentRow++;
 
@@ -742,9 +836,16 @@ router.get('/excel/group/:groupId/closed', async (req, res, next) => {
     Object.assign(labelVAT, summaryStyle);
     
     const valueVAT = sheet.getCell(`L${currentRow}`);
-    valueVAT.value = vat;
+    valueVAT.value = basePriceVAT;
     Object.assign(valueVAT, summaryValueStyle);
     valueVAT.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFF00' } }; // Yellow
+    
+    // Winner VAT in parallel
+    const winnerValueVAT = sheet.getCell(`N${currentRow}`);
+    winnerValueVAT.value = winnerPriceVAT;
+    Object.assign(winnerValueVAT, summaryValueStyle);
+    winnerValueVAT.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFF00' } }; // Yellow
+    
     sheet.getRow(currentRow).height = 25;
     currentRow++;
 
@@ -755,9 +856,16 @@ router.get('/excel/group/:groupId/closed', async (req, res, next) => {
     Object.assign(labelTotal, summaryStyle);
     
     const valueTotal = sheet.getCell(`L${currentRow}`);
-    valueTotal.value = finalTotal;
+    valueTotal.value = basePriceFinalTotal;
     Object.assign(valueTotal, summaryValueStyle);
     valueTotal.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF92D050' } }; // Green
+    
+    // Winner total in parallel
+    const winnerValueTotal = sheet.getCell(`N${currentRow}`);
+    winnerValueTotal.value = winnerPriceFinalTotal;
+    Object.assign(winnerValueTotal, summaryValueStyle);
+    winnerValueTotal.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF92D050' } }; // Green
+    
     sheet.getRow(currentRow).height = 25;
 
     // ═══════════════════════════════════════════════════════════════════════════
