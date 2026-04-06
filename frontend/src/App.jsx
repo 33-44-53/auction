@@ -1201,6 +1201,14 @@ function GroupDetailPage() {
   const canNavigateRounds = () => {
     if (!group || !group.items || group.items.length === 0) return { canNext: false, canPrev: false };
     if (group.currentRound === 'HARAJ') return { canNext: false, canPrev: false };
+    
+    // Check if there are any bids in the current round
+    const currentRoundBids = group.bids?.filter(b => b.round === group.currentRound) || [];
+    if (currentRoundBids.length > 0) {
+      // If there are bids in current round, disable navigation
+      return { canNext: false, canPrev: false };
+    }
+    
     const firstItem = group.items[0];
     const prices = [
       { name: 'CIF', value: firstItem.cif },
@@ -1494,6 +1502,11 @@ function GroupDetailPage() {
                   </button>
                 )}
               </>
+            )}
+            {!canNext && !canPrev && group.currentRound !== 'HARAJ' && group.bids?.filter(b => b.round === group.currentRound).length > 0 && (
+              <div className="bg-yellow-50 border border-yellow-300 text-yellow-800 px-4 py-2 rounded-lg text-sm">
+                ⚠️ Cannot change rounds - bids have been placed in current round
+              </div>
             )}
             <button onClick={handleCloseGroup} className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 font-semibold">
               ✓ Close Group
