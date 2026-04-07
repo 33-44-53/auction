@@ -803,9 +803,13 @@ router.delete('/:id', authorize('ADMIN'), async (req, res, next) => {
     const groupId = parseInt(req.params.id);
     const group = await prisma.group.findUnique({ where: { id: groupId } });
     if (!group) return res.status(404).json({ error: 'Group not found' });
-    const bidCount = await prisma.bid.count({ where: { groupId } });
-    if (bidCount > 0) return res.status(400).json({ error: 'Cannot delete group with bids' });
+    
+    // Delete all related data (cascade delete)
+    await prisma.bid.deleteMany({ where: { groupId } });
+    await prisma.bidderGroup.deleteMany({ where: { groupId } });
+    await prisma.item.deleteMany({ where: { groupId } });
     await prisma.group.delete({ where: { id: groupId } });
+    
     res.json({ message: 'Group deleted successfully' });
   } catch (error) { next(error); }
 });
