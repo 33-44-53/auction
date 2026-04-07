@@ -1279,9 +1279,7 @@ function GroupDetailPage() {
     
     // For HARAJ, always allow next round (can go to Haraj 2, 3, etc.)
     if (group.currentRound === 'HARAJ') {
-      // Check if there are any bids - if there are bids, cannot move to next round
-      const hasBids = group.bids && group.bids.length > 0;
-      return { canNext: !hasBids };
+      return { canNext: true };
     }
     
     // For normal rounds, check if there are any bids - if there are bids, cannot move to next round
@@ -1623,9 +1621,16 @@ function GroupDetailPage() {
         {group.status === 'OPEN' && (
           <div className="flex space-x-2 mt-4">
             {group.currentRound === 'HARAJ' ? (
-              <button onClick={handleRevertFromHaraj} className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 font-semibold">
-                ← Revert from Haraj
-              </button>
+              <>
+                {canNext && (
+                  <button onClick={() => setShowNextRoundModal(true)} className="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700 font-semibold">
+                    Next Haraj Round →
+                  </button>
+                )}
+                <button onClick={handleRevertFromHaraj} className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 font-semibold">
+                  ← Revert from Haraj
+                </button>
+              </>
             ) : (
               <>
                 {canNext && (
