@@ -824,7 +824,7 @@ router.post('/:id/reopen', authorize('ADMIN'), async (req, res, next) => {
 router.post('/:id/yasbela', authorize('ADMIN', 'STAFF'), async (req, res, next) => {
   try {
     const groupId = parseInt(req.params.id);
-    const { reason, yasbelaTenderId, newGroupCode } = req.body;
+    const { yasbelaType, reason, yasbelaTenderId, newGroupCode } = req.body;
 
     const group = await prisma.group.findUnique({ 
       where: { id: groupId }, 
@@ -842,7 +842,8 @@ router.post('/:id/yasbela', authorize('ADMIN', 'STAFF'), async (req, res, next) 
       where: { id: groupId },
       data: { 
         status: 'YASBELA', 
-        yasbelaPenalty: penalty, 
+        yasbelaPenalty: penalty,
+        yasbelaType: yasbelaType || 'NO_PAYMENT',
         yasbelaReason: reason || null, 
         yasbelaDate: new Date() 
       }
@@ -956,7 +957,8 @@ router.post('/:id/yasbela', authorize('ADMIN', 'STAFF'), async (req, res, next) 
         entity: 'Group', 
         entityId: groupId, 
         details: JSON.stringify({ 
-          penalty, 
+          penalty,
+          yasbelaType,
           reason, 
           newGroupId: newGroup.id, 
           targetTenderId 

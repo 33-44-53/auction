@@ -1015,7 +1015,7 @@ function GroupDetailPage() {
   const [showYasbelaModal, setShowYasbelaModal] = useState(false);
   const [showNextRoundModal, setShowNextRoundModal] = useState(false);
   const [harajFormData, setHarajFormData] = useState({ harajPrice: '', harajRound: '1' });
-  const [yasbelaFormData, setYasbelaFormData] = useState({ reason: '', yasbelaTenderId: '', newGroupCode: '' });
+  const [yasbelaFormData, setYasbelaFormData] = useState({ yasbelaType: 'NO_PAYMENT', reason: '', yasbelaTenderId: '', newGroupCode: '' });
   const [nextRoundFormData, setNextRoundFormData] = useState({ targetTenderId: '', newGroupCode: '', nextHarajPrice: '' });
   const [editingGroup, setEditingGroup] = useState(false);
   const [groupEditData, setGroupEditData] = useState({ code: '', title: '' });
@@ -1390,6 +1390,7 @@ function GroupDetailPage() {
     if (!confirm('Apply Yasbela? A 5% penalty will be deducted and the group will be moved to a tender.')) return;
     setShowYasbelaModal(false);
     const data = {
+      yasbelaType: yasbelaFormData.yasbelaType,
       reason: yasbelaFormData.reason,
       yasbelaTenderId: yasbelaFormData.yasbelaTenderId ? parseInt(yasbelaFormData.yasbelaTenderId) : undefined
     };
@@ -2348,12 +2349,48 @@ function GroupDetailPage() {
             <h3 className="text-xl font-bold gradient-text mb-1">↩ Apply Yasbela</h3>
             <p className="text-sm text-gray-500 mb-4">Winner cancelled. A 5% CPO penalty will be applied to <strong>{formatCurrency(group.winnerPrice)}</strong> = <strong className="text-red-600">{formatCurrency((group.winnerPrice || 0) * 0.05)}</strong></p>
             <form onSubmit={handleYasbela}>
+              {/* Yasbela Type Selection */}
               <div className="mb-4">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Cancellation Reason</label>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Yasbela Type</label>
+                <div className="space-y-2">
+                  <label className="flex items-start p-3 border-2 rounded-lg cursor-pointer hover:bg-blue-50 transition">
+                    <input
+                      type="radio"
+                      name="yasbelaType"
+                      value="NO_PAYMENT"
+                      checked={yasbelaFormData.yasbelaType === 'NO_PAYMENT'}
+                      onChange={(e) => setYasbelaFormData({ ...yasbelaFormData, yasbelaType: e.target.value })}
+                      className="mt-1 mr-3"
+                    />
+                    <div>
+                      <div className="font-semibold text-gray-800">Didn't Pay in Given Time</div>
+                      <div className="text-xs text-gray-600">Winner failed to pay within the specified deadline (5 days)</div>
+                    </div>
+                  </label>
+                  
+                  <label className="flex items-start p-3 border-2 rounded-lg cursor-pointer hover:bg-blue-50 transition">
+                    <input
+                      type="radio"
+                      name="yasbelaType"
+                      value="REFUSED_TO_PAY"
+                      checked={yasbelaFormData.yasbelaType === 'REFUSED_TO_PAY'}
+                      onChange={(e) => setYasbelaFormData({ ...yasbelaFormData, yasbelaType: e.target.value })}
+                      className="mt-1 mr-3"
+                    />
+                    <div>
+                      <div className="font-semibold text-gray-800">Refused to Pay / Written Cancellation</div>
+                      <div className="text-xs text-gray-600">Winner submitted written cancellation request or refused to pay</div>
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              <div className="mb-4">
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Cancellation Reason (Optional)</label>
                 <textarea
                   value={yasbelaFormData.reason}
                   onChange={(e) => setYasbelaFormData({ ...yasbelaFormData, reason: e.target.value })}
-                  placeholder="Written cancellation request or 5-day no-show..."
+                  placeholder="Additional details about the cancellation..."
                   rows={3}
                   className="w-full"
                 />

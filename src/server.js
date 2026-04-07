@@ -16,6 +16,7 @@ const auditRoutes = require('./routes/audit');
 const statsRoutes = require('./routes/stats');
 const usersRoutes = require('./routes/users');
 const seedRoutes = require('./routes/seed');
+const yasbellaRoutes = require('./routes/yasbella');
 
 const { errorHandler } = require('./middleware/errorHandler');
 const { authenticate } = require('./middleware/auth');
@@ -86,6 +87,7 @@ app.use('/api/export', authenticate, exportRoutes);
 app.use('/api/audit', authenticate, auditRoutes);
 app.use('/api/stats', authenticate, statsRoutes);
 app.use('/api/users', authenticate, usersRoutes);
+app.use('/api/yasbella', authenticate, yasbellaRoutes);
 app.use('/api/seed', seedRoutes); // TEMPORARY - Remove after seeding production
 
 // Root route - API info
@@ -103,7 +105,8 @@ app.get('/', (req, res) => {
       export: '/api/export',
       audit: '/api/audit',
       stats: '/api/stats',
-      users: '/api/users'
+      users: '/api/users',
+      yasbella: '/api/yasbella'
     },
     frontend: process.env.FRONTEND_URL || 'Not configured',
     documentation: 'See README.md for API documentation'

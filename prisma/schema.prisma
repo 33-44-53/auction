@@ -71,6 +71,7 @@ model Group {
   winnerPrice      Float?
   soldPrice        Float?
   yasbelaPenalty   Float?     // 5% CPO deduction
+  yasbelaType      String?    // NO_PAYMENT | REFUSED_TO_PAY
   yasbelaReason    String?    // Cancellation reason
   yasbelaDate      DateTime?  // Date of Yasbela
   createdAt        DateTime   @default(now())

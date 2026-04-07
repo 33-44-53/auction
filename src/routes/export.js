@@ -1797,4 +1797,169 @@ async function createYasbelaLetterFromScratch(group, winnerPrice, yasbelaPenalty
   return await Packer.toBuffer(doc);
 }
 
+// Yasbella Letter Export
+router.get('/yasbela-letter/:groupId', async (req, res, next) => {
+  try {
+    const groupId = parseInt(req.params.groupId);
+    const group = await prisma.group.findUnique({
+      where: { id: groupId },
+      include: {
+        tender: true,
+        items: true,
+        bids: { where: { isWinner: true }, include: { bidder: true } }
+      }
+    });
+
+    if (!group) return res.status(404).json({ error: 'Group not found' });
+    if (group.status !== 'YASBELA') return res.status(400).json({ error: 'Group is not in YASBELA status' });
+
+    const winner = group.bids[0];
+    if (!winner) return res.status(404).json({ error: 'No winner found' });
+
+    const yasbelaType = group.yasbelaType || 'NO_PAYMENT';
+    const penalty = group.yasbelaPenalty || (group.winnerPrice * 0.05);
+
+    const docBuffer = await generateYasbelaLetterDoc(group, winner, penalty, yasbelaType);
+    
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+    res.setHeader('Content-Disposition', `attachment; filename="Yasbela_Letter_${group.code}.docx"`);
+    res.send(Buffer.from(docBuffer));
+  } catch (error) {
+    next(error);
+  }
+});
+
+async function generateYasbelaLetterDoc(group, winner, penalty, yasbelaType) {
+  const tenderNumber = group.tender.tenderNumber;
+  const tenderDate = formatEthiopianDate(group.tender.date);
+  const refusalDate = formatEthiopianDate(group.yasbelaDate || new Date());
+  const winnerName = winner.bidder.name;
+  const groupCode = group.code;
+  const itemsDescription = getItemsDescriptionText(group.items);
+  const winnerPrice = formatCurrencyText(group.winnerPrice);
+  const penaltyFormatted = formatCurrencyText(penalty);
+  const penaltyInWords = numberToAmharicWords(penalty);
+
+  let mainContent;
+  if (yasbelaType === 'NO_PAYMENT') {
+    mainContent = `በግልፅ ጨረታ ቁጥር ${tenderNumber} በቀን ${tenderDate} ዓ.ም በተካሄደ ጨረታ ${winnerName} የተባሉት ተጫራች በኮድ-${groupCode} ${itemsDescription} በብር ${winnerPrice} ያሸነፉ ሲሆን ነገር ግን ያሸነፉትን እቃዎች በተቀመጠላቸው የጊዜ ገደብ ውስጥ ክፍያውን ከፍለው ለመውሰድ ፈቃደኛ ባለመሆናቸው ለጨረታ ያስያዙት 5% ለመንግስት ገቢ እንዲሆን እናሳውቃለን፡፡`;
+  } else {
+    mainContent = `በግልፅ ጨረታ ቁጥር ${tenderNumber} በቀን ${tenderDate} ዓ.ም በተካሄደ ጨረታ ${winnerName} የተባሉት ተጫራች በኮድ-${groupCode} ${itemsDescription} በብር ${winnerPrice} ያሸነፉ ሲሆን ነገር ግን ያሸነፉትን እቃ ክፍያውን ከፍለው እንደማይረከቡ በቀን ${refusalDate} በፃፉት ማመልከቻ ያሳወቁን ስለሆነ ለጨረታ ያስያዙት 5% ለመንግስት ገቢ እንዲሆን እናሳውቃለን፡፡`;
+  }
+
+  const doc = new Document({
+    sections: [{
+      properties: {},
+      children: [
+        new Paragraph({ text: 'ቁጥር፡-………………', spacing: { after: 200 } }),
+        new Paragraph({ text: 'ቀን፡-………………', spacing: { after: 400 } }),
+        new Paragraph({ text: '', spacing: { after: 200 } }),
+        new Paragraph({ text: 'ለገቢ አሰባሰብ እና ዋስትና አያያዝ ቡድን', spacing: { after: 200 } }),
+        new Paragraph({ text: 'ድ/ዳ/ጉ/ኮ', spacing: { after: 400 } }),
+        new Paragraph({ text: '', spacing: { after: 200 } }),
+        new Paragraph({ 
+          text: mainContent,
+          spacing: { after: 400 }
+        }),
+        new Paragraph({ 
+          text: `ስለዚህ ተጫራቹ ተጫርተው ያሸነፉት የዕቃ ክፍያ 5% በብር ${penaltyFormatted} /${penaltyInWords}/ መሆኑን እያሳወቅን የእቃውን ዝርዝር ${group.items.length} ገፅ ያያዝን ሲሆን ደረሰኝ ተቆርጦ ገንዘቡ በቀጥታ አካውንት ቁጥር 1000014311762 ላይ ገቢ እንዲሆን እናሳውቃለን፡፡`,
+          spacing: { after: 600 }
+        }),
+        new Paragraph({ text: '', spacing: { after: 200 } }),
+        new Paragraph({ text: '// ከሰላምታ ጋር //', spacing: { after: 600 } }),
+        new Paragraph({ text: '', spacing: { after: 200 } }),
+        new Paragraph({ text: 'ግልባጭ፡-', spacing: { after: 200 } }),
+        new Paragraph({ text: 'ለጉ/ኦ/ም/ስ/አስኪየጅ', spacing: { after: 100 } }),
+        new Paragraph({ text: 'የተያዙና የተወረሱ ንብ/አስ/የስራሂደት', spacing: { after: 100 } }),
+        new Paragraph({ text: 'ለንብረት አስወጋጅ ኮሚቴ', spacing: { after: 100 } }),
+        new Paragraph({ text: 'ድሬደዋ', spacing: { after: 100 } }),
+        new Paragraph({ text: winnerName, spacing: { after: 100 } }),
+        new Paragraph({ text: 'ባሉበት', spacing: { after: 100 } }),
+        new Paragraph({ text: yasbelaType === 'NO_PAYMENT' ? 'መ/ድ' : 'በ/መ', spacing: { after: 600 } }),
+        new Paragraph({ text: '', spacing: { after: 200 } }),
+        new Paragraph({ 
+          text: '"ደረጃውን የጠበቀ ዘመናዊ የጉምሩክ አስተዳደር እንዲሰፍን እንተጋለን"',
+          alignment: AlignmentType.CENTER
+        })
+      ]
+    }]
+  });
+
+  return await Packer.toBuffer(doc);
+}
+
+function getItemsDescriptionText(items) {
+  if (items.length === 0) return 'የተለያዩ እቃዎች';
+  const types = [...new Set(items.map(i => i.itemType).filter(Boolean))];
+  if (types.length > 0) return types.join('፣ ');
+  return 'የተለያዩ እቃዎች';
+}
+
+function formatCurrencyText(amount) {
+  return new Intl.NumberFormat('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  }).format(amount);
+}
+
+function formatEthiopianDate(date) {
+  if (!date) return '____/____/____';
+  const d = new Date(date);
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const year = d.getFullYear();
+  return `${day}/${month}/${year}`;
+}
+
+function numberToAmharicWords(num) {
+  const ones = ['', 'አንድ', 'ሁለት', 'ሶስት', 'አራት', 'አምስት', 'ስድስት', 'ሰባት', 'ስምንት', 'ዘጠኝ'];
+  const tens = ['', 'አስር', 'ሃያ', 'ሰላሳ', 'አርባ', 'ሃምሳ', 'ስልሳ', 'ሰባ', 'ሰማንያ', 'ዘጠና'];
+  const hundreds = ['', 'አንድ መቶ', 'ሁለት መቶ', 'ሶስት መቶ', 'አራት መቶ', 'አምስት መቶ', 'ስድስት መቶ', 'ሰባት መቶ', 'ስምንት መቶ', 'ዘጠኝ መቶ'];
+
+  if (num === 0) return 'ዜሮ';
+  
+  const [intPart, decPart] = num.toFixed(2).split('.');
+  const integer = parseInt(intPart);
+  
+  let result = '';
+  
+  if (integer >= 1000000) {
+    const millions = Math.floor(integer / 1000000);
+    result += convertThreeDigits(millions, ones, tens, hundreds) + ' ሚሊዮን ';
+  }
+  
+  const remainder = integer % 1000000;
+  if (remainder >= 1000) {
+    const thousands = Math.floor(remainder / 1000);
+    result += convertThreeDigits(thousands, ones, tens, hundreds) + ' ሺህ ';
+  }
+  
+  const lastThree = integer % 1000;
+  if (lastThree > 0) {
+    result += convertThreeDigits(lastThree, ones, tens, hundreds);
+  }
+  
+  result += ' ብር';
+  
+  if (decPart && parseInt(decPart) > 0) {
+    result += ' ' + decPart + '/100';
+  }
+  
+  return result.trim();
+}
+
+function convertThreeDigits(num, ones, tens, hundreds) {
+  let result = '';
+  
+  const h = Math.floor(num / 100);
+  const t = Math.floor((num % 100) / 10);
+  const o = num % 10;
+  
+  if (h > 0) result += hundreds[h] + ' ';
+  if (t > 0) result += tens[t] + ' ';
+  if (o > 0) result += ones[o];
+  
+  return result.trim();
+}
+
 module.exports = router;
