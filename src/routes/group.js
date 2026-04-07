@@ -238,6 +238,9 @@ router.post('/:id/next-round', authorize('ADMIN', 'STAFF'), async (req, res, nex
     if (group.status !== 'OPEN') return res.status(400).json({ error: 'Group is not open' });
     if (group.items.length === 0) return res.status(400).json({ error: 'Group has no items' });
 
+    // Check if staying in same tender
+    const stayInSameTender = targetTenderId === 'SAME';
+
     // Check if current round is HARAJ
     if (group.currentRound === 'HARAJ') {
       // Moving to next Haraj round
@@ -246,7 +249,10 @@ router.post('/:id/next-round', authorize('ADMIN', 'STAFF'), async (req, res, nex
       
       // Determine target tender
       let newTenderId;
-      if (targetTenderId) {
+      if (stayInSameTender) {
+        // Stay in current tender
+        newTenderId = group.tenderId;
+      } else if (targetTenderId) {
         newTenderId = parseInt(targetTenderId);
       } else {
         // Auto-generate next tender number
@@ -346,14 +352,17 @@ router.post('/:id/next-round', authorize('ADMIN', 'STAFF'), async (req, res, nex
             toRound: nextHarajRound, 
             newTenderId,
             newGroupId: newGroup.id,
-            harajPrice 
+            harajPrice,
+            stayInSameTender 
           }), 
           ipAddress: req.ip 
         } 
       });
 
       return res.json({ 
-        message: `Moved to Haraj Round ${nextHarajRound} in new tender`, 
+        message: stayInSameTender 
+          ? `Moved to Haraj Round ${nextHarajRound} in same tender` 
+          : `Moved to Haraj Round ${nextHarajRound} in new tender`, 
         newGroup, 
         newTenderId,
         harajPrice 
@@ -375,7 +384,10 @@ router.post('/:id/next-round', authorize('ADMIN', 'STAFF'), async (req, res, nex
     
     // Determine target tender
     let newTenderId;
-    if (targetTenderId) {
+    if (stayInSameTender) {
+      // Stay in current tender
+      newTenderId = group.tenderId;
+    } else if (targetTenderId) {
       newTenderId = parseInt(targetTenderId);
     } else {
       // Auto-generate next tender number
@@ -483,14 +495,17 @@ router.post('/:id/next-round', authorize('ADMIN', 'STAFF'), async (req, res, nex
           toRound: nextRound, 
           newTenderId,
           newGroupId: newGroup.id,
-          newBasePrice 
+          newBasePrice,
+          stayInSameTender 
         }), 
         ipAddress: req.ip 
       } 
     });
 
     res.json({ 
-      message: `Moved to ${nextRound} in new tender`, 
+      message: stayInSameTender 
+        ? `Moved to ${nextRound} in same tender` 
+        : `Moved to ${nextRound} in new tender`, 
       newGroup, 
       newTenderId,
       newBasePrice 

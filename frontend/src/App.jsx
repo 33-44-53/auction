@@ -1253,15 +1253,23 @@ function GroupDetailPage() {
     if (e) e.preventDefault();
     setShowNextRoundModal(false);
     
-    const data = nextRoundFormData.targetTenderId ? { targetTenderId: parseInt(nextRoundFormData.targetTenderId) } : {};
+    const data = {};
+    if (nextRoundFormData.targetTenderId === 'SAME') {
+      data.targetTenderId = 'SAME';
+    } else if (nextRoundFormData.targetTenderId) {
+      data.targetTenderId = parseInt(nextRoundFormData.targetTenderId);
+    }
     if (nextRoundFormData.newGroupCode) data.newGroupCode = nextRoundFormData.newGroupCode;
+    if (nextRoundFormData.nextHarajPrice) data.nextHarajPrice = nextRoundFormData.nextHarajPrice;
     
     console.log('Sending next-round request with data:', data);
     
     api.post(`/groups/${groupId}/next-round`, data)
       .then((res) => {
         console.log('Next round response:', res.data);
-        const msg = nextRoundFormData.targetTenderId 
+        const msg = nextRoundFormData.targetTenderId === 'SAME'
+          ? `Group moved to next round in same tender`
+          : nextRoundFormData.targetTenderId 
           ? `Group moved to next round in existing tender` 
           : `Group moved to next round in new tender`;
         alert(msg);
@@ -2209,12 +2217,15 @@ function GroupDetailPage() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                 >
                   <option value="">-- Create New Tender (Auto-increment) --</option>
+                  <option value="SAME">-- Stay in Current Tender --</option>
                   {allTenders.filter(t => t.id !== group.tenderId && t.status === 'OPEN' && t.tenderType !== 'YASBELA').map(t => (
                     <option key={t.id} value={t.id}>{t.tenderNumber} ({t.tenderType})</option>
                   ))}
                 </select>
                 <p className="text-xs text-gray-500 mt-1">
-                  {nextRoundFormData.targetTenderId 
+                  {nextRoundFormData.targetTenderId === 'SAME'
+                    ? 'Group will stay in the current tender'
+                    : nextRoundFormData.targetTenderId 
                     ? 'Group will be moved to the selected tender' 
                     : `New tender will be created (e.g., ${group.tender?.tenderNumber?.replace(/(\d+)/, (m) => String(parseInt(m) + 1).padStart(3, '0'))})`}
                 </p>
