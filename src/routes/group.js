@@ -496,40 +496,76 @@ router.post('/:id/send-to-haraj', authorize('ADMIN', 'STAFF'), async (req, res, 
     if (!group) return res.status(404).json({ error: 'Group not found' });
     if (group.status !== 'OPEN') return res.status(400).json({ error: 'Group must be OPEN to send to Haraj' });
 
-    // Store previous round before converting to HARAJ
+    // Store previous round and base price before converting to HARAJ
     const previousRound = group.currentRound;
+    const previousBasePrice = group.basePrice;
 
-    // Calculate Haraj price: use current base price or calculate from lowest of CIF, FOB, TAX
-    let calculatedHarajPrice = group.basePrice || 0;
+    // Determine the haraj price
+    let finalPrice;
     
-    // If no base price exists or user wants to recalculate, use lowest price
-    if (!calculatedHarajPrice && group.items.length > 0) {
-      const exchangeRate = group.exchangeRate || group.tender.exchangeRate;
-      for (const item of group.items) {
-        const lowestPrice = Math.min(item.cif || 0, item.fob || 0, item.tax || 0);
-        const unitPrice = lowestPrice * exchangeRate;
-        const totalPrice = unitPrice * item.totalQuantity;
-        calculatedHarajPrice += totalPrice;
+    if (harajPrice && parseFloat(harajPrice) > 0) {
+      // User provided a custom haraj price
+      finalPrice = parseFloat(harajPrice);
+    } else if (previousBasePrice && previousBasePrice > 0) {
+      // Use existing base price
+      finalPrice = previousBasePrice;
+    } else {
+      // Calculate from lowest of CIF, FOB, TAX for each item
+      let calculatedPrice = 0;
+      if (group.items.length > 0) {
+        const exchangeRate = group.exchangeRate || group.tender.exchangeRate || 1;
+        for (const item of group.items) {
+          const lowestPrice = Math.min(
+            item.cif || Infinity, 
+            item.fob || Infinity, 
+            item.tax || Infinity
+          );
+          if (lowestPrice !== Infinity && lowestPrice > 0) {
+            const unitPrice = lowestPrice * exchangeRate;
+            const totalPrice = unitPrice * item.totalQuantity;
+            calculatedPrice += totalPrice;
+          }
+        }
       }
+      finalPrice = calculatedPrice;
     }
 
-    // Use provided harajPrice if given, otherwise use calculated price
-    const price = parseFloat(harajPrice) || calculatedHarajPrice;
     const round = parseInt(harajRound) || 1;
 
     const updatedGroup = await prisma.group.update({
       where: { id: groupId },
       data: {
         currentRound: 'HARAJ',
-        harajPrice: price,
-        basePrice: price,  // Keep base price same as haraj price
+        harajPrice: finalPrice,
+        basePrice: 0,
         roundNumber: round,
-        previousRound: previousRound  // Store for potential revert
+        previousRound: previousRound
       }
     });
 
-    await prisma.auditLog.create({ data: { userId: req.userId, action: 'SEND_TO_HARAJ', entity: 'Group', entityId: groupId, details: JSON.stringify({ harajPrice: price, harajRound: round, calculatedFromLowestPrice: !harajPrice, previousRound, previousBasePrice: group.basePrice }), ipAddress: req.ip } });
-    res.json({ message: 'Group converted to Haraj', group: updatedGroup, calculatedHarajPrice });
+    await prisma.auditLog.create({ 
+      data: { 
+        userId: req.userId, 
+        action: 'SEND_TO_HARAJ', 
+        entity: 'Group', 
+        entityId: groupId, 
+        details: JSON.stringify({ 
+          harajPrice: finalPrice, 
+          harajRound: round, 
+          previousRound,
+          previousBasePrice,
+          source: harajPrice ? 'user_input' : (previousBasePrice > 0 ? 'existing_base_price' : 'calculated')
+        }), 
+        ipAddress: req.ip 
+      } 
+    });
+    
+    res.json({ 
+      message: 'Group converted to Haraj', 
+      group: updatedGroup, 
+      harajPrice: finalPrice,
+      previousBasePrice 
+    });
   } catch (error) { next(error); }
 });
 
