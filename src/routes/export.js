@@ -610,114 +610,118 @@ router.get('/excel/group/:groupId/closed', async (req, res, next) => {
         totalBasePrice += totalPrice;
       });
 
-      // For each bidder, show all items with their bid price
-      roundBids.forEach((bid, bidIndex) => {
-        const bidStartRow = currentRow;
-        const isWinner = bid.isWinner || bidIndex === 0;
+      const itemsStartRow = currentRow;
 
-        // Show all items for this bidder
-        group.items.forEach((item, itemIndex) => {
-          const unitPriceMap = {
-            FOB: item.fob * exRate,
-            CIF: item.cif * exRate,
-            TAX: item.tax * exRate,
-            HARAJ: item.unitPrice || 0
-          };
-          const unitPrice = unitPriceMap[round] || item.unitPrice || 0;
-          const totalPrice = unitPrice * item.totalQuantity;
+      // Show all items once
+      group.items.forEach((item, itemIndex) => {
+        const unitPriceMap = {
+          FOB: item.fob * exRate,
+          CIF: item.cif * exRate,
+          TAX: item.tax * exRate,
+          HARAJ: item.unitPrice || 0
+        };
+        const unitPrice = unitPriceMap[round] || item.unitPrice || 0;
+        const totalPrice = unitPrice * item.totalQuantity;
 
-          const rowData = [
-            itemIndex + 1,
-            item.name,
-            item.brand || '',
-            item.country || '',
-            item.unit,
-            item.warehouse1 || 0,
-            item.warehouse2 || 0,
-            item.warehouse3 || 0,
-            0,
-            item.totalQuantity,
-            unitPrice,
-            totalPrice,
-            item.itemCode || item.serialNumber || '',
-            itemIndex === 0 ? bid.bidPrice : '', // Only show bid price on first item
-            itemIndex === 0 ? bid.bidder.name : '', // Only show bidder name on first item
-            itemIndex === 0 ? group.code : '', // Only show group code on first item
-            item.fob,
-            item.cif,
-            item.tax,
-            exRate
-          ];
+        const rowData = [
+          itemIndex + 1,
+          item.name,
+          item.brand || '',
+          item.country || '',
+          item.unit,
+          item.warehouse1 || 0,
+          item.warehouse2 || 0,
+          item.warehouse3 || 0,
+          0,
+          item.totalQuantity,
+          unitPrice,
+          totalPrice,
+          item.itemCode || item.serialNumber || '',
+          '', // Bid price - will be filled by bidders
+          '', // Bidder name - will be filled by bidders
+          itemIndex === 0 ? group.code : '', // Only show group code on first item
+          item.fob,
+          item.cif,
+          item.tax,
+          exRate
+        ];
 
-          rowData.forEach((value, colIndex) => {
-            const cell = sheet.getCell(currentRow, colIndex + 1);
-            
-            if ((colIndex === 13 || colIndex === 14 || colIndex === 15) && itemIndex > 0) {
-              // Skip merged cells for bid price, bidder name, and group code
+        rowData.forEach((value, colIndex) => {
+          const cell = sheet.getCell(currentRow, colIndex + 1);
+          
+          if ((colIndex === 13 || colIndex === 14 || colIndex === 15) && itemIndex > 0) {
+            // Skip merged cells for bid price, bidder name, and group code
+          } else {
+            cell.value = value;
+          }
+          
+          cell.border = dataBorder;
+          cell.font = { name: 'Arial', size: 10 };
+
+          if (typeof value === 'number' && value !== 0) {
+            cell.alignment = { horizontal: 'right', vertical: 'middle' };
+            cell.numFmt = Number.isInteger(value) ? '#,##0' : '#,##0.00';
+          } else {
+            if (colIndex === 13 || colIndex === 14 || colIndex === 15 || colIndex === 19) {
+              cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
             } else {
-              cell.value = value;
+              cell.alignment = { horizontal: 'left', vertical: 'middle' };
             }
-            
-            cell.border = dataBorder;
-            cell.font = { name: 'Arial', size: 10 };
-
-            if (typeof value === 'number' && value !== 0) {
-              cell.alignment = { horizontal: 'right', vertical: 'middle' };
-              cell.numFmt = Number.isInteger(value) ? '#,##0' : '#,##0.00';
-            } else {
-              if (colIndex === 13 || colIndex === 14 || colIndex === 15 || colIndex === 19) {
-                cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
-              } else {
-                cell.alignment = { horizontal: 'left', vertical: 'middle' };
-              }
-            }
-
-            // Highlight winner rows
-            if (isWinner) {
-              cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFC6EFCE' } };
-              if (colIndex === 13 || colIndex === 14) {
-                cell.font = { name: 'Arial', size: 10, bold: true };
-              }
-            }
-          });
-
-          sheet.getRow(currentRow).height = 20;
-          currentRow++;
+          }
         });
 
-        // Merge cells for bid price, bidder name, and group code
-        if (group.items.length > 0) {
-          const bidEndRow = currentRow - 1;
-          sheet.mergeCells(`N${bidStartRow}:N${bidEndRow}`);
-          sheet.mergeCells(`O${bidStartRow}:O${bidEndRow}`);
-          sheet.mergeCells(`P${bidStartRow}:P${bidEndRow}`);
-        }
+        sheet.getRow(currentRow).height = 20;
+        currentRow++;
+      });
 
-        // Base price row for this bidder (NO PERCENTAGE CALCULATIONS)
-        sheet.mergeCells(`A${currentRow}:K${currentRow}`);
-        const basePriceLabel = sheet.getCell(`A${currentRow}`);
-        basePriceLabel.value = 'መነሻ ዋጋ';
-        basePriceLabel.font = { name: 'Arial', size: 11, bold: true };
-        basePriceLabel.border = dataBorder;
-        basePriceLabel.alignment = { horizontal: 'right', vertical: 'middle' };
+      // Merge group code column for all items
+      if (group.items.length > 0) {
+        const itemsEndRow = currentRow - 1;
+        sheet.mergeCells(`P${itemsStartRow}:P${itemsEndRow}`);
+      }
+
+      // Base price row
+      sheet.mergeCells(`A${currentRow}:K${currentRow}`);
+      const basePriceLabel = sheet.getCell(`A${currentRow}`);
+      basePriceLabel.value = 'መነሻ ዋጋ';
+      basePriceLabel.font = { name: 'Arial', size: 11, bold: true };
+      basePriceLabel.border = dataBorder;
+      basePriceLabel.alignment = { horizontal: 'right', vertical: 'middle' };
+      
+      const basePriceValue = sheet.getCell(`L${currentRow}`);
+      basePriceValue.value = totalBasePrice;
+      basePriceValue.font = { name: 'Arial', size: 11, bold: true };
+      basePriceValue.border = dataBorder;
+      basePriceValue.alignment = { horizontal: 'right', vertical: 'middle' };
+      basePriceValue.numFmt = '#,##0';
+      
+      sheet.getRow(currentRow).height = 25;
+      currentRow++;
+
+      // Add all bidders in columns N and O
+      roundBids.forEach((bid, bidIndex) => {
+        const isWinner = bid.isWinner || bidIndex === 0;
         
-        const basePriceValue = sheet.getCell(`L${currentRow}`);
-        basePriceValue.value = totalBasePrice;
-        basePriceValue.font = { name: 'Arial', size: 11, bold: true };
-        basePriceValue.border = dataBorder;
-        basePriceValue.alignment = { horizontal: 'right', vertical: 'middle' };
-        basePriceValue.numFmt = '#,##0';
+        // Bid price in column N
+        const bidPriceCell = sheet.getCell(itemsStartRow + bidIndex, 14);
+        bidPriceCell.value = bid.bidPrice;
+        bidPriceCell.border = dataBorder;
+        bidPriceCell.font = { name: 'Arial', size: 10, bold: isWinner };
+        bidPriceCell.alignment = { horizontal: 'center', vertical: 'middle' };
+        bidPriceCell.numFmt = Number.isInteger(bid.bidPrice) ? '#,##0' : '#,##0.00';
         
+        // Bidder name in column O
+        const bidderNameCell = sheet.getCell(itemsStartRow + bidIndex, 15);
+        bidderNameCell.value = bid.bidder.name;
+        bidderNameCell.border = dataBorder;
+        bidderNameCell.font = { name: 'Arial', size: 10, bold: isWinner };
+        bidderNameCell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+        
+        // Highlight winner
         if (isWinner) {
-          basePriceLabel.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFC6EFCE' } };
-          basePriceValue.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFC6EFCE' } };
+          bidPriceCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFC6EFCE' } };
+          bidderNameCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFCC00' } };
         }
-        
-        sheet.getRow(currentRow).height = 25;
-        currentRow++;
-
-        // Empty row between bidders
-        currentRow++;
       });
 
       // Empty rows for spacing before main table
