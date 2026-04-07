@@ -865,12 +865,26 @@ function TenderDetailPage() {
                 <span className="text-gray-500">Base Price:</span>
                 <p className="font-medium">{formatCurrency(group.basePrice)}</p>
               </div>
-              <a
-                href={`/groups/${group.id}`}
-                className="block text-center bg-primary-600 text-white py-2 rounded hover:bg-primary-700"
-              >
-                Manage
-              </a>
+              <div className="flex gap-2">
+                <a
+                  href={`/groups/${group.id}`}
+                  className="flex-1 text-center bg-primary-600 text-white py-2 rounded hover:bg-primary-700"
+                >
+                  Manage
+                </a>
+                <button
+                  onClick={() => {
+                    if (!confirm(`Delete group ${group.code}? This will also delete all items and bids.`)) return;
+                    api.delete(`/groups/${group.id}`)
+                      .then(() => loadTender())
+                      .catch(e => alert(e.response?.data?.error || 'Failed to delete group'));
+                  }}
+                  className="bg-red-600 text-white px-3 py-2 rounded hover:bg-red-700"
+                  title="Delete group"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
             </div>
           ))}
           {tender.groups?.length === 0 && (
