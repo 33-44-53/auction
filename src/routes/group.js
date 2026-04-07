@@ -499,9 +499,11 @@ router.post('/:id/send-to-haraj', authorize('ADMIN', 'STAFF'), async (req, res, 
     // Store previous round before converting to HARAJ
     const previousRound = group.currentRound;
 
-    // Calculate Haraj price: use lowest of CIF, FOB, TAX for each item
-    let calculatedHarajPrice = 0;
-    if (group.items.length > 0) {
+    // Calculate Haraj price: use current base price or calculate from lowest of CIF, FOB, TAX
+    let calculatedHarajPrice = group.basePrice || 0;
+    
+    // If no base price exists or user wants to recalculate, use lowest price
+    if (!calculatedHarajPrice && group.items.length > 0) {
       const exchangeRate = group.exchangeRate || group.tender.exchangeRate;
       for (const item of group.items) {
         const lowestPrice = Math.min(item.cif || 0, item.fob || 0, item.tax || 0);
@@ -511,7 +513,8 @@ router.post('/:id/send-to-haraj', authorize('ADMIN', 'STAFF'), async (req, res, 
       }
     }
 
-    const price = parseFloat(harajPrice) || calculatedHarajPrice || 0;
+    // Use provided harajPrice if given, otherwise use calculated price
+    const price = parseFloat(harajPrice) || calculatedHarajPrice;
     const round = parseInt(harajRound) || 1;
 
     const updatedGroup = await prisma.group.update({
@@ -519,13 +522,13 @@ router.post('/:id/send-to-haraj', authorize('ADMIN', 'STAFF'), async (req, res, 
       data: {
         currentRound: 'HARAJ',
         harajPrice: price,
-        basePrice: price,
+        basePrice: price,  // Keep base price same as haraj price
         roundNumber: round,
         previousRound: previousRound  // Store for potential revert
       }
     });
 
-    await prisma.auditLog.create({ data: { userId: req.userId, action: 'SEND_TO_HARAJ', entity: 'Group', entityId: groupId, details: JSON.stringify({ harajPrice: price, harajRound: round, calculatedFromLowestPrice: !harajPrice, previousRound }), ipAddress: req.ip } });
+    await prisma.auditLog.create({ data: { userId: req.userId, action: 'SEND_TO_HARAJ', entity: 'Group', entityId: groupId, details: JSON.stringify({ harajPrice: price, harajRound: round, calculatedFromLowestPrice: !harajPrice, previousRound, previousBasePrice: group.basePrice }), ipAddress: req.ip } });
     res.json({ message: 'Group converted to Haraj', group: updatedGroup, calculatedHarajPrice });
   } catch (error) { next(error); }
 });
