@@ -227,7 +227,7 @@ router.delete('/:id/bids/:bidId', authorize('ADMIN', 'STAFF'), async (req, res, 
 router.post('/:id/next-round', authorize('ADMIN', 'STAFF'), async (req, res, next) => {
   try {
     const groupId = parseInt(req.params.id);
-    const { targetTenderId, newGroupCode } = req.body; // Optional: specify target tender and new group code
+    const { targetTenderId, newGroupCode, nextHarajPrice } = req.body; // Optional: specify target tender, new group code, and haraj price
     
     const group = await prisma.group.findUnique({ 
       where: { id: groupId }, 
@@ -238,6 +238,129 @@ router.post('/:id/next-round', authorize('ADMIN', 'STAFF'), async (req, res, nex
     if (group.status !== 'OPEN') return res.status(400).json({ error: 'Group is not open' });
     if (group.items.length === 0) return res.status(400).json({ error: 'Group has no items' });
 
+    // Check if current round is HARAJ
+    if (group.currentRound === 'HARAJ') {
+      // Moving to next Haraj round
+      const currentHarajRound = group.roundNumber || 1;
+      const nextHarajRound = currentHarajRound + 1;
+      
+      // Determine target tender
+      let newTenderId;
+      if (targetTenderId) {
+        newTenderId = parseInt(targetTenderId);
+      } else {
+        // Auto-generate next tender number
+        const currentTenderNumber = group.tender.tenderNumber;
+        const match = currentTenderNumber.match(/(\d+)\/(\d+)/);
+        
+        let newTenderNumber;
+        if (match) {
+          const num = parseInt(match[1]);
+          const year = match[2];
+          newTenderNumber = `${String(num + 1).padStart(3, '0')}/${year}`;
+        } else {
+          newTenderNumber = `${currentTenderNumber}-HARAJ${nextHarajRound}`;
+        }
+        
+        // Create new tender for next Haraj round
+        const newTender = await prisma.tender.create({
+          data: {
+            tenderNumber: newTenderNumber,
+            title: group.tender.title,
+            location: group.tender.location,
+            exchangeRate: group.tender.exchangeRate,
+            date: group.tender.date,
+            responsibleBody: group.tender.responsibleBody,
+            tenderType: 'HARAJ',
+            harajRound: nextHarajRound,
+            status: 'OPEN',
+            createdBy: req.userId
+          }
+        });
+        newTenderId = newTender.id;
+      }
+
+      // Use provided haraj price or default to 0
+      const harajPrice = parseFloat(nextHarajPrice) || 0;
+
+      // Create new group in new tender
+      const newGroup = await prisma.group.create({
+        data: {
+          tenderId: newTenderId,
+          code: newGroupCode || group.code,
+          name: group.name,
+          title: group.title,
+          vehiclePlate: group.vehiclePlate,
+          date: group.date,
+          location: group.location,
+          responsibleBody: group.responsibleBody,
+          exchangeRate: group.exchangeRate,
+          originalGroupId: groupId,
+          basePrice: 0,
+          harajPrice: harajPrice,
+          currentRound: 'HARAJ',
+          roundNumber: nextHarajRound,
+          status: 'OPEN'
+        }
+      });
+
+      // Copy items to new group
+      for (const item of group.items) {
+        await prisma.item.create({
+          data: {
+            groupId: newGroup.id,
+            itemCode: item.itemCode,
+            serialNumber: item.serialNumber,
+            name: item.name,
+            itemType: item.itemType,
+            brand: item.brand,
+            country: item.country,
+            unit: item.unit,
+            warehouse1: item.warehouse1,
+            warehouse2: item.warehouse2,
+            warehouse3: item.warehouse3,
+            totalQuantity: item.totalQuantity,
+            fob: item.fob,
+            cif: item.cif,
+            tax: item.tax,
+            unitPrice: item.unitPrice,
+            totalPrice: item.totalPrice
+          }
+        });
+      }
+
+      // Mark original group as moved to next round
+      await prisma.group.update({
+        where: { id: groupId },
+        data: { status: 'CLOSED' }
+      });
+
+      await prisma.auditLog.create({ 
+        data: { 
+          userId: req.userId, 
+          action: 'NEXT_HARAJ_ROUND', 
+          entity: 'Group', 
+          entityId: groupId, 
+          details: JSON.stringify({ 
+            fromRound: currentHarajRound, 
+            toRound: nextHarajRound, 
+            newTenderId,
+            newGroupId: newGroup.id,
+            harajPrice 
+          }), 
+          ipAddress: req.ip 
+        } 
+      });
+
+      return res.json({ 
+        message: `Moved to Haraj Round ${nextHarajRound} in new tender`, 
+        newGroup, 
+        newTenderId,
+        harajPrice 
+      });
+    }
+
+    // Normal round progression (CIF/FOB/TAX)
     // Determine round priority from first item
     const firstItem = group.items[0];
     const [round1, round2, round3] = getPricePriority(firstItem.cif, firstItem.fob, firstItem.tax);

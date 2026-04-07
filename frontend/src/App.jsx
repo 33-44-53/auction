@@ -1016,7 +1016,7 @@ function GroupDetailPage() {
   const [showNextRoundModal, setShowNextRoundModal] = useState(false);
   const [harajFormData, setHarajFormData] = useState({ harajPrice: '', harajRound: '1' });
   const [yasbelaFormData, setYasbelaFormData] = useState({ reason: '', yasbelaTenderId: '', newGroupCode: '' });
-  const [nextRoundFormData, setNextRoundFormData] = useState({ targetTenderId: '', newGroupCode: '' });
+  const [nextRoundFormData, setNextRoundFormData] = useState({ targetTenderId: '', newGroupCode: '', nextHarajPrice: '' });
   const [editingGroup, setEditingGroup] = useState(false);
   const [groupEditData, setGroupEditData] = useState({ code: '', title: '' });
   const [allTenders, setAllTenders] = useState([]);
@@ -1276,9 +1276,15 @@ function GroupDetailPage() {
   // Determine if we can navigate to next round
   const canNavigateRounds = () => {
     if (!group || !group.items || group.items.length === 0) return { canNext: false };
-    if (group.currentRound === 'HARAJ') return { canNext: false };
     
-    // Check if there are any bids - if there are bids, cannot move to next round
+    // For HARAJ, always allow next round (can go to Haraj 2, 3, etc.)
+    if (group.currentRound === 'HARAJ') {
+      // Check if there are any bids - if there are bids, cannot move to next round
+      const hasBids = group.bids && group.bids.length > 0;
+      return { canNext: !hasBids };
+    }
+    
+    // For normal rounds, check if there are any bids - if there are bids, cannot move to next round
     const hasBids = group.bids && group.bids.length > 0;
     if (hasBids) return { canNext: false };
     
@@ -2169,8 +2175,27 @@ function GroupDetailPage() {
         <div className="modal-backdrop">
           <div className="modal-content p-6 w-full max-w-md">
             <h3 className="text-xl font-bold gradient-text mb-1">→ Move to Next Round</h3>
-            <p className="text-sm text-gray-500 mb-4">Choose where to move this group for the next round</p>
+            <p className="text-sm text-gray-500 mb-4">
+              {group.currentRound === 'HARAJ' 
+                ? `Moving from Haraj Round ${group.roundNumber || 1} to Round ${(group.roundNumber || 1) + 1}`
+                : 'Choose where to move this group for the next round'}
+            </p>
             <form onSubmit={handleNextRound}>
+              {group.currentRound === 'HARAJ' && (
+                <div className="mb-4">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Next Haraj Base Price (optional)</label>
+                  <input
+                    type="number"
+                    value={nextRoundFormData.nextHarajPrice}
+                    onChange={(e) => setNextRoundFormData({ ...nextRoundFormData, nextHarajPrice: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                    placeholder="Enter base price for next Haraj round"
+                    step="0.01"
+                    min="0"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Leave empty for base price of 0</p>
+                </div>
+              )}
               <div className="mb-4">
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Target Tender</label>
                 <select
