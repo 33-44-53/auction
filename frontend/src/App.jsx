@@ -1249,6 +1249,43 @@ function GroupDetailPage() {
     }
   };
 
+  const handleDownloadYasbelaLetter = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const apiUrl = import.meta.env.VITE_API_URL || '/api';
+      const response = await fetch(`${apiUrl}/export/yasbela-letter/${groupId}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Download failed' }));
+        throw new Error(errorData.error || 'Download failed');
+      }
+      
+      const blob = await response.blob();
+      if (blob.size === 0) {
+        throw new Error('Downloaded file is empty');
+      }
+      
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `yasbela_letter_${group.code}.docx`;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      }, 100);
+    } catch (error) {
+      console.error('Download error:', error);
+      alert('Failed to download Yasbela letter: ' + error.message);
+    }
+  };
+
   const handleNextRound = (e) => {
     if (e) e.preventDefault();
     setShowNextRoundModal(false);
@@ -1523,23 +1560,33 @@ function GroupDetailPage() {
               <span>Bids Excel</span>
             </button>
             {group.status === 'SOLD' && (
-              <button
-                onClick={handleDownloadClosedReport}
-                className="bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700 text-xs font-medium flex items-center space-x-1"
-                title="Download closed group report with calculations"
-              >
-                <span>📊</span>
-                <span>Winners Excel</span>
-              </button>
+              <>
+                <button
+                  onClick={handleDownloadClosedReport}
+                  className="bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700 text-xs font-medium flex items-center space-x-1"
+                  title="Download closed group report with calculations"
+                >
+                  <span>📊</span>
+                  <span>Winners Excel</span>
+                </button>
+                <button
+                  onClick={handleDownloadWinnerLetter}
+                  className="bg-purple-600 text-white px-3 py-1.5 rounded-lg hover:bg-purple-700 text-xs font-medium flex items-center space-x-1"
+                  title="Download winner letter (የመሸኛ ደብደዳቤ)"
+                >
+                  <span>📄</span>
+                  <span>Winner Letter</span>
+                </button>
+              </>
             )}
-            {group.status === 'SOLD' && (
+            {group.status === 'YASBELA' && (
               <button
-                onClick={handleDownloadWinnerLetter}
-                className="bg-purple-600 text-white px-3 py-1.5 rounded-lg hover:bg-purple-700 text-xs font-medium flex items-center space-x-1"
-                title="Download winner letter (የመሸኛ ደብደዳቤ)"
+                onClick={handleDownloadYasbelaLetter}
+                className="bg-orange-600 text-white px-3 py-1.5 rounded-lg hover:bg-orange-700 text-xs font-medium flex items-center space-x-1"
+                title="Download Yasbela letter (ያስበላ ደብደዳቤ)"
               >
                 <span>📄</span>
-                <span>Winner Letter</span>
+                <span>Yasbela Letter</span>
               </button>
             )}
             <div className="text-center">

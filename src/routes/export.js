@@ -1597,4 +1597,204 @@ router.get('/winner-letter-excel/:groupId', async (req, res, next) => {
   } catch (error) { next(error); }
 });
 
+// ── Generate Yasbela Letter (ያስበላ ደብደዳቤ) ────────────────────────────────────
+router.get('/yasbela-letter/:groupId', async (req, res, next) => {
+  try {
+    const groupId = parseInt(req.params.groupId);
+    const group = await prisma.group.findUnique({
+      where: { id: groupId },
+      include: { 
+        tender: true, 
+        items: true, 
+        bids: { 
+          where: { isWinner: true },
+          include: { bidder: true } 
+        } 
+      }
+    });
+    
+    if (!group) return res.status(404).json({ error: 'Group not found' });
+    if (group.status !== 'YASBELA') return res.status(400).json({ error: 'Group must be YASBELA status to generate Yasbela letter' });
+
+    const yasbelaPenalty = group.yasbelaPenalty || 0;
+    const yasbelaReason = group.yasbelaReason || 'ተጫራቹ ውሉን ባለመፈፀም';
+    const winnerPrice = group.winnerPrice || 0;
+
+    // Ethiopian date conversion (simplified)
+    const today = new Date();
+    const ethiopianYear = today.getFullYear() - 7;
+    const ethiopianDate = `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${ethiopianYear}`;
+
+    // Try to load template file (you can create yasbela.docx template)
+    const templatePath = path.join(__dirname, '../../yasbela.docx');
+    
+    let buffer;
+    
+    if (fs.existsSync(templatePath)) {
+      // Use template with background
+      try {
+        const content = fs.readFileSync(templatePath, 'binary');
+        const zip = new PizZip(content);
+        const doc = new Docxtemplater(zip, {
+          paragraphLoop: true,
+          linebreaks: true,
+        });
+
+        // Get winner bidder name if available
+        const winnerBidder = group.bids && group.bids.length > 0 ? group.bids[0].bidder : null;
+        const winnerName = winnerBidder ? winnerBidder.bidder.name : 'ተጫራቹ';
+
+        // Set template variables
+        doc.setData({
+          refNumber: `${group.tender.tenderNumber}/${group.code}`,
+          date: ethiopianDate,
+          tenderNumber: group.tender.tenderNumber,
+          winnerName: winnerName,
+          groupCode: group.code,
+          itemDescription: group.tender.title || 'የሞባይል ቀፎ',
+          winnerPrice: fmt(winnerPrice),
+          yasbelaPenalty: fmt(yasbelaPenalty),
+          yasbelaReason: yasbelaReason
+        });
+
+        doc.render();
+        buffer = doc.getZip().generate({ type: 'nodebuffer' });
+      } catch (templateError) {
+        console.error('Yasbela template error:', templateError);
+        // Fall back to creating document from scratch
+        buffer = await createYasbelaLetterFromScratch(group, winnerPrice, yasbelaPenalty, yasbelaReason, ethiopianDate);
+      }
+    } else {
+      // Template not found, create from scratch
+      console.log('Yasbela template file not found, creating from scratch');
+      buffer = await createYasbelaLetterFromScratch(group, winnerPrice, yasbelaPenalty, yasbelaReason, ethiopianDate);
+    }
+
+    // Send document
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+    const safeCode = group.code.replace(/[^a-zA-Z0-9\-_]/g, '_');
+    res.setHeader('Content-Disposition', `attachment; filename="Yasbela_Letter_${safeCode}.docx"`);
+    res.send(buffer);
+
+    if (req.userId) {
+      prisma.auditLog.create({
+        data: { 
+          userId: req.userId, 
+          action: 'EXPORT_YASBELA_LETTER', 
+          entity: 'Group', 
+          entityId: groupId, 
+          details: JSON.stringify({ 
+            groupCode: group.code, 
+            yasbelaPenalty,
+            yasbelaReason 
+          }), 
+          ipAddress: req.ip 
+        }
+      }).catch(() => {});
+    }
+  } catch (error) { next(error); }
+});
+
+// Helper function to create Yasbela letter from scratch
+async function createYasbelaLetterFromScratch(group, winnerPrice, yasbelaPenalty, yasbelaReason, ethiopianDate) {
+  const doc = new Document({
+    sections: [{
+      properties: {
+        page: {
+          margin: { top: 1440, right: 1440, bottom: 1440, left: 1440 } // 1 inch margins
+        }
+      },
+      children: [
+        // Reference Number
+        new Paragraph({
+          text: `ቁጥር/Ref.No: ${group.tender.tenderNumber}/${group.code}`,
+          spacing: { after: 200 }
+        }),
+        
+        // Date
+        new Paragraph({
+          text: `ቀን /Date: ${ethiopianDate}`,
+          spacing: { after: 400 }
+        }),
+        
+        // Recipient
+        new Paragraph({
+          text: 'ለገቢ አሰባሰብና ዋስትና አያያዝ ቡድን',
+          spacing: { after: 200 }
+        }),
+        
+        // Subject
+        new Paragraph({
+          children: [
+            new TextRun({ text: 'ጉዳዩ፤ ', bold: true }),
+            new TextRun({ text: 'ያስበላ ማስታወቂያ' })
+          ],
+          spacing: { after: 400 }
+        }),
+        
+        // Body paragraph 1
+        new Paragraph({
+          text: `በቅ/ጽ/ቤታችን ግልፅ ጨረታ ቁጥር ${group.tender.tenderNumber} በኮድ-${group.code} የተለየዩ ${group.tender.title || 'የሞባይል ቀፎ'} በብር ${fmt(winnerPrice)} ተወዳድረው አሸናፊ የነበሩት ተጫራቹ ${yasbelaReason} ምክንያት ያስበላ ተፈፃሚ መሆኑን እየገለፅን የቅጣት ክፍያው ከዚህ በታች እንደሚከተለው ቀርቧል።`,
+          spacing: { after: 400 },
+          alignment: AlignmentType.JUSTIFIED
+        }),
+        
+        // Penalty breakdown
+        new Paragraph({
+          children: [
+            new TextRun({ text: 'የመሸነፊያ ዋጋ: ', bold: true }),
+            new TextRun({ text: '--------------------------------------------' }),
+            new TextRun({ text: ` ${fmt(winnerPrice)}`, bold: true })
+          ],
+          spacing: { after: 100 }
+        }),
+        
+        new Paragraph({
+          children: [
+            new TextRun({ text: '5% የቅጣት ክፍያ (CPO): ', bold: true }),
+            new TextRun({ text: '------------------------------' }),
+            new TextRun({ text: ` ${fmt(yasbelaPenalty)}`, bold: true, color: 'FF0000' })
+          ],
+          spacing: { after: 400 }
+        }),
+        
+        // Instructions paragraph
+        new Paragraph({
+          text: 'ስለሆነም ተጫራቹ የቅጣት ክፍያውን በድሬዳዋ ጉምሩክ ኮሚሽን ቅ/ጽ/ቤት ስም በተከፈተው በቀጥታ ገቢ አካውንት ቁጥር 1000014311762 ሪሲት አሰርተው በ 5 የስራ ቀናት ውስጥ እንዲያቀርቡ እናሳስባለን። እቃው ወደ ሌላ ጨረታ እንደሚቀርብ እናሳውቃለን።',
+          spacing: { after: 600 },
+          alignment: AlignmentType.JUSTIFIED
+        }),
+        
+        // Closing
+        new Paragraph({
+          text: '‹‹ከሰላምታ ጋር››',
+          alignment: AlignmentType.CENTER,
+          spacing: { after: 600 }
+        }),
+        
+        // Copy distribution header
+        new Paragraph({
+          children: [
+            new TextRun({ text: 'ግልባጭ፡-', bold: true, underline: {} })
+          ],
+          spacing: { after: 200 }
+        }),
+        
+        // Copy distribution list
+        new Paragraph({ text: 'ለጉምሩክ ኦፕሬሽን ም/ስ/አስኪያጅ', spacing: { after: 100 } }),
+        new Paragraph({ text: 'የተያዙና የተወረሱ ንብ/አስ/የስራ ሂደት', spacing: { after: 100 } }),
+        new Paragraph({ text: 'ለኢንተለጀንስ እና ኮተረበንድ ክትትል የስራ ሂደት', spacing: { after: 100 } }),
+        new Paragraph({ text: 'ለእቃ አያያዝ ቡድን', spacing: { after: 100 } }),
+        new Paragraph({ text: 'ለውርስ እቃ አስወጋጅ ኮሚቴ', spacing: { after: 100 } }),
+        new Paragraph({ text: 'መጋዘን 1', spacing: { after: 100 } }),
+        new Paragraph({ text: 'ለበር ጥበቃ', spacing: { after: 100 } }),
+        new Paragraph({ text: 'ድ/ዳ/ጉ/ኮምሽን', spacing: { after: 100 } }),
+        new Paragraph({ text: 'በ/መ', spacing: { after: 100 } })
+      ]
+    }]
+  });
+
+  return await Packer.toBuffer(doc);
+}
+
 module.exports = router;
