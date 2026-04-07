@@ -800,13 +800,6 @@ router.get('/excel/group/:groupId/closed', async (req, res, next) => {
     // DATA ROWS
     // ═══════════════════════════════════════════════════════════════════════════
     
-    const dataBorder = {
-      top: { style: 'thin' },
-      left: { style: 'thin' },
-      bottom: { style: 'thin' },
-      right: { style: 'thin' }
-    };
-
     let totalBasePrice = 0;
 
     group.items.forEach((item, index) => {
