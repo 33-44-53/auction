@@ -1629,7 +1629,7 @@ function GroupDetailPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-4 text-sm">
+        <div className="grid grid-cols-5 gap-4 text-sm">
           <div className="bg-gray-50 p-3 rounded">
             <span className="text-gray-500">Base Price</span>
             <p className="font-medium text-lg">{formatCurrency(group.basePrice)}</p>
@@ -2012,7 +2012,7 @@ function GroupDetailPage() {
 
               <div className="mt-4">
                 <h4 className="font-semibold text-gray-700 mb-3">Prices (System will select highest)</h4>
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-5 gap-4">
                   <div>
                     <label className="block text-gray-700 text-sm font-semibold mb-2">CIF Price</label>
                     <input
@@ -2041,6 +2041,26 @@ function GroupDetailPage() {
                       onChange={(e) => setItemFormData({ ...itemFormData, tax: e.target.value })}
                       step="0.01"
                       min="0"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-gray-700 text-sm font-semibold mb-2">Exchange Rate</label>
+                    <input
+                      type="number"
+                      value={itemFormData.exchangeRate || ''}
+                      onChange={(e) => setItemFormData({ ...itemFormData, exchangeRate: e.target.value })}
+                      step="0.01"
+                      min="0"
+                      placeholder="Optional"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-gray-700 text-sm font-semibold mb-2">Expire Date</label>
+                    <input
+                      type="text"
+                      value={itemFormData.expireDate || ''}
+                      onChange={(e) => setItemFormData({ ...itemFormData, expireDate: e.target.value })}
+                      placeholder="DD-MM-YYYY"
                     />
                   </div>
                 </div>
@@ -2146,7 +2166,7 @@ function GroupDetailPage() {
 
               <div className="mt-4">
                 <h4 className="font-semibold text-gray-700 mb-3">Warehouse Quantities</h4>
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-5 gap-4">
                   <div>
                     <label className="block text-gray-700 text-sm font-semibold mb-2">Warehouse 1</label>
                     <input
@@ -2179,7 +2199,7 @@ function GroupDetailPage() {
 
               <div className="mt-4">
                 <h4 className="font-semibold text-gray-700 mb-3">Prices (System will select highest)</h4>
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-5 gap-4">
                   <div>
                     <label className="block text-gray-700 text-sm font-semibold mb-2">CIF Price</label>
                     <input
@@ -2208,6 +2228,26 @@ function GroupDetailPage() {
                       onChange={(e) => setItemFormData({ ...itemFormData, tax: e.target.value })}
                       step="0.01"
                       min="0"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-gray-700 text-sm font-semibold mb-2">Exchange Rate</label>
+                    <input
+                      type="number"
+                      value={itemFormData.exchangeRate || ''}
+                      onChange={(e) => setItemFormData({ ...itemFormData, exchangeRate: e.target.value })}
+                      step="0.01"
+                      min="0"
+                      placeholder="Optional"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-gray-700 text-sm font-semibold mb-2">Expire Date</label>
+                    <input
+                      type="text"
+                      value={itemFormData.expireDate || ''}
+                      onChange={(e) => setItemFormData({ ...itemFormData, expireDate: e.target.value })}
+                      placeholder="DD-MM-YYYY"
                     />
                   </div>
                 </div>
