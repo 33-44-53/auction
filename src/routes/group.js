@@ -78,7 +78,7 @@ router.patch('/:id/items/:itemId', authorize('ADMIN', 'STAFF'), async (req, res,
     const groupId = parseInt(req.params.id);
     const itemId = parseInt(req.params.itemId);
     const { itemCode, serialNumber, name, itemType, brand, country, unit,
-      warehouse1, warehouse2, warehouse3, fob, cif, tax, exchangeRate: itemExchangeRate } = req.body;
+      warehouse1, warehouse2, warehouse3, fob, cif, tax, exchangeRate: itemExchangeRate, expireDate } = req.body;
 
     const group = await prisma.group.findUnique({ where: { id: groupId }, include: { tender: true } });
     if (!group) return res.status(404).json({ error: 'Group not found' });
@@ -109,6 +109,7 @@ router.patch('/:id/items/:itemId', authorize('ADMIN', 'STAFF'), async (req, res,
         ...(brand !== undefined && { brand }),
         ...(country !== undefined && { country }),
         ...(unit && { unit }),
+        ...(expireDate !== undefined && { expireDate }),
         warehouse1: wh1, warehouse2: wh2, warehouse3: wh3, totalQuantity,
         fob: fobVal, cif: cifVal, tax: taxVal, 
         exchangeRate,
