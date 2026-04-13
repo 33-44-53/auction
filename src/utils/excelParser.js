@@ -159,6 +159,11 @@ function mapHeaders(headers) {
       map.exchangeRate = index;
       console.log(`Mapped exchangeRate to column ${index}: "${h}"`);
     }
+    // Expire Date
+    else if (h === 'የማብቂያ ቀን' || hLower.includes('expire') || hLower.includes('expiry')) {
+      map.expireDate = index;
+      console.log(`Mapped expireDate to column ${index}: "${h}"`);
+    }
     // Item name
     else if (h === 'የእቃው አይነት' || hLower.includes('item name') || hLower.includes('item type')) {
       map.itemName = index;
@@ -264,8 +269,9 @@ function parseItemRow(row, headerMap, tenderMeta) {
 
   const exchangeRateVal = getValue(row, headerMap.exchangeRate);
   const exchangeRate = exchangeRateVal ? parseFloat(String(exchangeRateVal).replace(/,/g, '')) : (tenderMeta.exchangeRate ? parseFloat(tenderMeta.exchangeRate) : null);
+  const expireDate = getValue(row, headerMap.expireDate) ? String(getValue(row, headerMap.expireDate)).trim() : null;
 
-  console.log(`Item: ${nameVal} - WH1=${wh1} (col ${headerMap.warehouse1}, val="${getValue(row, headerMap.warehouse1)}"), WH2=${wh2} (col ${headerMap.warehouse2}, val="${getValue(row, headerMap.warehouse2)}"), WH3=${wh3} (col ${headerMap.warehouse3}, val="${getValue(row, headerMap.warehouse3)}"), Total=${totalQuantity}, ExchangeRate=${exchangeRate}`);
+  console.log(`Item: ${nameVal} - WH1=${wh1} (col ${headerMap.warehouse1}, val="${getValue(row, headerMap.warehouse1)}"), WH2=${wh2} (col ${headerMap.warehouse2}, val="${getValue(row, headerMap.warehouse2)}"), WH3=${wh3} (col ${headerMap.warehouse3}, val="${getValue(row, headerMap.warehouse3)}"), Total=${totalQuantity}, ExchangeRate=${exchangeRate}, ExpireDate=${expireDate}`);
 
   return {
     itemCode:     getValue(row, headerMap.itemCode) ? String(getValue(row, headerMap.itemCode)).trim() : '-',
@@ -283,6 +289,7 @@ function parseItemRow(row, headerMap, tenderMeta) {
     cif:          parsePrice(getValue(row, headerMap.cif)),
     tax:          parsePrice(getValue(row, headerMap.tax)),
     exchangeRate: exchangeRate,
+    expireDate:   expireDate,
   };
 }
 

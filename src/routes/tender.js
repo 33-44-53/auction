@@ -329,6 +329,7 @@ router.post(
                 cif: itemData.cif || 0,
                 tax: itemData.tax || 0,
                 exchangeRate: itemExchangeRate,
+                expireDate: itemData.expireDate || null,
                 unitPrice,
                 totalPrice
               }
