@@ -78,7 +78,7 @@ router.patch('/:id/items/:itemId', authorize('ADMIN', 'STAFF'), async (req, res,
     const groupId = parseInt(req.params.id);
     const itemId = parseInt(req.params.itemId);
     const { itemCode, serialNumber, name, itemType, brand, country, unit,
-      warehouse1, warehouse2, warehouse3, fob, cif, tax } = req.body;
+      warehouse1, warehouse2, warehouse3, fob, cif, tax, exchangeRate: itemExchangeRate } = req.body;
 
     const group = await prisma.group.findUnique({ where: { id: groupId }, include: { tender: true } });
     if (!group) return res.status(404).json({ error: 'Group not found' });
@@ -90,7 +90,12 @@ router.patch('/:id/items/:itemId', authorize('ADMIN', 'STAFF'), async (req, res,
     const wh2 = parseInt(warehouse2) || 0;
     const wh3 = parseInt(warehouse3) || 0;
     const totalQuantity = wh1 + wh2 + wh3;
-    const exchangeRate = group.exchangeRate || group.tender.exchangeRate;
+    
+    // Use item-specific exchange rate if provided, otherwise fallback to group/tender
+    const exchangeRate = itemExchangeRate !== undefined 
+      ? parseFloat(itemExchangeRate) 
+      : (group.exchangeRate || group.tender.exchangeRate);
+    
     const unitPrice = calcUnitPrice(cifVal, fobVal, taxVal, group.currentRound, exchangeRate);
     const totalPrice = unitPrice * totalQuantity;
 
@@ -105,7 +110,10 @@ router.patch('/:id/items/:itemId', authorize('ADMIN', 'STAFF'), async (req, res,
         ...(country !== undefined && { country }),
         ...(unit && { unit }),
         warehouse1: wh1, warehouse2: wh2, warehouse3: wh3, totalQuantity,
-        fob: fobVal, cif: cifVal, tax: taxVal, unitPrice, totalPrice
+        fob: fobVal, cif: cifVal, tax: taxVal, 
+        exchangeRate,
+        unitPrice, 
+        totalPrice
       }
     });
 
