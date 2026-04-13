@@ -971,6 +971,8 @@ function TenderDetailPage() {
                 <th>CIF</th>
                 <th>FOB</th>
                 <th>Tax</th>
+                <th>Exchange Rate</th>
+                <th>Expire Date</th>
                 <th>Unit Price</th>
                 <th>Total</th>
               </tr>
@@ -990,6 +992,8 @@ function TenderDetailPage() {
                     <td>{formatCurrency(item.cif)}</td>
                     <td>{formatCurrency(item.fob)}</td>
                     <td>{formatCurrency(item.tax)}</td>
+                    <td>{item.exchangeRate || '-'}</td>
+                    <td>{item.expireDate || '-'}</td>
                     <td>{formatCurrency(item.unitPrice)}</td>
                     <td className="font-medium">{formatCurrency(item.totalPrice)}</td>
                   </tr>
@@ -1851,6 +1855,8 @@ function GroupDetailPage() {
                   <th>Tax</th>
                 </>
               )}
+              <th>Exchange Rate</th>
+              <th>Expire Date</th>
               <th>Unit Price</th>
               <th>Total</th>
               <th>Actions</th>
@@ -1877,6 +1883,8 @@ function GroupDetailPage() {
                     <td>{formatCurrency(item.tax)}</td>
                   </>
                 )}
+                <td>{item.exchangeRate || '-'}</td>
+                <td>{item.expireDate || '-'}</td>
                 <td>{formatCurrency(item.unitPrice)}</td>
                 <td className="font-medium">{formatCurrency(item.totalPrice)}</td>
                 <td>
