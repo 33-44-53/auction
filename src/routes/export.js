@@ -43,7 +43,7 @@ function buildGroupSheet(sheet, group, tender) {
     'መጋዘን1', 'መጋዘን 2', 'መጋዝን\n3', 'ጠቅላላ ድምር',
     `መነሻ ዋጋ\n(${round})`, 'ጠቅላላ \nዋጋ', 'ሞዴል',
     'ተጨራጩ የሰጠው ዋጋ', 'የተጨራቹ ስም', 'ኮድ',
-    'የአንድ ዋጋ\n(FOB)', 'የአንድ ዋጋ\n(CIF)', 'የአንድ ዋጋ\n(TAX)', 'exchange rate'
+    'የአንድ ዋጋ\n(FOB)', 'የአንድ ዋጋ\n(CIF)', 'የአንድ ዋጋ\n(TAX)', 'exchange rate', 'የማብቂያ ቀን'
   ];
 
   // Row 1: title
@@ -87,7 +87,7 @@ function buildGroupSheet(sheet, group, tender) {
       item.warehouse1 || 0, item.warehouse2 || 0, item.warehouse3 || 0, item.totalQuantity,
       unitPrice, totalPrice, item.itemCode || item.serialNumber || '',
       bidder ? bidder.bidPrice : '', bidder ? bidder.bidder.name : '', group.code,
-      item.fob, item.cif, item.tax, exRate
+      item.fob, item.cif, item.tax, exRate, item.expireDate || ''
     ];
 
     rowData.forEach((v, i) => {
@@ -174,7 +174,7 @@ function buildGroupSheet(sheet, group, tender) {
   }
 
   // Column widths
-  [8, 28, 12, 10, 10, 10, 10, 10, 12, 16, 16, 12, 12, 12, 12, 12, 12, 18, 22]
+  [8, 28, 12, 10, 10, 10, 10, 10, 12, 16, 16, 12, 12, 12, 12, 12, 12, 18, 15, 15]
     .forEach((w, i) => { sheet.getColumn(i + 1).width = w; });
 
   sheet.views = [{ state: 'frozen', ySplit: 2 }];
