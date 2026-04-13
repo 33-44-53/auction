@@ -28,7 +28,6 @@ async function parseExcelFile(filePath, tenderId) {
       const date = getValue(row, headerMap.date);
       const location = getValue(row, headerMap.location);
       const responsibleBody = getValue(row, headerMap.responsibleBody);
-      const exchangeRate = getValue(row, headerMap.exchangeRate);
 
       if (groupCode !== null && String(groupCode).trim() !== '') {
         if (currentGroup) groups.push(currentGroup);
@@ -39,17 +38,16 @@ async function parseExcelFile(filePath, tenderId) {
             title: title || tenderMeta.title,
             date: date || tenderMeta.date,
             location: location || tenderMeta.location,
-            responsibleBody: responsibleBody || tenderMeta.responsibleBody,
-            exchangeRate: exchangeRate ? parseFloat(String(exchangeRate).replace(/,/g, '')) : (tenderMeta.exchangeRate ? parseFloat(tenderMeta.exchangeRate) : null)
+            responsibleBody: responsibleBody || tenderMeta.responsibleBody
           },
           items: []
         };
         console.log(`Group ${currentGroup.code} metadata:`, currentGroup.metadata);
         // Also parse this row as an item
-        const item = parseItemRow(row, headerMap);
+        const item = parseItemRow(row, headerMap, tenderMeta);
         if (item) currentGroup.items.push(item);
       } else if (currentGroup) {
-        const item = parseItemRow(row, headerMap);
+        const item = parseItemRow(row, headerMap, tenderMeta);
         if (item) currentGroup.items.push(item);
       }
     }
@@ -156,7 +154,7 @@ function mapHeaders(headers) {
       map.responsibleBody = index;
       console.log(`Mapped responsibleBody to column ${index}: "${h}"`);
     }
-    // Exchange Rate (group-specific)
+    // Exchange Rate (item-specific - moved to last column)
     else if (h === 'Exchange Rate' || h === 'የምንዛሪ' || hLower.includes('exchange') || hLower.includes('rate')) {
       map.exchangeRate = index;
       console.log(`Mapped exchangeRate to column ${index}: "${h}"`);
@@ -254,7 +252,7 @@ function cleanGroupCode(code) {
   return `ኮድ-${cleaned}`;
 }
 
-function parseItemRow(row, headerMap) {
+function parseItemRow(row, headerMap, tenderMeta) {
   const wh1 = parseQuantity(getValue(row, headerMap.warehouse1));
   const wh2 = parseQuantity(getValue(row, headerMap.warehouse2));
   const wh3 = parseQuantity(getValue(row, headerMap.warehouse3));
@@ -264,7 +262,10 @@ function parseItemRow(row, headerMap) {
   const nameVal = getValue(row, headerMap.itemName) || getValue(row, headerMap.groupName);
   if (!nameVal) return null;
 
-  console.log(`Item: ${nameVal} - WH1=${wh1} (col ${headerMap.warehouse1}, val="${getValue(row, headerMap.warehouse1)}"), WH2=${wh2} (col ${headerMap.warehouse2}, val="${getValue(row, headerMap.warehouse2)}"), WH3=${wh3} (col ${headerMap.warehouse3}, val="${getValue(row, headerMap.warehouse3)}"), Total=${totalQuantity}`);
+  const exchangeRateVal = getValue(row, headerMap.exchangeRate);
+  const exchangeRate = exchangeRateVal ? parseFloat(String(exchangeRateVal).replace(/,/g, '')) : (tenderMeta.exchangeRate ? parseFloat(tenderMeta.exchangeRate) : null);
+
+  console.log(`Item: ${nameVal} - WH1=${wh1} (col ${headerMap.warehouse1}, val="${getValue(row, headerMap.warehouse1)}"), WH2=${wh2} (col ${headerMap.warehouse2}, val="${getValue(row, headerMap.warehouse2)}"), WH3=${wh3} (col ${headerMap.warehouse3}, val="${getValue(row, headerMap.warehouse3)}"), Total=${totalQuantity}, ExchangeRate=${exchangeRate}`);
 
   return {
     itemCode:     getValue(row, headerMap.itemCode) ? String(getValue(row, headerMap.itemCode)).trim() : '-',
@@ -281,6 +282,7 @@ function parseItemRow(row, headerMap) {
     fob:          parsePrice(getValue(row, headerMap.fob)),
     cif:          parsePrice(getValue(row, headerMap.cif)),
     tax:          parsePrice(getValue(row, headerMap.tax)),
+    exchangeRate: exchangeRate,
   };
 }
 

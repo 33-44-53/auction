@@ -296,15 +296,18 @@ router.post(
 
           let groupBasePrice = 0;
           for (const itemData of groupData.items) {
+            // Use item-specific exchange rate if available, fallback to group, then tender
+            const itemExchangeRate = itemData.exchangeRate ? parseFloat(itemData.exchangeRate) : groupExchangeRate;
+            
             let unitPrice;
             if (tenderType === 'HARAJ') {
               // For Haraj: use LOWEST of CIF, FOB, TAX
               const lowestPrice = Math.min(itemData.cif || 0, itemData.fob || 0, itemData.tax || 0);
-              unitPrice = lowestPrice * groupExchangeRate;
+              unitPrice = lowestPrice * itemExchangeRate;
             } else {
               // For Auction: use the price for the current round (initialRound)
               const prices = { CIF: itemData.cif || 0, FOB: itemData.fob || 0, TAX: itemData.tax || 0 };
-              unitPrice = prices[initialRound] * groupExchangeRate;
+              unitPrice = prices[initialRound] * itemExchangeRate;
             }
             const totalPrice = unitPrice * (itemData.totalQuantity || 0);
 
@@ -325,6 +328,7 @@ router.post(
                 fob: itemData.fob || 0,
                 cif: itemData.cif || 0,
                 tax: itemData.tax || 0,
+                exchangeRate: itemExchangeRate,
                 unitPrice,
                 totalPrice
               }

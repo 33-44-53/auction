@@ -106,6 +106,7 @@ model Item {
   fob         Float
   cif         Float
   tax         Float
+  exchangeRate Float?   // Item-specific exchange rate
   unitPrice   Float?
   totalPrice  Float?
   createdAt   DateTime  @default(now())
