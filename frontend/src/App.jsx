@@ -1406,7 +1406,7 @@ function GroupDetailPage() {
 
 
 
-  const blank = { itemCode:'',serialNumber:'',name:'',itemType:'',brand:'',country:'',unit:'',warehouse1:0,warehouse2:0,warehouse3:0,fob:0,cif:0,tax:0,expireDate:null };
+  const blank = { itemCode:'',serialNumber:'',name:'',itemType:'',brand:'',country:'',unit:'',warehouse1:0,warehouse2:0,warehouse3:0,fob:0,cif:0,tax:0,exchangeRate:null,expireDate:null };
 
   const handleAddItem = (e) => {
     e.preventDefault();
@@ -1457,6 +1457,7 @@ function GroupDetailPage() {
       country: item.country || '',
       unit: item.unit || '',
       warehouse1: item.warehouse1 || 0,
+      exchangeRate: item.exchangeRate || null,
       expireDate: item.expireDate || null,
       warehouse2: item.warehouse2 || 0,
       warehouse3: item.warehouse3 || 0,
@@ -1978,7 +1979,7 @@ function GroupDetailPage() {
 
               <div className="mt-4">
                 <h4 className="font-semibold text-gray-700 mb-3">Warehouse Quantities</h4>
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-5 gap-4">
                   <div>
                     <label className="block text-gray-700 text-sm font-semibold mb-2">Warehouse 1</label>
                     <input
