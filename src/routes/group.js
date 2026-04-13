@@ -329,6 +329,8 @@ router.post('/:id/next-round', authorize('ADMIN', 'STAFF'), async (req, res, nex
             fob: item.fob,
             cif: item.cif,
             tax: item.tax,
+            exchangeRate: item.exchangeRate,
+            expireDate: item.expireDate,
             unitPrice: item.unitPrice,
             totalPrice: item.totalPrice
           }
@@ -472,6 +474,8 @@ router.post('/:id/next-round', authorize('ADMIN', 'STAFF'), async (req, res, nex
           fob: item.fob,
           cif: item.cif,
           tax: item.tax,
+          exchangeRate: item.exchangeRate,
+          expireDate: item.expireDate,
           unitPrice,
           totalPrice
         }
@@ -944,6 +948,8 @@ router.post('/:id/yasbela', authorize('ADMIN', 'STAFF'), async (req, res, next) 
           fob: item.fob, 
           cif: item.cif, 
           tax: item.tax,
+          exchangeRate: item.exchangeRate,
+          expireDate: item.expireDate,
           unitPrice: item.unitPrice, 
           totalPrice: item.totalPrice
         }
