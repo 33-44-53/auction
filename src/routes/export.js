@@ -250,6 +250,11 @@ router.get('/excel/:tenderId', async (req, res, next) => {
     });
     if (!tender) return res.status(404).json({ error: 'Tender not found' });
 
+    // Check if any item has an expire date
+    const hasExpireDate = tender.groups.some(group => 
+      group.items.some(item => item.expireDate)
+    );
+
     const workbook = new ExcelJS.Workbook();
     const sheet = workbook.addWorksheet('ጨረታ');
     const exRate = tender.exchangeRate;
@@ -262,7 +267,8 @@ router.get('/excel/:tenderId', async (req, res, next) => {
       const groupExRate = group.exchangeRate || exRate;
 
       // Title row
-      sheet.mergeCells(`A${r}:N${r}`);
+      const titleColSpan = hasExpireDate ? 'O' : 'N';
+      sheet.mergeCells(`A${r}:${titleColSpan}${r}`);
       setCell(sheet, r, 1, `ግልፅ ጨረታ ቁጥር ${tender.tenderNumber} ${group.title || tender.title || ''}`, { font: { bold: true, size: 11, name: 'Nyala' }, ...center });
       r++;
 
@@ -282,6 +288,11 @@ router.get('/excel/:tenderId', async (req, res, next) => {
         'ሞዴል',
         'ምድብ ቁጥር'
       ];
+      
+      if (hasExpireDate) {
+        HEADERS.push('የማብቂያ ቀን');
+      }
+      
       HEADERS.forEach((h, i) => setCell(sheet, r, i + 1, h, hStyle));
       sheet.getRow(r).height = 36;
       r++;
@@ -315,6 +326,10 @@ router.get('/excel/:tenderId', async (req, res, next) => {
           item.itemCode || item.serialNumber || '',
           ''
         ];
+        
+        if (hasExpireDate) {
+          rowData.push(item.expireDate || '');
+        }
 
         rowData.forEach((v, colIdx) => {
           const cl = sheet.getCell(r, colIdx + 1);
@@ -345,7 +360,8 @@ router.get('/excel/:tenderId', async (req, res, next) => {
       r++;
 
       // Bids label row
-      sheet.mergeCells(`A${r}:M${r}`);
+      const bidsColSpan = hasExpireDate ? 'N' : 'M';
+      sheet.mergeCells(`A${r}:${bidsColSpan}${r}`);
       setCell(sheet, r, 1, 'ከቫት በፊት ተጫራች የሚሰጠው ጠቅላላ ዋጋ', bold, borderStyle);
       r++;
 
@@ -354,8 +370,12 @@ router.get('/excel/:tenderId', async (req, res, next) => {
     }
 
     // Column widths
-    [6, 30, 12, 10, 10, 10, 10, 10, 12, 16, 16, 15, 15]
-      .forEach((w, i) => { sheet.getColumn(i + 1).width = w; });
+    const columnWidths = [6, 30, 12, 10, 10, 10, 10, 10, 12, 16, 16, 15, 15];
+    if (hasExpireDate) {
+      columnWidths.push(15);
+    }
+    
+    columnWidths.forEach((w, i) => { sheet.getColumn(i + 1).width = w; });
 
     sheet.views = [{ state: 'frozen', ySplit: 0 }];
 
