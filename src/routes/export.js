@@ -1114,8 +1114,8 @@ router.get('/winner-letter/:groupId', async (req, res, next) => {
           linebreaks: true,
         });
 
-        // Set template variables
-        doc.setData({
+        // Set template variables using render() instead of deprecated setData()
+        doc.render({
           refNumber: `${group.tender.tenderNumber}/${group.code}`,
           date: ethiopianDate,
           tenderNumber: group.tender.tenderNumber,
@@ -1129,7 +1129,6 @@ router.get('/winner-letter/:groupId', async (req, res, next) => {
           totalWithVAT: fmt(totalWithVAT)
         });
 
-        doc.render();
         buffer = doc.getZip().generate({ type: 'nodebuffer' });
       } catch (templateError) {
         console.error('Template error:', templateError);
