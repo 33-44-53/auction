@@ -2,6 +2,11 @@ const express = require('express');
 const router = express.Router();
 const prisma = require('../prisma');
 const { authorize } = require('../middleware/auth');
+const fs = require('fs');
+const path = require('path');
+const PizZip = require('pizzip');
+const Docxtemplater = require('docxtemplater');
+const { Document, Packer, Paragraph, TextRun } = require('docx');
 
 // Generate Yasbella letter
 router.post('/generate', authorize('ADMIN', 'STAFF'), async (req, res, next) => {
@@ -82,6 +87,137 @@ router.post('/generate', authorize('ADMIN', 'STAFF'), async (req, res, next) => 
     next(error);
   }
 });
+
+// Download Yasbella letter as DOCX
+router.get('/download/:groupId', authorize('ADMIN', 'STAFF'), async (req, res, next) => {
+  try {
+    const groupId = parseInt(req.params.groupId);
+    
+    const group = await prisma.group.findUnique({
+      where: { id: groupId },
+      include: {
+        tender: true,
+        items: true,
+        bids: {
+          where: { isWinner: true },
+          include: { bidder: true }
+        }
+      }
+    });
+
+    if (!group) {
+      return res.status(404).json({ error: 'Group not found' });
+    }
+
+    if (group.status !== 'SOLD' && group.status !== 'YASBELA') {
+      return res.status(400).json({ error: 'Group must be SOLD or YASBELA to download letter' });
+    }
+
+    const winner = group.bids[0];
+    if (!winner) {
+      return res.status(400).json({ error: 'No winner found for this group' });
+    }
+
+    const penalty = group.winnerPrice * 0.05;
+    const penaltyInWords = numberToAmharicWords(penalty);
+    const yasbelaType = group.yasbelaType || 'NO_PAYMENT';
+    
+    const today = new Date();
+    const ethiopianYear = today.getFullYear() - 7;
+    const ethiopianDate = `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${ethiopianYear}`;
+    const tenderDate = formatEthiopianDate(group.tender.date);
+
+    const templatePath = path.join(__dirname, '../../yasbella.docx');
+    let buffer;
+    
+    if (fs.existsSync(templatePath)) {
+      try {
+        const content = fs.readFileSync(templatePath, 'binary');
+        const zip = new PizZip(content);
+        const doc = new Docxtemplater(zip, {
+          paragraphLoop: true,
+          linebreaks: true,
+        });
+
+        doc.setData({
+          refNumber: `${group.tender.tenderNumber}/${group.code}`,
+          currentDate: ethiopianDate,
+          tenderNumber: group.tender.tenderNumber,
+          tenderDate: tenderDate,
+          winnerName: winner.bidder.name,
+          groupCode: group.code,
+          itemDescription: group.items.length + ' ገፅ እቃዎች',
+          winnerPrice: formatCurrency(group.winnerPrice),
+          penalty: formatCurrency(penalty),
+          penaltyInWords: penaltyInWords,
+          itemCount: group.items.length
+        });
+
+        doc.render();
+        buffer = doc.getZip().generate({ type: 'nodebuffer' });
+      } catch (templateError) {
+        console.error('Template error:', templateError);
+        buffer = createYasbellaDocFromScratch(group, winner, penalty, penaltyInWords, ethiopianDate);
+      }
+    } else {
+      buffer = createYasbellaDocFromScratch(group, winner, penalty, penaltyInWords, ethiopianDate);
+    }
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+    const safeCode = group.code.replace(/[^a-zA-Z0-9\-_]/g, '_');
+    res.setHeader('Content-Disposition', `attachment; filename="Yasbella_Letter_${safeCode}.docx"`);
+    res.send(buffer);
+
+    if (req.userId) {
+      prisma.auditLog.create({
+        data: {
+          userId: req.userId,
+          action: 'DOWNLOAD_YASBELLA_LETTER',
+          entity: 'Group',
+          entityId: groupId,
+          details: JSON.stringify({ groupCode: group.code, winnerName: winner.bidder.name }),
+          ipAddress: req.ip
+        }
+      }).catch(() => {});
+    }
+  } catch (error) {
+    next(error);
+  }
+});
+
+function createYasbellaDocFromScratch(group, winner, penalty, penaltyInWords, ethiopianDate) {
+  const doc = new Document({
+    sections: [{
+      properties: {
+        page: { margin: { top: 1440, right: 1440, bottom: 1440, left: 1440 } }
+      },
+      children: [
+        new Paragraph({
+          text: `ቁጥር፡ ${group.tender.tenderNumber}/${group.code}`,
+          spacing: { after: 200 }
+        }),
+        new Paragraph({
+          text: `ቀን፡ ${ethiopianDate}`,
+          spacing: { after: 200 }
+        }),
+        new Paragraph({
+          text: 'ለገቢ አሰባሰብ እና ዋስትና አያያዝ ቡድን',
+          spacing: { after: 200 }
+        }),
+        new Paragraph({
+          text: 'ድ/ዳ/ጉ/ኮ',
+          spacing: { after: 400 }
+        }),
+        new Paragraph({
+          text: `በግልፅ ጨረታ ቁጥር ${group.tender.tenderNumber} በ${formatEthiopianDate(group.tender.date)} ዓ.ም በተካሄደ ጨረታ ${winner.bidder.name} የተባሉት ተጫራች በኮድ-${group.code} በብር ${formatCurrency(group.winnerPrice)} ያሸነፉ ሲሆን ነገር ግን ያሸነፉትን እቃዎች በተቀመጠላቸው የጊዜ ገደብ ውስጥ ክፍያውን ከፍለው ለመውሰድ ፈቃደኛ ባለመሆናቸው ለጨረታ ያስያዙት 5% ለመንግስት ገቢ እንዲሆን እናሳውቃለን፡፡`,
+          spacing: { after: 400 }
+        })
+      ]
+    }]
+  });
+  
+  return Packer.toBuffer(doc);
+}
 
 function generateNoPaymentLetter(group, winner, penalty, penaltyInWords) {
   const tenderNumber = group.tender.tenderNumber;
