@@ -1787,6 +1787,24 @@ function GroupDetailPage() {
           </div>
         )}
 
+        {group.status === 'CLOSED' && group.nextRoundGroup && (
+          <div className="mt-4 bg-purple-50 border-2 border-purple-300 rounded-lg px-4 py-3 flex items-center justify-between">
+            <div>
+              <p className="text-sm font-bold text-purple-800">→ Moved to Next Round</p>
+              <p className="text-xs text-purple-600 mt-0.5">
+                Tender: <strong>{group.nextRoundGroup.tender?.tenderNumber}</strong>
+                &nbsp;&middot;&nbsp;
+                Group: <strong>{group.nextRoundGroup.code}</strong>
+                &nbsp;&middot;&nbsp;
+                Round: <strong>{group.nextRoundGroup.currentRound}</strong>
+              </p>
+            </div>
+            <a href={`/groups/${group.nextRoundGroup.id}`} className="bg-purple-600 text-white px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-purple-700">
+              Go to New Group →
+            </a>
+          </div>
+        )}
+
         {group.status === 'OPEN' && (
           <div className="flex space-x-2 mt-4">
             {group.currentRound === 'HARAJ' ? (

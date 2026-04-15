@@ -257,7 +257,15 @@ router.get('/:id', async (req, res, next) => {
       }
     });
     if (!group) return res.status(404).json({ error: 'Group not found' });
-    res.json(group);
+
+    // Find the next round group (group created from this one via next-round)
+    const nextRoundGroup = await prisma.group.findFirst({
+      where: { originalGroupId: group.id },
+      include: { tender: true },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    res.json({ ...group, nextRoundGroup: nextRoundGroup || null });
   } catch (error) { next(error); }
 });
 
