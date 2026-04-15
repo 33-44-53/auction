@@ -236,7 +236,7 @@ router.delete('/:id/bids/:bidId', authorize('ADMIN', 'STAFF'), async (req, res, 
 router.post('/:id/next-round', authorize('ADMIN', 'STAFF'), async (req, res, next) => {
   try {
     const groupId = parseInt(req.params.id);
-    const { targetTenderId, newGroupCode, nextHarajPrice } = req.body; // Optional: specify target tender, new group code, and haraj price
+    const { targetTenderId, newGroupCode, nextHarajPrice, newTenderNumber } = req.body;
     
     const group = await prisma.group.findUnique({ 
       where: { id: groupId }, 
@@ -264,18 +264,8 @@ router.post('/:id/next-round', authorize('ADMIN', 'STAFF'), async (req, res, nex
       } else if (targetTenderId) {
         newTenderId = parseInt(targetTenderId);
       } else {
-        // Auto-generate next tender number
-        const currentTenderNumber = group.tender.tenderNumber;
-        const match = currentTenderNumber.match(/(\d+)\/(\d+)/);
-        
-        let newTenderNumber;
-        if (match) {
-          const num = parseInt(match[1]);
-          const year = match[2];
-          newTenderNumber = `${String(num + 1).padStart(3, '0')}/${year}`;
-        } else {
-          newTenderNumber = `${currentTenderNumber}-HARAJ${nextHarajRound}`;
-        }
+        // Use provided tender number
+        if (!newTenderNumber) return res.status(400).json({ error: 'newTenderNumber is required when creating a new tender' });
         
         // Create new tender for next Haraj round
         const newTender = await prisma.tender.create({
@@ -401,18 +391,8 @@ router.post('/:id/next-round', authorize('ADMIN', 'STAFF'), async (req, res, nex
     } else if (targetTenderId) {
       newTenderId = parseInt(targetTenderId);
     } else {
-      // Auto-generate next tender number
-      const currentTenderNumber = group.tender.tenderNumber;
-      const match = currentTenderNumber.match(/(\d+)\/(\d+)/);
-      
-      let newTenderNumber;
-      if (match) {
-        const num = parseInt(match[1]);
-        const year = match[2];
-        newTenderNumber = `${String(num + 1).padStart(3, '0')}/${year}`;
-      } else {
-        newTenderNumber = `${currentTenderNumber}-NEXT`;
-      }
+      // Use provided tender number
+      if (!newTenderNumber) return res.status(400).json({ error: 'newTenderNumber is required when creating a new tender' });
       
       // Create new tender
       const newTender = await prisma.tender.create({

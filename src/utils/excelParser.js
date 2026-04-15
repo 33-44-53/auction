@@ -160,7 +160,7 @@ function mapHeaders(headers) {
       console.log(`Mapped exchangeRate to column ${index}: "${h}"`);
     }
     // Expire Date
-    else if (h === 'የማብቂያ ቀን' || hLower.includes('expire') || hLower.includes('expiry')) {
+    else if (h === 'የማብቂያ ቀን' || h === 'Expire Date' || h === 'Expiry Date' || hLower.includes('expire') || hLower.includes('expiry')) {
       map.expireDate = index;
       console.log(`Mapped expireDate to column ${index}: "${h}"`);
     }

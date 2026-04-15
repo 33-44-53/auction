@@ -1020,7 +1020,7 @@ function GroupDetailPage() {
   const [showNextRoundModal, setShowNextRoundModal] = useState(false);
   const [harajFormData, setHarajFormData] = useState({ harajPrice: '', harajRound: '1' });
   const [yasbelaFormData, setYasbelaFormData] = useState({ yasbelaType: 'NO_PAYMENT', reason: '', yasbelaTenderId: '', newGroupCode: '' });
-  const [nextRoundFormData, setNextRoundFormData] = useState({ targetTenderId: '', newGroupCode: '', nextHarajPrice: '' });
+  const [nextRoundFormData, setNextRoundFormData] = useState({ targetTenderId: '', newGroupCode: '', nextHarajPrice: '', newTenderNumber: '' });
   const [editingGroup, setEditingGroup] = useState(false);
   const [groupEditData, setGroupEditData] = useState({ code: '', title: '' });
   const [allTenders, setAllTenders] = useState([]);
@@ -1299,6 +1299,12 @@ function GroupDetailPage() {
       data.targetTenderId = 'SAME';
     } else if (nextRoundFormData.targetTenderId) {
       data.targetTenderId = parseInt(nextRoundFormData.targetTenderId);
+    } else {
+      if (!nextRoundFormData.newTenderNumber) {
+        alert('Please enter a tender number for the new tender');
+        return;
+      }
+      data.newTenderNumber = nextRoundFormData.newTenderNumber;
     }
     if (nextRoundFormData.newGroupCode) data.newGroupCode = nextRoundFormData.newGroupCode;
     if (nextRoundFormData.nextHarajPrice) data.nextHarajPrice = nextRoundFormData.nextHarajPrice;
@@ -2314,7 +2320,7 @@ function GroupDetailPage() {
                   onChange={(e) => setNextRoundFormData({ ...nextRoundFormData, targetTenderId: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                 >
-                  <option value="">-- Create New Tender (Auto-increment) --</option>
+                  <option value="">-- Create New Tender (Manual) --</option>
                   <option value="SAME">-- Stay in Current Tender --</option>
                   {allTenders.filter(t => t.id !== group.tenderId && t.status === 'OPEN' && t.tenderType !== 'YASBELA').map(t => (
                     <option key={t.id} value={t.id}>{t.tenderNumber} ({t.tenderType})</option>
@@ -2325,21 +2331,33 @@ function GroupDetailPage() {
                     ? 'Group will stay in the current tender'
                     : nextRoundFormData.targetTenderId 
                     ? 'Group will be moved to the selected tender' 
-                    : `New tender will be created (e.g., ${group.tender?.tenderNumber?.replace(/(\d+)/, (m) => String(parseInt(m) + 1).padStart(3, '0'))})`}
+                    : 'A new tender will be created with the number you enter above'}
                 </p>
               </div>
               {!nextRoundFormData.targetTenderId && (
-                <div className="mb-4">
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">New Group Code (optional)</label>
-                  <input
-                    type="text"
-                    value={nextRoundFormData.newGroupCode}
-                    onChange={(e) => setNextRoundFormData({ ...nextRoundFormData, newGroupCode: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                    placeholder={`Leave empty to keep: ${group.code}`}
-                  />
-                  <p className="text-xs text-gray-500 mt-1">Assign a new code for the group in the new tender</p>
-                </div>
+                <>
+                  <div className="mb-4">
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">New Tender Number <span className="text-red-500">*</span></label>
+                    <input
+                      type="text"
+                      value={nextRoundFormData.newTenderNumber}
+                      onChange={(e) => setNextRoundFormData({ ...nextRoundFormData, newTenderNumber: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                      placeholder="e.g. 034/2018"
+                      required
+                    />
+                  </div>
+                  <div className="mb-4">
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">New Group Code (optional)</label>
+                    <input
+                      type="text"
+                      value={nextRoundFormData.newGroupCode}
+                      onChange={(e) => setNextRoundFormData({ ...nextRoundFormData, newGroupCode: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                      placeholder={`Leave empty to keep: ${group.code}`}
+                    />
+                  </div>
+                </>
               )}
               <div className="flex gap-2">
                 <button type="submit" className="flex-1 bg-purple-600 text-white py-2 rounded hover:bg-purple-700 font-semibold">
