@@ -20,6 +20,100 @@ function calcUnitPrice(cif, fob, tax, round, exchangeRate) {
   return prices[round] * exchangeRate;
 }
 
+// Upload items from Excel into an existing group
+router.post('/:id/upload-items-excel', authorize('ADMIN', 'STAFF'), async (req, res, next) => {
+  try {
+    const groupId = parseInt(req.params.id);
+    const group = await prisma.group.findUnique({ where: { id: groupId }, include: { tender: true } });
+    if (!group) return res.status(404).json({ error: 'Group not found' });
+
+    // Use multer inline
+    const multer = require('multer');
+    const path = require('path');
+    const { v4: uuidv4 } = require('uuid');
+    const upload = multer({
+      storage: multer.diskStorage({
+        destination: (req, file, cb) => cb(null, path.join(__dirname, '../../uploads')),
+        filename: (req, file, cb) => cb(null, `${uuidv4()}${path.extname(file.originalname)}`)
+      }),
+      limits: { fileSize: 50 * 1024 * 1024 },
+      fileFilter: (req, file, cb) => {
+        const allowed = ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/vnd.ms-excel'];
+        allowed.includes(file.mimetype) ? cb(null, true) : cb(new Error('Only Excel files allowed'));
+      }
+    }).single('file');
+
+    upload(req, res, async (err) => {
+      if (err) return res.status(400).json({ error: err.message });
+      if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+
+      const { parseExcelFile } = require('../utils/excelParser');
+      const parsedData = await parseExcelFile(req.file.path, null);
+      const fs = require('fs');
+      fs.unlink(req.file.path, () => {});
+
+      // Collect all items from all parsed groups
+      const allItems = parsedData.groups.flatMap(g => g.items);
+      if (allItems.length === 0) return res.status(400).json({ error: 'No items found in Excel file' });
+
+      const exchangeRate = group.exchangeRate || group.tender.exchangeRate;
+      let basePrice = 0;
+
+      for (const itemData of allItems) {
+        const itemExchangeRate = itemData.exchangeRate ? parseFloat(itemData.exchangeRate) : exchangeRate;
+        const prices = { CIF: itemData.cif || 0, FOB: itemData.fob || 0, TAX: itemData.tax || 0 };
+        const unitPrice = (group.currentRound === 'HARAJ'
+          ? Math.min(itemData.cif || 0, itemData.fob || 0, itemData.tax || 0)
+          : prices[group.currentRound] || 0) * itemExchangeRate;
+        const totalPrice = unitPrice * (itemData.totalQuantity || 0);
+
+        await prisma.item.create({
+          data: {
+            groupId,
+            itemCode: itemData.itemCode || '-',
+            serialNumber: itemData.serialNumber || null,
+            name: itemData.name,
+            itemType: itemData.itemType || null,
+            brand: itemData.brand || null,
+            country: itemData.country || null,
+            unit: itemData.unit || 'EA',
+            warehouse1: itemData.warehouse1 || 0,
+            warehouse2: itemData.warehouse2 || 0,
+            warehouse3: itemData.warehouse3 || 0,
+            totalQuantity: itemData.totalQuantity || 0,
+            fob: itemData.fob || 0,
+            cif: itemData.cif || 0,
+            tax: itemData.tax || 0,
+            exchangeRate: itemExchangeRate,
+            expireDate: itemData.expireDate || null,
+            unitPrice,
+            totalPrice
+          }
+        });
+        basePrice += totalPrice;
+      }
+
+      // Add to existing base price
+      const existingItems = await prisma.item.findMany({ where: { groupId } });
+      const newBasePrice = existingItems.reduce((s, i) => s + (i.totalPrice || 0), 0);
+      await prisma.group.update({ where: { id: groupId }, data: { basePrice: newBasePrice } });
+
+      await prisma.auditLog.create({
+        data: {
+          userId: req.userId,
+          action: 'UPLOAD_ITEMS',
+          entity: 'Group',
+          entityId: groupId,
+          details: JSON.stringify({ itemsAdded: allItems.length }),
+          ipAddress: req.ip
+        }
+      });
+
+      res.status(201).json({ message: `${allItems.length} item(s) added`, itemCount: allItems.length });
+    });
+  } catch (error) { next(error); }
+});
+
 // Add item to group manually
 router.post('/:id/items', authorize('ADMIN', 'STAFF'), async (req, res, next) => {
   try {

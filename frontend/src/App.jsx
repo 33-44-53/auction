@@ -1074,6 +1074,11 @@ function GroupDetailPage() {
   const [showBidModal, setShowBidModal] = useState(false);
   const [showAddItemModal, setShowAddItemModal] = useState(false);
   const [showEditItemModal, setShowEditItemModal] = useState(false);
+  const [showItemExcelModal, setShowItemExcelModal] = useState(false);
+  const [itemExcelFile, setItemExcelFile] = useState(null);
+  const [itemExcelPreview, setItemExcelPreview] = useState(null);
+  const [itemExcelPreviewing, setItemExcelPreviewing] = useState(false);
+  const [itemExcelError, setItemExcelError] = useState('');
   const [showHarajModal, setShowHarajModal] = useState(false);
   const [showYasbelaModal, setShowYasbelaModal] = useState(false);
   const [showNextRoundModal, setShowNextRoundModal] = useState(false);
@@ -1474,6 +1479,43 @@ function GroupDetailPage() {
   };
 
 
+
+  const handleItemExcelFileChange = async (e) => {
+    const f = e.target.files[0];
+    if (!f) return;
+    setItemExcelFile(f);
+    setItemExcelPreview(null);
+    setItemExcelError('');
+    setItemExcelPreviewing(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', f);
+      const res = await api.post('/tenders/preview-excel', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      setItemExcelPreview(res.data);
+    } catch (err) {
+      setItemExcelError(err.response?.data?.error || 'Failed to read Excel file');
+    } finally {
+      setItemExcelPreviewing(false);
+    }
+  };
+
+  const handleItemExcelUpload = async (e) => {
+    e.preventDefault();
+    if (!itemExcelFile) { setItemExcelError('Please select an Excel file'); return; }
+    try {
+      const fd = new FormData();
+      fd.append('file', itemExcelFile);
+      const res = await api.post(`/groups/${groupId}/upload-items-excel`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      alert(`${res.data.itemCount} item(s) added successfully`);
+      setShowItemExcelModal(false);
+      setItemExcelFile(null);
+      setItemExcelPreview(null);
+      setItemExcelError('');
+      loadGroup();
+    } catch (err) {
+      setItemExcelError(err.response?.data?.error || 'Failed to upload items');
+    }
+  };
 
   const blank = { itemCode:'',serialNumber:'',name:'',itemType:'',brand:'',country:'',unit:'',warehouse1:0,warehouse2:0,warehouse3:0,fob:0,cif:0,tax:0,exchangeRate:null,expireDate:null };
 
@@ -1897,6 +1939,12 @@ function GroupDetailPage() {
           >
             + Add Item
           </button>
+          <button
+            onClick={() => setShowItemExcelModal(true)}
+            className="text-sm bg-white/20 backdrop-blur-sm text-white px-3 py-1 rounded-lg hover:bg-white/30 transition"
+          >
+            📂 Upload Excel
+          </button>
         </div>
         <div className="overflow-x-auto">
         <table>
@@ -1974,6 +2022,48 @@ function GroupDetailPage() {
         </table>
         </div>
       </div>
+
+      {/* Item Excel Upload Modal */}
+      {showItemExcelModal && (
+        <div className="modal-backdrop">
+          <div className="modal-content p-6 w-full max-w-md">
+            <h3 className="text-xl font-bold gradient-text mb-4">📂 Upload Items from Excel</h3>
+            {itemExcelError && <div className="bg-red-100 border border-red-300 text-red-700 px-3 py-2 rounded mb-3 text-sm">{itemExcelError}</div>}
+            <form onSubmit={handleItemExcelUpload}>
+              <div className={`border-2 border-dashed rounded-xl p-6 text-center mb-4 transition ${ itemExcelFile ? 'border-green-400 bg-green-50' : 'border-gray-300 hover:border-blue-400' }`}>
+                <input type="file" accept=".xlsx,.xls" onChange={handleItemExcelFileChange} className="hidden" id="item-excel-upload" />
+                <label htmlFor="item-excel-upload" className="cursor-pointer">
+                  {itemExcelPreviewing ? <p className="text-blue-600 font-medium">Reading file...</p>
+                    : itemExcelFile ? (
+                      <div><p className="text-green-700 font-semibold">✓ {itemExcelFile.name}</p><p className="text-xs text-gray-500 mt-1">Click to change</p></div>
+                    ) : (
+                      <div><p className="text-gray-500 font-medium">Click to select Excel file</p><p className="text-xs text-gray-400 mt-1">.xlsx or .xls</p></div>
+                    )}
+                </label>
+              </div>
+              {itemExcelPreview && (
+                <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm">
+                  <p className="font-semibold text-blue-800 mb-1">📊 Preview</p>
+                  <p className="text-blue-700">Total items to add: <strong>{itemExcelPreview.itemCount}</strong></p>
+                  <div className="mt-1 space-y-0.5">
+                    {itemExcelPreview.groups.map(g => (
+                      <div key={g.code} className="text-xs text-gray-600 flex gap-2">
+                        <span className="font-mono bg-white px-1 rounded">{g.code}</span>
+                        <span className="text-gray-400">({g.itemCount} items)</span>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-xs text-orange-600 mt-2">⚠ All items from all groups in the file will be added to this group</p>
+                </div>
+              )}
+              <div className="flex gap-2">
+                <button type="submit" disabled={!itemExcelFile || itemExcelPreviewing} className="flex-1 bg-blue-600 text-white py-2 rounded hover:bg-blue-700 disabled:opacity-50">Upload Items</button>
+                <button type="button" onClick={() => { setShowItemExcelModal(false); setItemExcelFile(null); setItemExcelPreview(null); setItemExcelError(''); }} className="flex-1 btn-secondary">Cancel</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Edit Item Modal */}
       {showEditItemModal && editingItem && (
