@@ -444,6 +444,12 @@ router.post('/:id/next-round', authorize('ADMIN', 'STAFF'), async (req, res, nex
         data: { status: 'CLOSED' }
       });
 
+      // Ensure new group is OPEN
+      await prisma.group.update({
+        where: { id: newGroup.id },
+        data: { status: 'OPEN' }
+      });
+
       await prisma.auditLog.create({ 
         data: { 
           userId: req.userId, 
@@ -577,6 +583,12 @@ router.post('/:id/next-round', authorize('ADMIN', 'STAFF'), async (req, res, nex
     await prisma.group.update({
       where: { id: groupId },
       data: { status: 'CLOSED' }
+    });
+
+    // Ensure new group is OPEN
+    await prisma.group.update({
+      where: { id: newGroup.id },
+      data: { status: 'OPEN' }
     });
 
     await prisma.auditLog.create({ 
