@@ -565,6 +565,11 @@ function TenderDetailPage() {
   const [activeTab, setActiveTab] = useState('groups');
   const [showGroupModal, setShowGroupModal] = useState(false);
   const [groupFormData, setGroupFormData] = useState({ code: '', name: '', vehiclePlate: '' });
+  const [groupAddMode, setGroupAddMode] = useState('manual'); // 'manual' | 'excel'
+  const [groupExcelFile, setGroupExcelFile] = useState(null);
+  const [groupExcelPreview, setGroupExcelPreview] = useState(null);
+  const [groupExcelPreviewing, setGroupExcelPreviewing] = useState(false);
+  const [groupExcelError, setGroupExcelError] = useState('');
   const [editingTender, setEditingTender] = useState(false);
   const [tenderEditData, setTenderEditData] = useState({ tenderNumber: '', title: '' });
 
@@ -595,6 +600,42 @@ function TenderDetailPage() {
     setShowGroupModal(false);
     setGroupFormData({ code: '', name: '', vehiclePlate: '' });
     api.post('/groups', data).then(() => loadTender()).catch(e => alert(e.response?.data?.error || 'Failed to create group'));
+  };
+
+  const handleGroupExcelFileChange = async (e) => {
+    const f = e.target.files[0];
+    if (!f) return;
+    setGroupExcelFile(f);
+    setGroupExcelPreview(null);
+    setGroupExcelError('');
+    setGroupExcelPreviewing(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', f);
+      const res = await api.post('/tenders/preview-excel', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      setGroupExcelPreview(res.data);
+    } catch (err) {
+      setGroupExcelError(err.response?.data?.error || 'Failed to read Excel file');
+    } finally {
+      setGroupExcelPreviewing(false);
+    }
+  };
+
+  const handleGroupExcelUpload = async (e) => {
+    e.preventDefault();
+    if (!groupExcelFile) { setGroupExcelError('Please select an Excel file'); return; }
+    try {
+      const fd = new FormData();
+      fd.append('file', groupExcelFile);
+      await api.post(`/tenders/${tenderId}/upload-group-excel`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      setShowGroupModal(false);
+      setGroupExcelFile(null);
+      setGroupExcelPreview(null);
+      setGroupExcelError('');
+      loadTender();
+    } catch (err) {
+      setGroupExcelError(err.response?.data?.error || 'Failed to upload groups');
+    }
   };
 
   const handleEditTender = () => {
@@ -897,59 +938,77 @@ function TenderDetailPage() {
         </div>
       )}
 
-      {/* Add Group Modal */}
       {showGroupModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-md">
             <h3 className="text-xl font-bold mb-4">Add New Group</h3>
-            <form onSubmit={handleCreateGroup}>
-              <div className="mb-4">
-                <label className="block text-gray-700 text-sm font-bold mb-2">Group Code *</label>
-                <input
-                  type="text"
-                  value={groupFormData.code}
-                  onChange={(e) => setGroupFormData({ ...groupFormData, code: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded"
-                  placeholder="e.g., CODE-10"
-                  required
-                />
-              </div>
-              <div className="mb-4">
-                <label className="block text-gray-700 text-sm font-bold mb-2">Group Name</label>
-                <input
-                  type="text"
-                  value={groupFormData.name}
-                  onChange={(e) => setGroupFormData({ ...groupFormData, name: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded"
-                  placeholder="e.g., Contraband materials from location X"
-                />
-              </div>
-              <div className="mb-4">
-                <label className="block text-gray-700 text-sm font-bold mb-2">Vehicle Plate</label>
-                <input
-                  type="text"
-                  value={groupFormData.vehiclePlate}
-                  onChange={(e) => setGroupFormData({ ...groupFormData, vehiclePlate: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded"
-                  placeholder="e.g., Aw 034 B/2018"
-                />
-              </div>
-              <div className="flex space-x-2">
-                <button
-                  type="submit"
-                  className="flex-1 bg-green-600 text-white py-2 rounded hover:bg-green-700"
-                >
-                  Create Group
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowGroupModal(false)}
-                  className="flex-1 bg-gray-300 text-gray-700 py-2 rounded hover:bg-gray-400"
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
+
+            {/* Mode toggle */}
+            <div className="flex gap-2 mb-4 p-1 bg-gray-100 rounded-lg">
+              <button type="button" onClick={() => { setGroupAddMode('manual'); setGroupExcelFile(null); setGroupExcelPreview(null); setGroupExcelError(''); }}
+                className={`flex-1 py-1.5 rounded text-sm font-semibold transition ${ groupAddMode === 'manual' ? 'bg-white shadow text-blue-700' : 'text-gray-500' }`}>
+                ✏️ Manual
+              </button>
+              <button type="button" onClick={() => setGroupAddMode('excel')}
+                className={`flex-1 py-1.5 rounded text-sm font-semibold transition ${ groupAddMode === 'excel' ? 'bg-white shadow text-blue-700' : 'text-gray-500' }`}>
+                📂 Upload Excel
+              </button>
+            </div>
+
+            {groupAddMode === 'manual' ? (
+              <form onSubmit={handleCreateGroup}>
+                <div className="mb-4">
+                  <label className="block text-gray-700 text-sm font-bold mb-2">Group Code *</label>
+                  <input type="text" value={groupFormData.code} onChange={(e) => setGroupFormData({ ...groupFormData, code: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded" placeholder="e.g., CODE-10" required />
+                </div>
+                <div className="mb-4">
+                  <label className="block text-gray-700 text-sm font-bold mb-2">Group Name</label>
+                  <input type="text" value={groupFormData.name} onChange={(e) => setGroupFormData({ ...groupFormData, name: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded" placeholder="e.g., Contraband materials" />
+                </div>
+                <div className="mb-4">
+                  <label className="block text-gray-700 text-sm font-bold mb-2">Vehicle Plate</label>
+                  <input type="text" value={groupFormData.vehiclePlate} onChange={(e) => setGroupFormData({ ...groupFormData, vehiclePlate: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded" placeholder="e.g., Aw 034 B/2018" />
+                </div>
+                <div className="flex space-x-2">
+                  <button type="submit" className="flex-1 bg-green-600 text-white py-2 rounded hover:bg-green-700">Create Group</button>
+                  <button type="button" onClick={() => setShowGroupModal(false)} className="flex-1 bg-gray-300 text-gray-700 py-2 rounded hover:bg-gray-400">Cancel</button>
+                </div>
+              </form>
+            ) : (
+              <form onSubmit={handleGroupExcelUpload}>
+                {groupExcelError && <div className="bg-red-100 border border-red-300 text-red-700 px-3 py-2 rounded mb-3 text-sm">{groupExcelError}</div>}
+                <div className={`border-2 border-dashed rounded-xl p-6 text-center mb-4 transition ${ groupExcelFile ? 'border-green-400 bg-green-50' : 'border-gray-300 hover:border-blue-400' }`}>
+                  <input type="file" accept=".xlsx,.xls" onChange={handleGroupExcelFileChange} className="hidden" id="group-excel-upload" />
+                  <label htmlFor="group-excel-upload" className="cursor-pointer">
+                    {groupExcelPreviewing ? <p className="text-blue-600 font-medium">Reading file...</p>
+                      : groupExcelFile ? (
+                        <div><p className="text-green-700 font-semibold">✓ {groupExcelFile.name}</p><p className="text-xs text-gray-500 mt-1">Click to change</p></div>
+                      ) : (
+                        <div><p className="text-gray-500 font-medium">Click to select Excel file</p><p className="text-xs text-gray-400 mt-1">.xlsx or .xls</p></div>
+                      )}
+                  </label>
+                </div>
+                {groupExcelPreview && (
+                  <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm">
+                    <p className="font-semibold text-blue-800 mb-1">📊 Preview</p>
+                    <p className="text-blue-700">Groups: <strong>{groupExcelPreview.groupCount}</strong> — Items: <strong>{groupExcelPreview.itemCount}</strong></p>
+                    <div className="mt-1 space-y-0.5">
+                      {groupExcelPreview.groups.map(g => (
+                        <div key={g.code} className="text-xs text-gray-600 flex gap-2">
+                          <span className="font-mono bg-white px-1 rounded">{g.code}</span>
+                          <span>{g.name}</span>
+                          <span className="text-gray-400">({g.itemCount} items)</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                <div className="flex space-x-2">
+                  <button type="submit" disabled={!groupExcelFile || groupExcelPreviewing} className="flex-1 bg-blue-600 text-white py-2 rounded hover:bg-blue-700 disabled:opacity-50">Upload Groups</button>
+                  <button type="button" onClick={() => { setShowGroupModal(false); setGroupExcelFile(null); setGroupExcelPreview(null); setGroupExcelError(''); }} className="flex-1 bg-gray-300 text-gray-700 py-2 rounded hover:bg-gray-400">Cancel</button>
+                </div>
+              </form>
+            )}
           </div>
         </div>
       )}

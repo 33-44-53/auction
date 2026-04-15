@@ -371,6 +371,122 @@ router.post(
   }
 );
 
+// Upload groups from Excel into an existing tender
+router.post(
+  '/:id/upload-group-excel',
+  authorize('ADMIN', 'STAFF'),
+  upload.single('file'),
+  async (req, res, next) => {
+    try {
+      const tenderId = parseInt(req.params.id);
+      if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+
+      const tender = await prisma.tender.findUnique({ where: { id: tenderId } });
+      if (!tender) return res.status(404).json({ error: 'Tender not found' });
+
+      const parsedData = await parseExcelFile(req.file.path, tenderId);
+      const fs = require('fs');
+      fs.unlink(req.file.path, () => {});
+
+      const createdGroups = [];
+
+      for (const groupData of parsedData.groups) {
+        let initialRound = 'CIF';
+        if (tender.tenderType === 'HARAJ') {
+          initialRound = 'HARAJ';
+        } else if (groupData.items.length > 0) {
+          const fi = groupData.items[0];
+          const prices = [
+            { name: 'CIF', value: fi.cif || 0 },
+            { name: 'FOB', value: fi.fob || 0 },
+            { name: 'TAX', value: fi.tax || 0 }
+          ];
+          prices.sort((a, b) => b.value - a.value);
+          initialRound = prices[0].name;
+        }
+
+        const groupMeta = groupData.metadata || {};
+        const group = await prisma.group.create({
+          data: {
+            tenderId,
+            code: groupData.code,
+            name: groupData.name,
+            currentRound: initialRound,
+            roundNumber: 1,
+            status: 'OPEN',
+            title: groupMeta.title || null,
+            date: groupMeta.date || null,
+            location: groupMeta.location || null,
+            responsibleBody: groupMeta.responsibleBody || null,
+            exchangeRate: groupMeta.exchangeRate ? parseFloat(groupMeta.exchangeRate) : null
+          }
+        });
+
+        const groupExchangeRate = groupMeta.exchangeRate
+          ? parseFloat(groupMeta.exchangeRate)
+          : tender.exchangeRate;
+
+        let basePrice = 0;
+        for (const itemData of groupData.items) {
+          const itemExchangeRate = itemData.exchangeRate
+            ? parseFloat(itemData.exchangeRate)
+            : groupExchangeRate;
+          const prices = { CIF: itemData.cif || 0, FOB: itemData.fob || 0, TAX: itemData.tax || 0 };
+          const unitPrice = (tender.tenderType === 'HARAJ'
+            ? Math.min(itemData.cif || 0, itemData.fob || 0, itemData.tax || 0)
+            : prices[initialRound]) * itemExchangeRate;
+          const totalPrice = unitPrice * (itemData.totalQuantity || 0);
+          basePrice += totalPrice;
+
+          await prisma.item.create({
+            data: {
+              groupId: group.id,
+              itemCode: itemData.itemCode || '-',
+              serialNumber: itemData.serialNumber || null,
+              name: itemData.name,
+              itemType: itemData.itemType || null,
+              brand: itemData.brand || null,
+              country: itemData.country || null,
+              unit: itemData.unit || 'EA',
+              warehouse1: itemData.warehouse1 || 0,
+              warehouse2: itemData.warehouse2 || 0,
+              warehouse3: itemData.warehouse3 || 0,
+              totalQuantity: itemData.totalQuantity || 0,
+              fob: itemData.fob || 0,
+              cif: itemData.cif || 0,
+              tax: itemData.tax || 0,
+              exchangeRate: itemExchangeRate,
+              expireDate: itemData.expireDate || null,
+              unitPrice,
+              totalPrice
+            }
+          });
+        }
+
+        await prisma.group.update({
+          where: { id: group.id },
+          data: { basePrice, harajPrice: tender.tenderType === 'HARAJ' ? basePrice : null }
+        });
+
+        createdGroups.push({ ...group, basePrice, itemCount: groupData.items.length });
+      }
+
+      await prisma.auditLog.create({
+        data: {
+          userId: req.userId,
+          action: 'UPLOAD_GROUPS',
+          entity: 'Tender',
+          entityId: tenderId,
+          details: JSON.stringify({ groupsAdded: createdGroups.length }),
+          ipAddress: req.ip
+        }
+      });
+
+      res.status(201).json({ message: `${createdGroups.length} group(s) added`, groups: createdGroups });
+    } catch (error) { next(error); }
+  }
+);
+
 // Update tender
 router.patch(
   '/:id',
