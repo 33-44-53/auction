@@ -139,6 +139,11 @@ function mapHeaders(headers) {
       map.title = index;
       console.log(`Mapped title to column ${index}: "${h}"`);
     }
+    // Expire Date - must come BEFORE date check
+    else if (h === 'የማብቂያ ቀን' || h === 'Expire Date' || h === 'Expiry Date' || hLower.includes('expire') || hLower.includes('expiry')) {
+      map.expireDate = index;
+      console.log(`Mapped expireDate to column ${index}: "${h}"`);
+    }
     // Date (group-specific)
     else if (h === 'የተያዘበት ቀን' || hLower.includes('date')) {
       map.date = index;
@@ -159,12 +164,7 @@ function mapHeaders(headers) {
       map.exchangeRate = index;
       console.log(`Mapped exchangeRate to column ${index}: "${h}"`);
     }
-    // Expire Date
-    else if (h === 'የማብቂያ ቀን' || h === 'Expire Date' || h === 'Expiry Date' || hLower.includes('expire') || hLower.includes('expiry')) {
-      map.expireDate = index;
-      console.log(`Mapped expireDate to column ${index}: "${h}"`);
-    }
-    // Item name
+
     else if (h === 'የእቃው አይነት' || hLower.includes('item name') || hLower.includes('item type')) {
       map.itemName = index;
       console.log(`Mapped itemName to column ${index}: "${h}"`);
