@@ -111,10 +111,10 @@ app.get('/api/fix-closed-groups', async (req, res) => {
     const ids = [...new Set(nextRoundGroups.map(g => g.originalGroupId))];
     if (ids.length === 0) return res.json({ message: 'Nothing to fix', count: 0 });
     const result = await prisma.group.updateMany({
-      where: { id: { in: ids }, status: 'OPEN' },
+      where: { id: { in: ids }, status: { in: ['OPEN', 'HARAJ'] } },
       data: { status: 'CLOSED' }
     });
-    res.json({ message: `Fixed ${result.count} group(s)`, count: result.count });
+    res.json({ message: `Fixed ${result.count} group(s)`, count: result.count, ids });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
