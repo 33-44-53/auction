@@ -90,8 +90,16 @@ app.use('/api/users', authenticate, usersRoutes);
 app.use('/api/yasbella', authenticate, yasbellaRoutes);
 app.use('/api/seed', seedRoutes); // TEMPORARY - Remove after seeding production
 
-// One-time fix: close original groups that moved to next round
-app.get('/api/fix-closed-groups', async (req, res) => {
+// Debug: show groups with their originalGroupId
+app.get('/api/debug-groups', async (req, res) => {
+  try {
+    const groups = await prisma.group.findMany({
+      select: { id: true, code: true, status: true, currentRound: true, originalGroupId: true, tenderId: true },
+      orderBy: { id: 'asc' }
+    });
+    res.json(groups);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+}); async (req, res) => {
   try {
     const nextRoundGroups = await prisma.group.findMany({
       where: { originalGroupId: { not: null } },
