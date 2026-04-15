@@ -99,7 +99,10 @@ app.get('/api/debug-groups', async (req, res) => {
     });
     res.json(groups);
   } catch (e) { res.status(500).json({ error: e.message }); }
-}); async (req, res) => {
+});
+
+// One-time fix: close original groups that moved to next round
+app.get('/api/fix-closed-groups', async (req, res) => {
   try {
     const nextRoundGroups = await prisma.group.findMany({
       where: { originalGroupId: { not: null } },
