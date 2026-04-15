@@ -158,4 +158,12 @@ const shutdown = async (signal) => {
 process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('SIGINT', () => shutdown('SIGINT'));
 
+// Reconnect Prisma on unhandled connection errors
+process.on('unhandledRejection', async (reason) => {
+  if (reason?.message?.includes('connection') || reason?.code === 'P1001' || reason?.code === 'P1002') {
+    console.warn('DB connection lost, reconnecting...');
+    await prisma.$connect().catch(() => {});
+  }
+});
+
 module.exports = app;
