@@ -523,6 +523,7 @@ function DashboardPage() {
                 <th>Title</th>
                 <th>Groups</th>
                 <th>Status</th>
+                <th>Created By</th>
                 <th>Actions</th>
               </tr>
             </thead>
@@ -536,6 +537,9 @@ function DashboardPage() {
                     <span className={`px-2 py-1 rounded text-xs ${tender.status === 'OPEN' ? 'bg-green-100 text-green-800' : tender.status === 'SOLD' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'}`}>
                       {tender.status}
                     </span>
+                  </td>
+                  <td>
+                    <span className="text-sm text-gray-700">{tender.creator?.name || 'Unknown'}</span>
                   </td>
                   <td>
                     <a href={`/tenders/${tender.id}`} className="text-primary-600 hover:text-primary-800">
@@ -3122,6 +3126,7 @@ function NewTenderPage() {
               <th>Type</th>
               <th>Groups</th>
               <th>Status</th>
+              <th>Created By</th>
               <th>Actions</th>
             </tr>
           </thead>
@@ -3142,6 +3147,14 @@ function NewTenderPage() {
                     tender.status === 'OPEN' ? 'bg-green-100 text-green-800' :
                     tender.status === 'SOLD' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'
                   }`}>{tender.status}</span>
+                </td>
+                <td>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-700">{tender.creator?.name || 'Unknown'}</span>
+                    <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                      tender.creator?.role === 'ADMIN' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'
+                    }`}>{tender.creator?.role || 'N/A'}</span>
+                  </div>
                 </td>
                 <td className="space-x-2">
                   <a href={`/tenders/${tender.id}`} className="text-blue-600 hover:text-blue-800 inline-flex items-center">

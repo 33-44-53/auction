@@ -81,7 +81,10 @@ router.get('/', async (req, res, next) => {
         where: tenderWhere,
         take: 5,
         orderBy: { createdAt: 'desc' },
-        include: { _count: { select: { groups: true } } }
+        include: { 
+          _count: { select: { groups: true } },
+          creator: { select: { id: true, name: true, email: true, role: true } }
+        }
       }),
       prisma.group.groupBy({
         by: ['status'],

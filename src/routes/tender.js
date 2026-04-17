@@ -100,10 +100,16 @@ router.get('/', async (req, res, next) => {
             }
           },
           files: true,
+          creator: {
+            select: { id: true, name: true, email: true, role: true }
+          },
           _count: {
             select: { groups: true }
           }
         } : {
+          creator: {
+            select: { id: true, name: true, email: true, role: true }
+          },
           _count: {
             select: { groups: true }
           }
@@ -155,7 +161,10 @@ router.get('/:id', async (req, res, next) => {
             }
           }
         },
-        files: true
+        files: true,
+        creator: {
+          select: { id: true, name: true, email: true, role: true }
+        }
       }
     });
 
