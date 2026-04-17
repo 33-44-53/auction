@@ -31,12 +31,19 @@ const upload = multer({
     const ext = path.extname(file.originalname).toLowerCase();
     const isExcelExt = ['.xlsx', '.xls'].includes(ext);
     
-    console.log(`File upload attempt: ${file.originalname}, MIME: ${file.mimetype}, Ext: ${ext}`);
+    console.log(`\n=== FILE UPLOAD FILTER ===`);
+    console.log(`File: ${file.originalname}`);
+    console.log(`MIME: ${file.mimetype}`);
+    console.log(`Extension: ${ext}`);
+    console.log(`Is Excel Extension: ${isExcelExt}`);
+    console.log(`========================\n`);
     
     if (allowedTypes.includes(file.mimetype) || isExcelExt) {
       cb(null, true);
     } else {
-      cb(new Error(`Invalid file type. File: ${file.originalname}, MIME: ${file.mimetype}. Only Excel files (.xlsx, .xls) are allowed.`));
+      const errorMsg = `Invalid file type. File: ${file.originalname}, MIME: ${file.mimetype}. Only Excel files (.xlsx, .xls) are allowed.`;
+      console.error(errorMsg);
+      cb(new Error(errorMsg));
     }
   }
 });
@@ -166,7 +173,18 @@ router.get('/:id', async (req, res, next) => {
 router.post(
   '/',
   authorize('ADMIN', 'STAFF'),
-  upload.single('file'),
+  (req, res, next) => {
+    upload.single('file')(req, res, (err) => {
+      if (err) {
+        console.error('\n=== MULTER ERROR ===');
+        console.error('Error:', err.message);
+        console.error('Code:', err.code);
+        console.error('====================\n');
+        return res.status(400).json({ error: err.message });
+      }
+      next();
+    });
+  },
   [
     body('tenderNumber').optional(),
     body('exchangeRate').optional(),
@@ -176,22 +194,32 @@ router.post(
     body('responsibleBody').optional()
   ],
   async (req, res, next) => {
+    console.log('\n=== TENDER UPLOAD ROUTE HIT ===');
+    console.log('File received:', req.file ? req.file.originalname : 'NO FILE');
+    console.log('Body:', req.body);
+    
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
+        console.error('Validation errors:', errors.array());
         return res.status(400).json({ errors: errors.array() });
       }
 
       const { tenderNumber, exchangeRate, location, date, title, responsibleBody, tenderType, originalTenderId, harajRound } = req.body;
 
       if (!req.file) {
+        console.error('No file uploaded');
         return res.status(400).json({ error: 'Excel file is required' });
       }
+      
+      console.log('Starting transaction...');
 
       const result = await prisma.$transaction(async (tx) => {
         // Parse Excel first to get metadata
         const tempFilePath = req.file.path;
+        console.log('Calling parseExcelFile with path:', tempFilePath);
         const parsedData = await parseExcelFile(tempFilePath, null);
+        console.log('Excel parsed successfully. Groups:', parsedData.groups.length);
         const meta = parsedData.tenderMeta || {};
 
         // Use Excel metadata as primary source, fallback to form data
@@ -372,6 +400,10 @@ router.post(
 
       res.status(201).json(result);
     } catch (error) {
+      console.error('\n=== TENDER UPLOAD ERROR ===');
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
+      console.error('===========================\n');
       next(error);
     }
   }
