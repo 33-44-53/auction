@@ -337,7 +337,10 @@ router.post(
           // Use group-specific exchange rate if available, otherwise use tender-level
           const groupExchangeRate = groupMeta.exchangeRate ? parseFloat(groupMeta.exchangeRate) : effectiveExchangeRate;
 
+          // Batch create items
           let groupBasePrice = 0;
+          const itemsToCreate = [];
+          
           for (const itemData of groupData.items) {
             // Use item-specific exchange rate if available, fallback to group, then tender
             const itemExchangeRate = itemData.exchangeRate ? parseFloat(itemData.exchangeRate) : groupExchangeRate;
@@ -353,33 +356,33 @@ router.post(
               unitPrice = prices[initialRound] * itemExchangeRate;
             }
             const totalPrice = unitPrice * (itemData.totalQuantity || 0);
-
-            await tx.item.create({
-              data: {
-                groupId: group.id,
-                itemCode: itemData.itemCode || '-',
-                serialNumber: itemData.serialNumber || null,
-                name: itemData.name,
-                itemType: itemData.itemType || null,
-                brand: itemData.brand || null,
-                country: itemData.country || null,
-                unit: itemData.unit || 'EA',
-                warehouse1: itemData.warehouse1 || 0,
-                warehouse2: itemData.warehouse2 || 0,
-                warehouse3: itemData.warehouse3 || 0,
-                totalQuantity: itemData.totalQuantity || 0,
-                fob: itemData.fob || 0,
-                cif: itemData.cif || 0,
-                tax: itemData.tax || 0,
-                exchangeRate: itemExchangeRate,
-                expireDate: itemData.expireDate || null,
-                unitPrice,
-                totalPrice
-              }
-            });
-
             groupBasePrice += totalPrice;
+
+            itemsToCreate.push({
+              groupId: group.id,
+              itemCode: itemData.itemCode || '-',
+              serialNumber: itemData.serialNumber || null,
+              name: itemData.name,
+              itemType: itemData.itemType || null,
+              brand: itemData.brand || null,
+              country: itemData.country || null,
+              unit: itemData.unit || 'EA',
+              warehouse1: itemData.warehouse1 || 0,
+              warehouse2: itemData.warehouse2 || 0,
+              warehouse3: itemData.warehouse3 || 0,
+              totalQuantity: itemData.totalQuantity || 0,
+              fob: itemData.fob || 0,
+              cif: itemData.cif || 0,
+              tax: itemData.tax || 0,
+              exchangeRate: itemExchangeRate,
+              expireDate: itemData.expireDate || null,
+              unitPrice,
+              totalPrice
+            });
           }
+
+          // Batch insert all items for this group
+          await tx.item.createMany({ data: itemsToCreate });
           console.log(`Created ${groupData.items.length} items for group ${groupData.code}. Base price: ${groupBasePrice}`);
 
           await tx.group.update({
@@ -408,7 +411,7 @@ router.post(
         where: { id: tender.id },
         include: { groups: { include: { items: true } }, files: true }
       });
-    });
+    }, { timeout: 60000 });
 
       res.status(201).json(result);
     } catch (error) {
