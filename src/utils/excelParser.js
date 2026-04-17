@@ -160,13 +160,13 @@ function mapHeaders(headers) {
       map.title = index;
       console.log(`Mapped title to column ${index}: "${h}"`);
     }
-    // Expire Date - must come BEFORE date check
-    else if (h === 'የማብቂያ ቀን' || h === 'Expire Date' || h === 'Expiry Date' || hLower.includes('expire') || hLower.includes('expiry')) {
+    // Expire Date (must check before general date)
+    else if (h === 'የማብቂያ ቀን' || h === 'Expire Date' || h === 'Expiry Date' || hLower === 'expire date' || hLower === 'expiry date') {
       map.expireDate = index;
       console.log(`Mapped expireDate to column ${index}: "${h}"`);
     }
     // Date (group-specific)
-    else if (h === 'የተያዘበት ቀን' || hLower.includes('date')) {
+    else if (h === 'የተያዘበት ቀን' || (hLower.includes('date') && !hLower.includes('expire') && !hLower.includes('expiry'))) {
       map.date = index;
       console.log(`Mapped date to column ${index}: "${h}"`);
     }
@@ -180,8 +180,8 @@ function mapHeaders(headers) {
       map.responsibleBody = index;
       console.log(`Mapped responsibleBody to column ${index}: "${h}"`);
     }
-    // Exchange Rate (item-specific - moved to last column)
-    else if (h === 'Exchange Rate' || h === 'የምንዛሪ' || hLower.includes('exchange') || hLower.includes('rate')) {
+    // Exchange Rate (item-specific)
+    else if (h === 'Exchange Rate' || h === 'የምንዛሪ' || (hLower.includes('exchange') && hLower.includes('rate'))) {
       map.exchangeRate = index;
       console.log(`Mapped exchangeRate to column ${index}: "${h}"`);
     }
