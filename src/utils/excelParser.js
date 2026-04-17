@@ -29,7 +29,19 @@ async function parseExcelFile(filePath, tenderId) {
 
     if (headerMap.groupCode === undefined) {
       console.error('Group code column not found. Headers:', rawData[headerRowIndex]);
-      throw new Error('Could not find group code column (ኮድ / Code). Please check your Excel file format.');
+      console.error('Header map:', JSON.stringify(headerMap, null, 2));
+      // Try to find ANY column that might be group code
+      for (let i = 0; i < rawData[headerRowIndex].length; i++) {
+        const h = String(rawData[headerRowIndex][i] || '').trim();
+        if (h && h.length < 10 && (h.includes('ኮድ') || h.toLowerCase() === 'code')) {
+          console.log(`Auto-detected group code at column ${i}: "${h}"`);
+          headerMap.groupCode = i;
+          break;
+        }
+      }
+      if (headerMap.groupCode === undefined) {
+        throw new Error('Could not find group code column (ኮድ / Code). Please check your Excel file format.');
+      }
     }
 
     const groups = [];
@@ -117,19 +129,46 @@ function parseTenderMeta(data, headerRowIndex) {
 
 function findHeaderRow(data) {
   const keywords = ['code', 'item', 'name', 'qty', 'quantity', 'fob', 'cif', 'tax',
-    'unit', 'brand', 'country', 'warehouse', 'ኮድ', 'ዕቃ', 'አሃድ', 'መጋዘን'];
+    'unit', 'brand', 'country', 'warehouse', 'ኮድ', 'ዕቃ', 'አሃድ', 'መጋዘን', 'ሞዴል', 'ማርክ', 'መለኪያ',
+    'model', 'serial', 'type', 'origin', 'wh', 'total'];
 
-  for (let i = 0; i < Math.min(20, data.length); i++) {
+  // Try to find row with most keyword matches
+  let bestRow = -1;
+  let bestScore = 0;
+
+  for (let i = 0; i < Math.min(50, data.length); i++) {
     const row = data[i];
     if (!row || row.length < 3) continue;
-    const matches = row.filter(cell => {
+    
+    const score = row.filter(cell => {
       const s = String(cell || '').trim().toLowerCase();
-      return s && keywords.some(k => s.includes(k));
-    });
-    if (matches.length >= 2) return i;
+      if (!s) return false;
+      return keywords.some(k => s.includes(k));
+    }).length;
+
+    if (score > bestScore) {
+      bestScore = score;
+      bestRow = i;
+    }
+
+    // If we find a row with 3+ matches, likely the header
+    if (score >= 3) {
+      console.log(`Found header row at index ${i} with ${score} keyword matches`);
+      return i;
+    }
   }
+
+  if (bestRow !== -1 && bestScore >= 2) {
+    console.log(`Using best match header row at index ${bestRow} with ${bestScore} matches`);
+    return bestRow;
+  }
+
+  console.warn('No clear header row found, using first non-empty row');
   for (let i = 0; i < data.length; i++) {
-    if (!isEmptyRow(data[i])) return i;
+    if (!isEmptyRow(data[i])) {
+      console.log(`Defaulting to first non-empty row at index ${i}`);
+      return i;
+    }
   }
   return 0;
 }
@@ -150,8 +189,10 @@ function mapHeaders(headers) {
     
     if (!h) return;
     
-    // Group code
-    if (h === 'ኮድ' || hLower === 'code' || hLower.includes('group code')) {
+    // Group code - very flexible matching
+    if (h === 'ኮድ' || h === 'Code' || h === 'CODE' || hLower === 'code' || 
+        hLower.includes('group code') || hNoSpace === 'ኮድ' || 
+        (h.includes('ኮድ') && h.length < 10)) {
       map.groupCode = index;
       console.log(`Mapped groupCode to column ${index}: "${h}"`);
     }
@@ -225,8 +266,8 @@ function mapHeaders(headers) {
       map.quantity = index;
       console.log(`Mapped quantity to column ${index}: "${h}"`);
     }
-    // Model/Item Code
-    else if (h === 'ሞዴል' || hLower === 'model' || hLower.includes('item code')) {
+    // Model/Item Code - also check for serial number
+    else if (h === 'ሞዴል' || h === 'Model' || hLower === 'model' || hLower.includes('item code') || hLower.includes('serial')) {
       map.itemCode = index;
       console.log(`Mapped itemCode to column ${index}: "${h}"`);
     }
