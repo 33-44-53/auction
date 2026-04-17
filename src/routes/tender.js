@@ -229,6 +229,8 @@ router.post(
         const finalLocation = meta.location || location || null;
         const finalResponsibleBody = meta.responsibleBody || responsibleBody || null;
         
+        console.log('Creating tender with:', { finalTenderNumber, finalExchangeRate, finalTitle, finalLocation, finalResponsibleBody });
+        
         // Parse date properly - handle DD-MM-YYYY format from Excel
         let finalDate = null;
         if (meta.date) {
@@ -242,6 +244,7 @@ router.post(
         } else if (date) {
           finalDate = new Date(date);
         }
+        console.log('Final date:', finalDate);
 
         const tender = await tx.tender.create({
           data: {
@@ -258,6 +261,7 @@ router.post(
             createdBy: req.userId
           }
         });
+        console.log('Tender created with ID:', tender.id);
 
         await tx.file.create({
           data: {
@@ -268,10 +272,13 @@ router.post(
             size: req.file.size
           }
         });
+        console.log('File record created');
 
         const effectiveExchangeRate = finalExchangeRate;
 
         for (const groupData of parsedData.groups) {
+          console.log(`Processing group: ${groupData.code} with ${groupData.items.length} items`);
+          
           // Determine initial round from first item
           let initialRound = 'CIF'; // default
           if (tenderType === 'HARAJ') {
@@ -286,6 +293,7 @@ router.post(
             prices.sort((a, b) => b.value - a.value);
             initialRound = prices[0].name;
           }
+          console.log(`Initial round for group ${groupData.code}: ${initialRound}`);
 
           // Parse group-level date if present
           let groupDateString = null;
@@ -324,6 +332,7 @@ router.post(
               exchangeRate: groupMeta.exchangeRate ? parseFloat(groupMeta.exchangeRate) : null
             }
           });
+          console.log(`Group created with ID: ${group.id}`);
 
           // Use group-specific exchange rate if available, otherwise use tender-level
           const groupExchangeRate = groupMeta.exchangeRate ? parseFloat(groupMeta.exchangeRate) : effectiveExchangeRate;
@@ -371,6 +380,7 @@ router.post(
 
             groupBasePrice += totalPrice;
           }
+          console.log(`Created ${groupData.items.length} items for group ${groupData.code}. Base price: ${groupBasePrice}`);
 
           await tx.group.update({
             where: { id: group.id },
@@ -380,6 +390,7 @@ router.post(
             }
           });
         }
+        console.log('All groups processed successfully');
 
         await tx.auditLog.create({
           data: {
@@ -391,6 +402,7 @@ router.post(
             ipAddress: req.ip
           }
         });
+        console.log('Audit log created');
 
       return await tx.tender.findUnique({
         where: { id: tender.id },
