@@ -1,5 +1,9 @@
 const errorHandler = (err, req, res, next) => {
-  console.error('Error:', err);
+  console.error('\n=== ERROR HANDLER ===');
+  console.error('Error Message:', err.message);
+  console.error('Error Stack:', err.stack);
+  console.error('Error Code:', err.code);
+  console.error('=====================\n');
 
   // Prisma errors
   if (err.code === 'P2002') {

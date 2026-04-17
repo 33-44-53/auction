@@ -25,12 +25,18 @@ const upload = multer({
   fileFilter: (req, file, cb) => {
     const allowedTypes = [
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'application/vnd.ms-excel'
+      'application/vnd.ms-excel',
+      'application/octet-stream' // Allow generic binary for Excel files with unclear MIME
     ];
-    if (allowedTypes.includes(file.mimetype)) {
+    const ext = path.extname(file.originalname).toLowerCase();
+    const isExcelExt = ['.xlsx', '.xls'].includes(ext);
+    
+    console.log(`File upload attempt: ${file.originalname}, MIME: ${file.mimetype}, Ext: ${ext}`);
+    
+    if (allowedTypes.includes(file.mimetype) || isExcelExt) {
       cb(null, true);
     } else {
-      cb(new Error('Invalid file type. Only Excel files are allowed.'));
+      cb(new Error(`Invalid file type. File: ${file.originalname}, MIME: ${file.mimetype}. Only Excel files (.xlsx, .xls) are allowed.`));
     }
   }
 });

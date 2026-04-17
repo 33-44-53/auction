@@ -2,17 +2,35 @@ const XLSX = require('xlsx');
 
 async function parseExcelFile(filePath, tenderId) {
   try {
+    console.log(`\n=== PARSING EXCEL FILE: ${filePath} ===`);
     const workbook = XLSX.readFile(filePath);
+    console.log(`Workbook loaded. Sheets: ${workbook.SheetNames.join(', ')}`);
+    
     const worksheet = workbook.Sheets[workbook.SheetNames[0]];
     const rawData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '', blankrows: false });
+    console.log(`Raw data rows: ${rawData.length}`);
+
+    if (rawData.length === 0) {
+      throw new Error('Excel file is empty or could not be read');
+    }
 
     const headerRowIndex = findHeaderRow(rawData);
-    if (headerRowIndex === -1) throw new Error('Could not find valid header row in Excel file');
+    if (headerRowIndex === -1) {
+      console.error('Failed to find header row. First 10 rows:');
+      rawData.slice(0, 10).forEach((row, i) => {
+        console.error(`Row ${i}:`, row.slice(0, 5));
+      });
+      throw new Error('Could not find valid header row in Excel file. Please ensure the file has columns like "ኮድ" (Code), "የእቃው አይነት" (Item Name), etc.');
+    }
+    console.log(`Header row found at index: ${headerRowIndex}`);
 
     const tenderMeta = parseTenderMeta(rawData, headerRowIndex);
     const headerMap = mapHeaders(rawData[headerRowIndex]);
 
-    if (headerMap.groupCode === undefined) throw new Error('Could not find group code column (Code / ኮድ)');
+    if (headerMap.groupCode === undefined) {
+      console.error('Group code column not found. Headers:', rawData[headerRowIndex]);
+      throw new Error('Could not find group code column (ኮድ / Code). Please check your Excel file format.');
+    }
 
     const groups = [];
     let currentGroup = null;
@@ -53,9 +71,12 @@ async function parseExcelFile(filePath, tenderId) {
     }
 
     if (currentGroup) groups.push(currentGroup);
-    if (groups.length === 0) throw new Error('No valid groups found in Excel file');
+    if (groups.length === 0) {
+      console.error('No groups found after parsing');
+      throw new Error('No valid groups found in Excel file. Please ensure your file has data rows with group codes.');
+    }
 
-    console.log(`Parsed ${groups.length} groups with ${groups.reduce((s, g) => s + g.items.length, 0)} items`);
+    console.log(`✓ Successfully parsed ${groups.length} groups with ${groups.reduce((s, g) => s + g.items.length, 0)} items`);
     return { groups, tenderMeta };
   } catch (error) {
     console.error('Excel parsing error:', error);
