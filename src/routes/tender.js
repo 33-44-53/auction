@@ -233,7 +233,8 @@ router.post(
 
         // Use Excel metadata as primary source, fallback to form data
         const finalTenderNumber = meta.tenderNumber || tenderNumber || 'TND-' + Date.now();
-        const finalExchangeRate = meta.exchangeRate ? parseFloat(meta.exchangeRate) : (exchangeRate ? parseFloat(exchangeRate) : 1);
+        // Don't default to 1 - let it be null if not provided, items have their own exchange rates
+        const finalExchangeRate = meta.exchangeRate ? parseFloat(meta.exchangeRate) : (exchangeRate ? parseFloat(exchangeRate) : null);
         const finalTitle = meta.title || title || null;
         const finalLocation = meta.location || location || null;
         const finalResponsibleBody = meta.responsibleBody || responsibleBody || null;
@@ -343,16 +344,18 @@ router.post(
           });
           console.log(`Group created with ID: ${group.id}`);
 
-          // Use group-specific exchange rate if available, otherwise use tender-level
-          const groupExchangeRate = groupMeta.exchangeRate ? parseFloat(groupMeta.exchangeRate) : effectiveExchangeRate;
+          // Use group-specific exchange rate if available, otherwise use tender-level, or default to item exchange rates
+          const groupExchangeRate = groupMeta.exchangeRate ? parseFloat(groupMeta.exchangeRate) : (effectiveExchangeRate || null);
 
           // Batch create items
           let groupBasePrice = 0;
           const itemsToCreate = [];
           
           for (const itemData of groupData.items) {
-            // Use item-specific exchange rate if available, fallback to group, then tender
-            const itemExchangeRate = itemData.exchangeRate ? parseFloat(itemData.exchangeRate) : groupExchangeRate;
+            // Use item-specific exchange rate if available, fallback to group, then tender, then default to 1
+            const itemExchangeRate = itemData.exchangeRate ? parseFloat(itemData.exchangeRate) : (groupExchangeRate || 1);
+            
+            console.log(`Item: ${itemData.name}, ItemExRate: ${itemData.exchangeRate}, GroupExRate: ${groupExchangeRate}, FinalExRate: ${itemExchangeRate}`);
             
             let unitPrice;
             if (tenderType === 'HARAJ') {
