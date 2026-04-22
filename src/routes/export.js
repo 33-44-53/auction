@@ -311,6 +311,8 @@ router.get('/excel/:tenderId', async (req, res, next) => {
         };
         const unitPrice = unitPriceMap[round] || item.unitPrice || 0;
         const totalPrice = unitPrice * item.totalQuantity;
+        
+        console.log(`[Tender Export] Item: ${item.name}, Round: ${round}, CIF: ${item.cif}, ExRate: ${groupExRate}, UnitPrice: ${unitPrice}`);
 
         const rowData = [
           itemNumber++,
