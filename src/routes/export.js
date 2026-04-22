@@ -283,7 +283,7 @@ router.get('/excel/:tenderId', async (req, res, next) => {
         'መጋዘን 2',
         'መጋዝን\n3',
         'ጠቅላላ\nድምር',
-        'የአንድ ዋጋ (CIF)',
+        `የአንድ ዋጋ (${round})`,
         'ጠቅላላ\nዋጋ',
         'ሞዴል',
         'ምድብ ቁጥር'
@@ -302,6 +302,7 @@ router.get('/excel/:tenderId', async (req, res, next) => {
       const groupStartRow = r;
       
       for (const item of group.items) {
+        // Calculate unit price based on current round
         const unitPriceMap = {
           FOB: item.fob * groupExRate,
           CIF: item.cif * groupExRate,
