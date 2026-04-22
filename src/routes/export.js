@@ -303,16 +303,18 @@ router.get('/excel/:tenderId', async (req, res, next) => {
       
       for (const item of group.items) {
         // Calculate unit price based on current round
+        // Use item's own exchange rate (stored in database)
+        const itemExRate = item.exchangeRate || groupExRate;
         const unitPriceMap = {
-          FOB: item.fob * groupExRate,
-          CIF: item.cif * groupExRate,
-          TAX: item.tax * groupExRate,
+          FOB: item.fob * itemExRate,
+          CIF: item.cif * itemExRate,
+          TAX: item.tax * itemExRate,
           HARAJ: item.unitPrice || 0
         };
         const unitPrice = unitPriceMap[round] || item.unitPrice || 0;
         const totalPrice = unitPrice * item.totalQuantity;
         
-        console.log(`[Tender Export] Item: ${item.name}, Round: ${round}, CIF: ${item.cif}, ExRate: ${groupExRate}, UnitPrice: ${unitPrice}`);
+        console.log(`[Tender Export] Item: ${item.name}, Round: ${round}, CIF: ${item.cif}, ItemExRate: ${item.exchangeRate}, GroupExRate: ${groupExRate}, UsedExRate: ${itemExRate}, UnitPrice: ${unitPrice}`);
 
         const rowData = [
           itemNumber++,
