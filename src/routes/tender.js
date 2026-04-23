@@ -265,7 +265,7 @@ router.post(
             title: finalTitle,
             responsibleBody: finalResponsibleBody,
             tenderType: tenderType || 'AUCTION',
-            originalTenderId: originalTenderId ? parseInt(originalTenderId) : null,
+            ...(originalTenderId && { originalTender: { connect: { id: parseInt(originalTenderId) } } }),
             harajRound: harajRound ? parseInt(harajRound) : 1,
             status: 'OPEN',
             creator: { connect: { id: req.userId } }
