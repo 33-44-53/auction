@@ -259,7 +259,7 @@ router.post(
         const tender = await tx.tender.create({
           data: {
             tenderNumber: finalTenderNumber,
-            exchangeRate: finalExchangeRate,
+            exchangeRate: finalExchangeRate ?? 1,
             location: finalLocation,
             date: finalDate,
             title: finalTitle,
@@ -268,7 +268,7 @@ router.post(
             originalTenderId: originalTenderId ? parseInt(originalTenderId) : null,
             harajRound: harajRound ? parseInt(harajRound) : 1,
             status: 'OPEN',
-            createdBy: req.userId
+            creator: { connect: { id: req.userId } }
           }
         });
         console.log('Tender created with ID:', tender.id);
