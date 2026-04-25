@@ -1129,10 +1129,14 @@ router.get('/winner-letter/:groupId', async (req, res, next) => {
     // Try to load template file
     const templatePath = path.join(__dirname, '../../LASTWINNERLETTER.docx');
     
+    console.log('[Winner Letter] Looking for template at:', templatePath);
+    console.log('[Winner Letter] Template exists:', fs.existsSync(templatePath));
+    
     let buffer;
     
     if (fs.existsSync(templatePath)) {
       // Use template with background
+      console.log('[Winner Letter] Using template file');
       try {
         const content = fs.readFileSync(templatePath, 'binary');
         const zip = new PizZip(content);
@@ -1157,14 +1161,16 @@ router.get('/winner-letter/:groupId', async (req, res, next) => {
         });
 
         buffer = doc.getZip().generate({ type: 'nodebuffer' });
+        console.log('[Winner Letter] Template rendered successfully');
       } catch (templateError) {
-        console.error('Template error:', templateError);
+        console.error('[Winner Letter] Template error:', templateError);
         // Fall back to creating document from scratch
+        console.log('[Winner Letter] Falling back to scratch document');
         buffer = await createWinnerLetterFromScratch(group, winner, winnerPrice, calc70, calc30, vat, totalWithVAT, ethiopianDate);
       }
     } else {
       // Template not found, create from scratch
-      console.log('Template file not found, creating from scratch');
+      console.log('[Winner Letter] Template file not found, creating from scratch');
       buffer = await createWinnerLetterFromScratch(group, winner, winnerPrice, calc70, calc30, vat, totalWithVAT, ethiopianDate);
     }
 
