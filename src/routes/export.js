@@ -1143,8 +1143,8 @@ router.get('/winner-letter/:groupId', async (req, res, next) => {
 
         // Set template variables using render() instead of deprecated setData()
         doc.render({
-          refNumber: `${group.tender.tenderNumber}/${group.code}`,
-          date: ethiopianDate,
+          refNumber: '_______________',
+          date: '_______________',
           tenderNumber: group.tender.tenderNumber,
           winnerName: winner.bidder.name,
           groupCode: group.code,
