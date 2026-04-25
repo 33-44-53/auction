@@ -601,7 +601,7 @@ router.get('/excel/group/:groupId/closed', async (req, res, next) => {
         'መጋዘን 3',                // H
         'መጋዘን 3ሀ',               // I
         'ጠቅላላ ድምር',             // J
-        'የአንድ ዋጋ (TAX)',         // K
+        `የአንድ ዋጋ (${round})`,         // K
         'ጠቅላላ ዋጋ',              // L
         'ሞዴል',                   // M
         'ተጨራጩ የሰጠው ዋጋ',        // N
@@ -639,10 +639,11 @@ router.get('/excel/group/:groupId/closed', async (req, res, next) => {
 
       // Show all items once
       group.items.forEach((item, itemIndex) => {
+        const itemExRate = item.exchangeRate || exRate;
         const unitPriceMap = {
-          FOB: item.fob * exRate,
-          CIF: item.cif * exRate,
-          TAX: item.tax * exRate,
+          FOB: item.fob * itemExRate,
+          CIF: item.cif * itemExRate,
+          TAX: item.tax * itemExRate,
           HARAJ: item.unitPrice || 0
         };
         const unitPrice = unitPriceMap[round] || item.unitPrice || 0;
@@ -795,7 +796,7 @@ router.get('/excel/group/:groupId/closed', async (req, res, next) => {
       'መጋዘን 3',                // H
       'መጋዘን 3ሀ',               // I
       'ጠቅላላ ድምር',             // J
-      'የአንድ ዋጋ (TAX)',         // K
+      `የአንድ ዋጋ (${round})`,         // K
       'ጠቅላላ ዋጋ',              // L
       'ሞዴል',                   // M
       'ተጨራጩ የሰጠው ዋጋ',        // N
@@ -832,11 +833,12 @@ router.get('/excel/group/:groupId/closed', async (req, res, next) => {
     let totalBasePrice = 0;
 
     group.items.forEach((item, index) => {
+      const itemExRate = item.exchangeRate || exRate;
       // Calculate unit price based on current round
       const unitPriceMap = {
-        FOB: item.fob * exRate,
-        CIF: item.cif * exRate,
-        TAX: item.tax * exRate,
+        FOB: item.fob * itemExRate,
+        CIF: item.cif * itemExRate,
+        TAX: item.tax * itemExRate,
         HARAJ: item.unitPrice || 0
       };
       const unitPrice = unitPriceMap[round] || item.unitPrice || 0;
