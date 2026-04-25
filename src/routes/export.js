@@ -1988,4 +1988,270 @@ function convertThreeDigits(num, ones, tens, hundreds) {
   return result.trim();
 }
 
+// ── Export all sold groups winners in one Excel ───────────────────────────────
+router.get('/excel/tender/:tenderId/winners', async (req, res, next) => {
+  try {
+    const tenderId = parseInt(req.params.tenderId);
+    const tender = await prisma.tender.findUnique({
+      where: { id: tenderId },
+      include: {
+        groups: {
+          where: { status: 'SOLD' },
+          include: { items: true, bids: { include: { bidder: true }, orderBy: { bidPrice: 'desc' } } },
+          orderBy: { code: 'asc' }
+        }
+      }
+    });
+    
+    if (!tender) return res.status(404).json({ error: 'Tender not found' });
+    if (tender.groups.length === 0) return res.status(404).json({ error: 'No sold groups found' });
+
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet('Winners Summary');
+
+    let currentRow = 1;
+
+    // Process each sold group
+    for (const group of tender.groups) {
+      const round = group.currentRound;
+      const exRate = group.exchangeRate || tender.exchangeRate;
+
+      // Winner bid
+      const roundBids = group.bids.filter(b => b.round === round).sort((a, b) => b.bidPrice - a.bidPrice);
+      const winner = roundBids.find(b => b.isWinner) || roundBids[0] || null;
+
+      if (!winner) continue; // Skip if no winner
+
+      // Title row
+      sheet.mergeCells(`A${currentRow}:T${currentRow}`);
+      const titleCell = sheet.getCell(`A${currentRow}`);
+      titleCell.value = `ግልፅ ጨረታ ቁጥር ${tender.tenderNumber} ${tender.title || group.name || 'የተለያዩ አልባሰት'}`;
+      titleCell.font = { name: 'Arial', size: 16, bold: true };
+      titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
+      titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE7E6E6' } };
+      sheet.getRow(currentRow).height = 30;
+      currentRow++;
+
+      // Headers
+      const headers = [
+        'ተ.ቁ', 'የእቃው አይነት', 'ማርክ', 'ስሪት ሀገር', 'መለኪያ',
+        'መጋዘን 1', 'መጋዘን 2', 'መጋዘን 3', 'መጋዘን 3ሀ', 'ጠቅላላ ድምር',
+        `የአንድ ዋጋ (${round})`, 'ጠቅላላ ዋጋ', 'ሞዴል',
+        'ተጨራጩ የሰጠው ዋጋ', 'የተጨራቹ ስም', 'ኮድ',
+        'FOB', 'CIF', 'TAX', 'exchange rate'
+      ];
+
+      const headerStyle = {
+        font: { name: 'Arial', size: 11, bold: true },
+        alignment: { horizontal: 'center', vertical: 'middle', wrapText: true },
+        fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9E1F2' } },
+        border: { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } }
+      };
+
+      headers.forEach((header, index) => {
+        const cell = sheet.getCell(currentRow, index + 1);
+        cell.value = header;
+        Object.assign(cell, headerStyle);
+      });
+      sheet.getRow(currentRow).height = 40;
+      currentRow++;
+
+      const dataBorder = {
+        top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' }
+      };
+
+      // Merge columns for winner info
+      const totalItems = group.items.length;
+      if (totalItems > 0) {
+        const lastItemRow = currentRow + totalItems - 1;
+        sheet.mergeCells(`N${currentRow}:N${lastItemRow}`);
+        sheet.mergeCells(`O${currentRow}:O${lastItemRow}`);
+        sheet.mergeCells(`P${currentRow}:P${lastItemRow}`);
+      }
+
+      // Data rows
+      let totalBasePrice = 0;
+      group.items.forEach((item, index) => {
+        const itemExRate = item.exchangeRate || exRate;
+        const unitPriceMap = {
+          FOB: item.fob * itemExRate,
+          CIF: item.cif * itemExRate,
+          TAX: item.tax * itemExRate,
+          HARAJ: item.unitPrice || 0
+        };
+        const unitPrice = unitPriceMap[round] || item.unitPrice || 0;
+        const totalPrice = unitPrice * item.totalQuantity;
+        totalBasePrice += totalPrice;
+
+        const rowData = [
+          index + 1, item.name, item.brand || '', item.country || '', item.unit,
+          item.warehouse1 || 0, item.warehouse2 || 0, item.warehouse3 || 0, 0, item.totalQuantity,
+          unitPrice, totalPrice, item.itemCode || item.serialNumber || '',
+          index === 0 ? winner.bidPrice : '', index === 0 ? winner.bidder.name : '', index === 0 ? group.code : '',
+          item.fob, item.cif, item.tax, exRate
+        ];
+
+        rowData.forEach((value, colIndex) => {
+          const cell = sheet.getCell(currentRow, colIndex + 1);
+          if ((colIndex === 13 || colIndex === 14 || colIndex === 15) && index > 0) {
+            // Skip merged cells
+          } else {
+            cell.value = value;
+          }
+          cell.border = dataBorder;
+          cell.font = { name: 'Arial', size: 10 };
+          if (typeof value === 'number' && value !== 0) {
+            cell.alignment = { horizontal: 'right', vertical: 'middle' };
+            cell.numFmt = Number.isInteger(value) ? '#,##0' : '#,##0.00';
+          } else {
+            cell.alignment = (colIndex === 13 || colIndex === 14 || colIndex === 15 || colIndex === 19) 
+              ? { horizontal: 'center', vertical: 'middle', wrapText: true } 
+              : { horizontal: 'left', vertical: 'middle' };
+          }
+        });
+        sheet.getRow(currentRow).height = 20;
+        currentRow++;
+      });
+
+      // Summary section
+      const winnerPrice = winner.bidPrice;
+      const basePrice70Percent = totalBasePrice * 0.70;
+      const basePrice30Percent = totalBasePrice * 0.30;
+      const basePriceVAT = totalBasePrice * 0.15;
+      const basePriceFinalTotal = totalBasePrice + basePriceVAT;
+      const winnerPrice70Percent = winnerPrice * 0.70;
+      const winnerPrice30Percent = winnerPrice * 0.30;
+      const winnerPriceVAT = winnerPrice * 0.15;
+      const winnerPriceFinalTotal = winnerPrice + winnerPriceVAT;
+
+      const summaryStyle = {
+        font: { name: 'Arial', size: 11, bold: true },
+        border: dataBorder,
+        alignment: { horizontal: 'right', vertical: 'middle' }
+      };
+      const summaryValueStyle = {
+        font: { name: 'Arial', size: 11, bold: true },
+        border: dataBorder,
+        alignment: { horizontal: 'right', vertical: 'middle' },
+        numFmt: '#,##0'
+      };
+
+      currentRow++;
+
+      // Base price row
+      sheet.mergeCells(`A${currentRow}:K${currentRow}`);
+      const basePriceLabel = sheet.getCell(`A${currentRow}`);
+      basePriceLabel.value = 'የእቃው መነሻ ዋጋ ከቫት በፊት';
+      Object.assign(basePriceLabel, summaryStyle);
+      const basePriceValue = sheet.getCell(`L${currentRow}`);
+      basePriceValue.value = totalBasePrice;
+      Object.assign(basePriceValue, summaryValueStyle);
+      const winnerPriceValue = sheet.getCell(`N${currentRow}`);
+      winnerPriceValue.value = winnerPrice;
+      Object.assign(winnerPriceValue, summaryValueStyle);
+      sheet.getRow(currentRow).height = 25;
+      currentRow++;
+
+      // 70% row
+      sheet.mergeCells(`A${currentRow}:K${currentRow}`);
+      const label70 = sheet.getCell(`A${currentRow}`);
+      label70.value = '70%';
+      Object.assign(label70, summaryStyle);
+      const value70 = sheet.getCell(`L${currentRow}`);
+      value70.value = basePrice70Percent;
+      Object.assign(value70, summaryValueStyle);
+      const winnerValue70 = sheet.getCell(`N${currentRow}`);
+      winnerValue70.value = winnerPrice70Percent;
+      Object.assign(winnerValue70, summaryValueStyle);
+      sheet.getRow(currentRow).height = 25;
+      currentRow++;
+
+      // 30% row
+      sheet.mergeCells(`A${currentRow}:K${currentRow}`);
+      const label30 = sheet.getCell(`A${currentRow}`);
+      label30.value = '30%';
+      Object.assign(label30, summaryStyle);
+      const value30 = sheet.getCell(`L${currentRow}`);
+      value30.value = basePrice30Percent;
+      Object.assign(value30, summaryValueStyle);
+      const winnerValue30 = sheet.getCell(`N${currentRow}`);
+      winnerValue30.value = winnerPrice30Percent;
+      Object.assign(winnerValue30, summaryValueStyle);
+      sheet.getRow(currentRow).height = 25;
+      currentRow++;
+
+      // VAT row
+      sheet.mergeCells(`A${currentRow}:K${currentRow}`);
+      const labelVAT = sheet.getCell(`A${currentRow}`);
+      labelVAT.value = '15% (ቫት)';
+      Object.assign(labelVAT, summaryStyle);
+      const valueVAT = sheet.getCell(`L${currentRow}`);
+      valueVAT.value = basePriceVAT;
+      Object.assign(valueVAT, summaryValueStyle);
+      valueVAT.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFF00' } };
+      const winnerValueVAT = sheet.getCell(`N${currentRow}`);
+      winnerValueVAT.value = winnerPriceVAT;
+      Object.assign(winnerValueVAT, summaryValueStyle);
+      winnerValueVAT.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFF00' } };
+      sheet.getRow(currentRow).height = 25;
+      currentRow++;
+
+      // Final total row
+      sheet.mergeCells(`A${currentRow}:K${currentRow}`);
+      const labelTotal = sheet.getCell(`A${currentRow}`);
+      labelTotal.value = 'ጠቅላላ የእቃው ክፍያ ድምር';
+      Object.assign(labelTotal, summaryStyle);
+      const valueTotal = sheet.getCell(`L${currentRow}`);
+      valueTotal.value = basePriceFinalTotal;
+      Object.assign(valueTotal, summaryValueStyle);
+      valueTotal.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF92D050' } };
+      const winnerValueTotal = sheet.getCell(`N${currentRow}`);
+      winnerValueTotal.value = winnerPriceFinalTotal;
+      Object.assign(winnerValueTotal, summaryValueStyle);
+      winnerValueTotal.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF92D050' } };
+      sheet.getRow(currentRow).height = 25;
+      currentRow++;
+
+      // Empty rows between groups
+      currentRow += 3;
+    }
+
+    // Column widths
+    const columnWidths = [8, 30, 12, 12, 10, 10, 10, 10, 10, 12, 15, 16, 15, 18, 20, 12, 12, 12, 12, 15];
+    columnWidths.forEach((width, index) => {
+      sheet.getColumn(index + 1).width = width;
+    });
+
+    // Page setup
+    sheet.pageSetup = {
+      paperSize: 9,
+      orientation: 'landscape',
+      fitToPage: true,
+      fitToWidth: 1,
+      fitToHeight: 0,
+      margins: { left: 0.5, right: 0.5, top: 0.75, bottom: 0.75, header: 0.3, footer: 0.3 },
+      horizontalCentered: true
+    };
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    const safeTN = tender.tenderNumber.replace(/[^a-zA-Z0-9\-_]/g, '_');
+    res.setHeader('Content-Disposition', `attachment; filename="Winners_Summary_${safeTN}.xlsx"`);
+    await workbook.xlsx.write(res);
+    res.end();
+
+    if (req.userId) {
+      await prisma.auditLog.create({
+        data: { 
+          userId: req.userId, 
+          action: 'EXPORT_WINNERS_SUMMARY', 
+          entity: 'Tender', 
+          entityId: tenderId, 
+          details: JSON.stringify({ tenderNumber: tender.tenderNumber, soldGroupsCount: tender.groups.length }), 
+          ipAddress: req.ip 
+        }
+      }).catch(() => {});
+    }
+  } catch (error) { next(error); }
+});
+
 module.exports = router;

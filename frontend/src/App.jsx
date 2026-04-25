@@ -736,6 +736,40 @@ function TenderDetailPage() {
             <span className={`px-3 py-1 rounded text-sm ${tender.status === 'OPEN' ? 'bg-green-100 text-green-800' : tender.status === 'SOLD' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'}`}>
               {tender.status}
             </span>
+            {tender.groups?.some(g => g.status === 'SOLD') && (
+              <button
+                onClick={async () => {
+                  try {
+                    const token = localStorage.getItem('token');
+                    const apiUrl = import.meta.env.VITE_API_URL || '/api';
+                    const response = await fetch(`${apiUrl}/export/excel/tender/${tender.id}/winners`, {
+                      method: 'GET',
+                      headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                    if (!response.ok) throw new Error('Download failed');
+                    const blob = await response.blob();
+                    if (blob.size === 0) throw new Error('Downloaded file is empty');
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `winners_summary_${tender.tenderNumber}.xlsx`;
+                    document.body.appendChild(a);
+                    a.click();
+                    setTimeout(() => {
+                      window.URL.revokeObjectURL(url);
+                      document.body.removeChild(a);
+                    }, 100);
+                  } catch (error) {
+                    alert('Failed to download winners summary: ' + error.message);
+                  }
+                }}
+                className="bg-purple-600 text-white px-3 py-1.5 rounded-lg hover:bg-purple-700 text-xs font-medium flex items-center space-x-1"
+                title="Download all sold groups winners in one Excel"
+              >
+                <span>🏆</span>
+                <span>Winners Excel</span>
+              </button>
+            )}
             <button
               onClick={async () => {
                 try {
