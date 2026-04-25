@@ -1127,7 +1127,7 @@ router.get('/winner-letter/:groupId', async (req, res, next) => {
     const ethiopianDate = `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${ethiopianYear}`;
 
     // Try to load template file
-    const templatePath = path.join(__dirname, '../../የመሸኛ ደብደዳቤ winnerformat.docx');
+    const templatePath = path.join(__dirname, '../../LASTWINNERLETTER.docx');
     
     let buffer;
     
