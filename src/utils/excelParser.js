@@ -337,12 +337,12 @@ function parseItemRow(row, headerMap, tenderMeta) {
 
   return {
     itemCode:     getValue(row, headerMap.itemCode) ? String(getValue(row, headerMap.itemCode)).trim() : '-',
-    serialNumber: getValue(row, headerMap.serialNumber) || null,
+    serialNumber: getValue(row, headerMap.serialNumber) ? String(getValue(row, headerMap.serialNumber)).trim() : null,
     name:         String(nameVal),
-    itemType:     getValue(row, headerMap.itemType) || null,
-    brand:        getValue(row, headerMap.brand) || null,
-    country:      getValue(row, headerMap.country) || null,
-    unit:         getValue(row, headerMap.unit) || 'EA',
+    itemType:     getValue(row, headerMap.itemType) ? String(getValue(row, headerMap.itemType)).trim() : null,
+    brand:        getValue(row, headerMap.brand) ? String(getValue(row, headerMap.brand)).trim() : null,
+    country:      getValue(row, headerMap.country) ? String(getValue(row, headerMap.country)).trim() : null,
+    unit:         getValue(row, headerMap.unit) ? String(getValue(row, headerMap.unit)).trim() : 'EA',
     warehouse1:   wh1,
     warehouse2:   wh2,
     warehouse3:   wh3,
