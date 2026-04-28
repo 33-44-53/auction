@@ -471,6 +471,28 @@ router.post(
         }
 
         const groupMeta = groupData.metadata || {};
+        
+        // Parse group-level date if present
+        let groupDateString = null;
+        if (groupMeta.date) {
+          const dateStr = String(groupMeta.date).trim();
+          // Store as string in DD-MM-YYYY format
+          if (dateStr.includes('-')) {
+            const parts = dateStr.split('-');
+            if (parts.length === 3) {
+              // If already in DD-MM-YYYY format, keep it
+              if (parts[0].length <= 2) {
+                groupDateString = dateStr;
+              } else {
+                // If in YYYY-MM-DD format, convert to DD-MM-YYYY
+                groupDateString = `${parts[2]}-${parts[1]}-${parts[0]}`;
+              }
+            }
+          } else {
+            groupDateString = dateStr;
+          }
+        }
+        
         const group = await prisma.group.create({
           data: {
             tenderId,
@@ -480,7 +502,7 @@ router.post(
             roundNumber: 1,
             status: 'OPEN',
             title: groupMeta.title || null,
-            date: groupMeta.date || null,
+            date: groupDateString,
             location: groupMeta.location || null,
             responsibleBody: groupMeta.responsibleBody || null,
             exchangeRate: groupMeta.exchangeRate ? parseFloat(groupMeta.exchangeRate) : null
