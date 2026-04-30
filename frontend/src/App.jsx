@@ -1871,9 +1871,15 @@ function GroupDetailPage() {
 
         {group.status === 'OPEN' && (
           <div className="flex space-x-2 mt-4">
-            <button onClick={() => setShowSplitModal(true)} className="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700 font-semibold">
-              ✂️ Split Group
-            </button>
+            {!showSplitModal ? (
+              <button onClick={() => setShowSplitModal(true)} className="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700 font-semibold">
+                ✂️ Split Group
+              </button>
+            ) : (
+              <button onClick={() => { setShowSplitModal(false); setSelectedItems([]); }} className="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700 font-semibold">
+                ✖ Cancel Split
+              </button>
+            )}
             {group.currentRound === 'HARAJ' ? (
               <>
                 {canNext && (
@@ -2748,49 +2754,49 @@ function GroupDetailPage() {
         </div>
       )}
 
-      {/* Split Group Modal */}
+      {/* Split Group Form - Fixed Position */}
       {showSplitModal && (
-        <div className="modal-backdrop">
-          <div className="modal-content p-6 w-full max-w-md">
-            <h3 className="text-xl font-bold gradient-text mb-4">✂️ Split Group by Items</h3>
-            <p className="text-sm text-gray-600 mb-4">Select items from the table below and create a new group with them.</p>
-            <form onSubmit={handleSplitByItems}>
-              <div className="mb-4">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">New Group Code *</label>
+        <div className="bg-yellow-50 border-2 border-yellow-400 rounded-lg p-4 mb-4">
+          <h3 className="text-lg font-bold text-yellow-800 mb-2">✂️ Split Mode Active</h3>
+          <p className="text-sm text-yellow-700 mb-3">Select items from the table below using checkboxes, then fill the form:</p>
+          <form onSubmit={handleSplitByItems} className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">New Group Code *</label>
                 <input
                   type="text"
                   value={splitFormData.newGroupCode}
                   onChange={(e) => setSplitFormData({ ...splitFormData, newGroupCode: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                  placeholder="e.g., CODE-11"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                  placeholder="e.g., ኮድ-4"
                   required
                 />
               </div>
-              <div className="mb-4">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">New Group Title (optional)</label>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">New Group Title (optional)</label>
                 <input
                   type="text"
                   value={splitFormData.newGroupTitle}
                   onChange={(e) => setSplitFormData({ ...splitFormData, newGroupTitle: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                  placeholder="Optional title for new group"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                  placeholder="Optional"
                 />
               </div>
-              <div className="mb-4 p-3 bg-blue-50 rounded-lg">
-                <p className="text-sm text-blue-800">
-                  <strong>Selected Items:</strong> {selectedItems.length} / {group.items?.length || 0}
-                </p>
-              </div>
+            </div>
+            <div className="flex items-center justify-between bg-blue-50 p-2 rounded">
+              <p className="text-sm text-blue-800">
+                <strong>Selected:</strong> {selectedItems.length} / {group.items?.length || 0} items
+              </p>
               <div className="flex gap-2">
-                <button type="submit" className="flex-1 bg-indigo-600 text-white py-2 rounded hover:bg-indigo-700 font-semibold">
-                  Split Group
+                <button type="submit" disabled={selectedItems.length === 0} className="bg-indigo-600 text-white px-4 py-1.5 rounded hover:bg-indigo-700 font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed">
+                  ✂️ Split Now
                 </button>
-                <button type="button" onClick={() => { setShowSplitModal(false); setSelectedItems([]); setSplitFormData({ newGroupCode: '', newGroupTitle: '' }); }} className="flex-1 btn-secondary">
+                <button type="button" onClick={() => { setShowSplitModal(false); setSelectedItems([]); setSplitFormData({ newGroupCode: '', newGroupTitle: '' }); }} className="bg-gray-500 text-white px-4 py-1.5 rounded hover:bg-gray-600 text-sm">
                   Cancel
                 </button>
               </div>
-            </form>
-          </div>
+            </div>
+          </form>
         </div>
       )}
 
