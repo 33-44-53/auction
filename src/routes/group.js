@@ -658,6 +658,115 @@ router.post('/:id/prev-round', authorize('ADMIN', 'STAFF'), async (req, res, nex
   } catch (error) { next(error); }
 });
 
+// Split group by selecting specific items
+router.post('/:id/split-by-items', authorize('ADMIN', 'STAFF'), async (req, res, next) => {
+  try {
+    const groupId = parseInt(req.params.id);
+    const { itemIds, newGroupCode, newGroupName } = req.body;
+    
+    if (!itemIds || !Array.isArray(itemIds) || itemIds.length === 0) {
+      return res.status(400).json({ error: 'itemIds array is required and must not be empty' });
+    }
+    if (!newGroupCode) {
+      return res.status(400).json({ error: 'newGroupCode is required' });
+    }
+
+    const originalGroup = await prisma.group.findUnique({ 
+      where: { id: groupId }, 
+      include: { items: true, tender: true } 
+    });
+    
+    if (!originalGroup) {
+      return res.status(404).json({ error: 'Group not found' });
+    }
+    if (originalGroup.status !== 'OPEN') {
+      return res.status(400).json({ error: 'Only open groups can be split' });
+    }
+
+    // Verify all itemIds belong to this group
+    const selectedItems = originalGroup.items.filter(item => itemIds.includes(item.id));
+    if (selectedItems.length !== itemIds.length) {
+      return res.status(400).json({ error: 'Some items do not belong to this group' });
+    }
+    if (selectedItems.length === originalGroup.items.length) {
+      return res.status(400).json({ error: 'Cannot move all items. At least one item must remain in the original group' });
+    }
+
+    // Create new group with same properties
+    const newGroup = await prisma.group.create({
+      data: {
+        tenderId: originalGroup.tenderId,
+        code: newGroupCode,
+        name: newGroupName || `${originalGroup.name || originalGroup.code} - Split`,
+        title: originalGroup.title,
+        date: originalGroup.date,
+        location: originalGroup.location,
+        responsibleBody: originalGroup.responsibleBody,
+        exchangeRate: originalGroup.exchangeRate,
+        vehiclePlate: originalGroup.vehiclePlate,
+        currentRound: originalGroup.currentRound,
+        roundNumber: originalGroup.roundNumber,
+        status: 'OPEN',
+        basePrice: 0
+      }
+    });
+
+    // Move selected items to new group
+    await prisma.item.updateMany({
+      where: { id: { in: itemIds } },
+      data: { groupId: newGroup.id }
+    });
+
+    // Recalculate base prices for both groups
+    const newGroupItems = await prisma.item.findMany({ where: { groupId: newGroup.id } });
+    const newGroupBasePrice = newGroupItems.reduce((sum, item) => sum + (item.totalPrice || 0), 0);
+    await prisma.group.update({ 
+      where: { id: newGroup.id }, 
+      data: { basePrice: newGroupBasePrice } 
+    });
+
+    const remainingItems = await prisma.item.findMany({ where: { groupId: groupId } });
+    const originalGroupBasePrice = remainingItems.reduce((sum, item) => sum + (item.totalPrice || 0), 0);
+    await prisma.group.update({ 
+      where: { id: groupId }, 
+      data: { basePrice: originalGroupBasePrice } 
+    });
+
+    await prisma.auditLog.create({ 
+      data: { 
+        userId: req.userId, 
+        action: 'SPLIT_GROUP_BY_ITEMS', 
+        entity: 'Group', 
+        entityId: groupId, 
+        details: JSON.stringify({ 
+          newGroupId: newGroup.id,
+          newGroupCode,
+          itemsMoved: itemIds.length,
+          itemsRemaining: remainingItems.length
+        }), 
+        ipAddress: req.ip 
+      } 
+    });
+
+    res.status(201).json({ 
+      message: 'Group split successfully', 
+      originalGroup: { 
+        id: groupId, 
+        code: originalGroup.code, 
+        itemsRemaining: remainingItems.length,
+        basePrice: originalGroupBasePrice
+      }, 
+      newGroup: {
+        id: newGroup.id,
+        code: newGroup.code,
+        name: newGroup.name,
+        itemsMoved: selectedItems.length,
+        basePrice: newGroupBasePrice
+      }
+    });
+  } catch (error) { next(error); }
+});
+
 // Split group
 router.post('/:id/split', authorize('ADMIN'), async (req, res, next) => {
   try {
