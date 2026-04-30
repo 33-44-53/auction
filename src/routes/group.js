@@ -662,7 +662,7 @@ router.post('/:id/prev-round', authorize('ADMIN', 'STAFF'), async (req, res, nex
 router.post('/:id/split-by-items', authorize('ADMIN', 'STAFF'), async (req, res, next) => {
   try {
     const groupId = parseInt(req.params.id);
-    const { itemIds, newGroupCode, newGroupName } = req.body;
+    const { itemIds, newGroupCode, newGroupTitle } = req.body;
     
     if (!itemIds || !Array.isArray(itemIds) || itemIds.length === 0) {
       return res.status(400).json({ error: 'itemIds array is required and must not be empty' });
@@ -697,8 +697,8 @@ router.post('/:id/split-by-items', authorize('ADMIN', 'STAFF'), async (req, res,
       data: {
         tenderId: originalGroup.tenderId,
         code: newGroupCode,
-        name: newGroupName || `${originalGroup.name || originalGroup.code} - Split`,
-        title: originalGroup.title,
+        name: `${originalGroup.code} : Split`,
+        title: newGroupTitle || null,
         date: originalGroup.date,
         location: originalGroup.location,
         responsibleBody: originalGroup.responsibleBody,
