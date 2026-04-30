@@ -1117,6 +1117,9 @@ function GroupDetailPage() {
   const [itemExcelPreview, setItemExcelPreview] = useState(null);
   const [itemExcelPreviewing, setItemExcelPreviewing] = useState(false);
   const [itemExcelError, setItemExcelError] = useState('');
+  const [showSplitModal, setShowSplitModal] = useState(false);
+  const [selectedItems, setSelectedItems] = useState([]);
+  const [splitFormData, setSplitFormData] = useState({ newGroupCode: '', newGroupTitle: '' });
   const [showHarajModal, setShowHarajModal] = useState(false);
   const [showYasbelaModal, setShowYasbelaModal] = useState(false);
   const [showNextRoundModal, setShowNextRoundModal] = useState(false);
@@ -1622,6 +1625,29 @@ function GroupDetailPage() {
     setEditingGroup(true);
   };
 
+  const handleSplitByItems = async (e) => {
+    e.preventDefault();
+    if (selectedItems.length === 0) { alert('Please select at least one item'); return; }
+    if (!splitFormData.newGroupCode) { alert('Please enter a new group code'); return; }
+    try {
+      await api.post(`/groups/${groupId}/split-by-items`, {
+        itemIds: selectedItems,
+        newGroupCode: splitFormData.newGroupCode,
+        newGroupTitle: splitFormData.newGroupTitle || undefined
+      });
+      alert('Group split successfully!');
+      window.location.reload();
+    } catch (e) {
+      alert(e.response?.data?.error || 'Failed to split group');
+    }
+  };
+
+  const toggleItemSelection = (itemId) => {
+    setSelectedItems(prev => 
+      prev.includes(itemId) ? prev.filter(id => id !== itemId) : [...prev, itemId]
+    );
+  };
+
   const handleSaveGroup = async () => {
     try {
       await api.patch(`/groups/${groupId}`, groupEditData);
@@ -1845,6 +1871,9 @@ function GroupDetailPage() {
 
         {group.status === 'OPEN' && (
           <div className="flex space-x-2 mt-4">
+            <button onClick={() => setShowSplitModal(true)} className="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700 font-semibold">
+              ✂️ Split Group
+            </button>
             {group.currentRound === 'HARAJ' ? (
               <>
                 {canNext && (
@@ -2006,6 +2035,7 @@ function GroupDetailPage() {
         <table>
           <thead>
             <tr>
+              {showSplitModal && <th>Select</th>}
               <th>Model</th>
               <th>Serial</th>
               <th>Name</th>
@@ -2034,6 +2064,16 @@ function GroupDetailPage() {
           <tbody>
             {group.items?.map((item) => (
               <tr key={item.id}>
+                {showSplitModal && (
+                  <td>
+                    <input
+                      type="checkbox"
+                      checked={selectedItems.includes(item.id)}
+                      onChange={() => toggleItemSelection(item.id)}
+                      className="w-4 h-4"
+                    />
+                  </td>
+                )}
                 <td>{item.itemCode}</td>
                 <td>{item.serialNumber || '-'}</td>
                 <td>{item.name}</td>
@@ -2702,6 +2742,52 @@ function GroupDetailPage() {
               <div className="flex gap-2">
                 <button type="submit" className="flex-1 bg-purple-600 text-white py-2 rounded hover:bg-purple-700 font-semibold">Apply Yasbela</button>
                 <button type="button" onClick={() => setShowYasbelaModal(false)} className="flex-1 btn-secondary">Cancel</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Split Group Modal */}
+      {showSplitModal && (
+        <div className="modal-backdrop">
+          <div className="modal-content p-6 w-full max-w-md">
+            <h3 className="text-xl font-bold gradient-text mb-4">✂️ Split Group by Items</h3>
+            <p className="text-sm text-gray-600 mb-4">Select items from the table below and create a new group with them.</p>
+            <form onSubmit={handleSplitByItems}>
+              <div className="mb-4">
+                <label className="block text-sm font-semibold text-gray-700 mb-2">New Group Code *</label>
+                <input
+                  type="text"
+                  value={splitFormData.newGroupCode}
+                  onChange={(e) => setSplitFormData({ ...splitFormData, newGroupCode: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                  placeholder="e.g., CODE-11"
+                  required
+                />
+              </div>
+              <div className="mb-4">
+                <label className="block text-sm font-semibold text-gray-700 mb-2">New Group Title (optional)</label>
+                <input
+                  type="text"
+                  value={splitFormData.newGroupTitle}
+                  onChange={(e) => setSplitFormData({ ...splitFormData, newGroupTitle: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                  placeholder="Optional title for new group"
+                />
+              </div>
+              <div className="mb-4 p-3 bg-blue-50 rounded-lg">
+                <p className="text-sm text-blue-800">
+                  <strong>Selected Items:</strong> {selectedItems.length} / {group.items?.length || 0}
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <button type="submit" className="flex-1 bg-indigo-600 text-white py-2 rounded hover:bg-indigo-700 font-semibold">
+                  Split Group
+                </button>
+                <button type="button" onClick={() => { setShowSplitModal(false); setSelectedItems([]); setSplitFormData({ newGroupCode: '', newGroupTitle: '' }); }} className="flex-1 btn-secondary">
+                  Cancel
+                </button>
               </div>
             </form>
           </div>
