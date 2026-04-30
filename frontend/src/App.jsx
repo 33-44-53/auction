@@ -1630,13 +1630,14 @@ function GroupDetailPage() {
     if (selectedItems.length === 0) { alert('Please select at least one item'); return; }
     if (!splitFormData.newGroupCode) { alert('Please enter a new group code'); return; }
     try {
-      await api.post(`/groups/${groupId}/split-by-items`, {
+      const response = await api.post(`/groups/${groupId}/split-by-items`, {
         itemIds: selectedItems,
         newGroupCode: splitFormData.newGroupCode,
         newGroupTitle: splitFormData.newGroupTitle || undefined
       });
       alert('Group split successfully!');
-      window.location.reload();
+      // Redirect to tender page to see both groups
+      window.location.href = `/tenders/${group.tenderId}`;
     } catch (e) {
       alert(e.response?.data?.error || 'Failed to split group');
     }
