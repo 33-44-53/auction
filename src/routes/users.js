@@ -154,9 +154,7 @@ router.post('/:id/reset-password', authorize('ADMIN'), async (req, res, next) =>
     await prisma.user.update({
       where: { id: targetId },
       data: {
-        password: hashedPassword,
-        resetToken: null,
-        resetTokenExpiry: null
+        password: hashedPassword
       }
     });
 
