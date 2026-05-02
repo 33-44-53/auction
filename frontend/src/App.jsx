@@ -3801,6 +3801,8 @@ function UsersPage() {
   const [showResetModal, setShowResetModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
   const [newPassword, setNewPassword] = useState('');
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -3987,15 +3989,24 @@ function UsersPage() {
             <form onSubmit={handleResetPassword}>
               <div className="mb-4">
                 <label className="block text-sm font-bold mb-2">New Password *</label>
-                <input
-                  type="password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  className="w-full px-3 py-2 border rounded"
-                  placeholder="Enter new password (min 6 characters)"
-                  minLength={6}
-                  required
-                />
+                <div className="relative">
+                  <input
+                    type={showNewPassword ? "text" : "password"}
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    className="w-full px-3 py-2 border rounded pr-10"
+                    placeholder="Enter new password (min 6 characters)"
+                    minLength={6}
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowNewPassword(!showNewPassword)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                  >
+                    {showNewPassword ? '🙈' : '👁️'}
+                  </button>
+                </div>
                 <p className="text-xs text-gray-500 mt-1">Minimum 6 characters</p>
               </div>
               <div className="flex space-x-2">
@@ -4011,6 +4022,7 @@ function UsersPage() {
                     setShowResetModal(false);
                     setSelectedUser(null);
                     setNewPassword('');
+                    setShowNewPassword(false);
                   }}
                   className="flex-1 bg-gray-300 text-gray-700 py-2 rounded hover:bg-gray-400"
                 >
@@ -4050,14 +4062,23 @@ function UsersPage() {
               </div>
               <div className="mb-3">
                 <label className="block text-sm font-bold mb-1">Password *</label>
-                <input
-                  type="password"
-                  value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  className="w-full px-3 py-2 border rounded"
-                  minLength={6}
-                  required
-                />
+                <div className="relative">
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    value={formData.password}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    className="w-full px-3 py-2 border rounded pr-10"
+                    minLength={6}
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                  >
+                    {showPassword ? '🙈' : '👁️'}
+                  </button>
+                </div>
               </div>
               <div className="mb-4">
                 <label className="block text-sm font-bold mb-1">Role</label>
@@ -4080,7 +4101,10 @@ function UsersPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setShowModal(false)}
+                  onClick={() => {
+                    setShowModal(false);
+                    setShowPassword(false);
+                  }}
                   className="flex-1 bg-gray-300 text-gray-700 py-2 rounded hover:bg-gray-400"
                 >
                   Cancel
