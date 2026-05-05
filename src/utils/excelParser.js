@@ -330,7 +330,7 @@ function parseItemRow(row, headerMap, tenderMeta) {
   if (!nameVal) return null;
 
   const exchangeRateVal = getValue(row, headerMap.exchangeRate);
-  const exchangeRate = exchangeRateVal ? parseFloat(String(exchangeRateVal).replace(/,/g, '')) : (tenderMeta.exchangeRate ? parseFloat(tenderMeta.exchangeRate) : null);
+  const exchangeRate = exchangeRateVal ? parseFloat(String(exchangeRateVal).replace(/,/g, '')) : null;
   const expireDate = getValue(row, headerMap.expireDate) ? String(getValue(row, headerMap.expireDate)).trim() : null;
 
   console.log(`Item: ${nameVal} - WH1=${wh1} (col ${headerMap.warehouse1}, val="${getValue(row, headerMap.warehouse1)}"), WH2=${wh2} (col ${headerMap.warehouse2}, val="${getValue(row, headerMap.warehouse2)}"), WH3=${wh3} (col ${headerMap.warehouse3}, val="${getValue(row, headerMap.warehouse3)}"), Total=${totalQuantity}, ExchangeRate=${exchangeRate}, ExpireDate=${expireDate}`);

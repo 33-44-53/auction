@@ -60,7 +60,10 @@ router.post('/:id/upload-items-excel', authorize('ADMIN', 'STAFF'), async (req, 
       let basePrice = 0;
 
       for (const itemData of allItems) {
-        const itemExchangeRate = itemData.exchangeRate ? parseFloat(itemData.exchangeRate) : exchangeRate;
+        const itemExchangeRate = itemData.exchangeRate;
+        if (!itemExchangeRate) {
+          return res.status(400).json({ error: `Item "${itemData.name}" is missing exchange rate. All items must have an exchange rate in the Excel file.` });
+        }
         const prices = { CIF: itemData.cif || 0, FOB: itemData.fob || 0, TAX: itemData.tax || 0 };
         const unitPrice = (group.currentRound === 'HARAJ'
           ? Math.min(itemData.cif || 0, itemData.fob || 0, itemData.tax || 0)
@@ -185,10 +188,14 @@ router.patch('/:id/items/:itemId', authorize('ADMIN', 'STAFF'), async (req, res,
     const wh3 = parseInt(warehouse3) || 0;
     const totalQuantity = wh1 + wh2 + wh3;
     
-    // Use item-specific exchange rate if provided, otherwise fallback to group/tender
+    // Use item-specific exchange rate if provided
     const exchangeRate = itemExchangeRate !== undefined 
       ? parseFloat(itemExchangeRate) 
-      : (group.exchangeRate || group.tender.exchangeRate);
+      : null;
+    
+    if (!exchangeRate) {
+      return res.status(400).json({ error: 'Exchange rate is required for each item' });
+    }
     
     const unitPrice = calcUnitPrice(cifVal, fobVal, taxVal, group.currentRound, exchangeRate);
     const totalPrice = unitPrice * totalQuantity;
@@ -519,12 +526,15 @@ router.post('/:id/next-round', authorize('ADMIN', 'STAFF'), async (req, res, nex
       newTenderId = newTender.id;
     }
 
-    const exchangeRate = group.exchangeRate || group.tender.exchangeRate;
-
     // Calculate new base price for next round
     let newBasePrice = 0;
     for (const item of group.items) {
-      const unitPrice = calcUnitPrice(item.cif, item.fob, item.tax, nextRound, exchangeRate);
+      // Each item must have its own exchange rate
+      const itemExchangeRate = item.exchangeRate;
+      if (!itemExchangeRate) {
+        return res.status(400).json({ error: `Item "${item.name}" is missing exchange rate. Cannot proceed to next round.` });
+      }
+      const unitPrice = calcUnitPrice(item.cif, item.fob, item.tax, nextRound, itemExchangeRate);
       const totalPrice = unitPrice * item.totalQuantity;
       newBasePrice += totalPrice;
     }
@@ -551,7 +561,12 @@ router.post('/:id/next-round', authorize('ADMIN', 'STAFF'), async (req, res, nex
 
     // Copy items to new group with updated prices
     for (const item of group.items) {
-      const unitPrice = calcUnitPrice(item.cif, item.fob, item.tax, nextRound, exchangeRate);
+      // Each item must have its own exchange rate
+      const itemExchangeRate = item.exchangeRate;
+      if (!itemExchangeRate) {
+        return res.status(400).json({ error: `Item "${item.name}" is missing exchange rate. Cannot proceed to next round.` });
+      }
+      const unitPrice = calcUnitPrice(item.cif, item.fob, item.tax, nextRound, itemExchangeRate);
       const totalPrice = unitPrice * item.totalQuantity;
       
       await prisma.item.create({
@@ -571,7 +586,7 @@ router.post('/:id/next-round', authorize('ADMIN', 'STAFF'), async (req, res, nex
           fob: item.fob,
           cif: item.cif,
           tax: item.tax,
-          exchangeRate: item.exchangeRate,
+          exchangeRate: itemExchangeRate,
           expireDate: item.expireDate,
           unitPrice,
           totalPrice

@@ -352,10 +352,14 @@ router.post(
           const itemsToCreate = [];
           
           for (const itemData of groupData.items) {
-            // Use item-specific exchange rate if available, fallback to group, then tender, then default to 1
-            const itemExchangeRate = itemData.exchangeRate ? parseFloat(itemData.exchangeRate) : (groupExchangeRate || 1);
+            // Each item MUST have its own exchange rate
+            const itemExchangeRate = itemData.exchangeRate;
             
-            console.log(`Item: ${itemData.name}, ItemExRate: ${itemData.exchangeRate}, GroupExRate: ${groupExchangeRate}, FinalExRate: ${itemExchangeRate}`);
+            if (!itemExchangeRate) {
+              throw new Error(`Item "${itemData.name}" in group ${groupData.code} is missing exchange rate. All items must have an exchange rate in the Excel file.`);
+            }
+            
+            console.log(`Item: ${itemData.name}, ExchangeRate: ${itemExchangeRate}`);
             
             let unitPrice;
             if (tenderType === 'HARAJ') {
@@ -515,9 +519,10 @@ router.post(
 
         let basePrice = 0;
         for (const itemData of groupData.items) {
-          const itemExchangeRate = itemData.exchangeRate
-            ? parseFloat(itemData.exchangeRate)
-            : groupExchangeRate;
+          const itemExchangeRate = itemData.exchangeRate;
+          if (!itemExchangeRate) {
+            throw new Error(`Item "${itemData.name}" in group ${groupData.code} is missing exchange rate. All items must have an exchange rate in the Excel file.`);
+          }
           const prices = { CIF: itemData.cif || 0, FOB: itemData.fob || 0, TAX: itemData.tax || 0 };
           const unitPrice = (tender.tenderType === 'HARAJ'
             ? Math.min(itemData.cif || 0, itemData.fob || 0, itemData.tax || 0)
