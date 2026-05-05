@@ -1,4 +1,5 @@
 services:
+  # Render service configuration - updated build command
   - type: web
     name: auction-backend
     env: node
