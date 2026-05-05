@@ -3,11 +3,7 @@ services:
   - type: web
     name: auction-backend
     env: node
-    buildCommand: |
-      npm install && 
-      npx prisma generate && 
-      node ensure-users.js && 
-      npx prisma migrate deploy
+    buildCommand: npm run build && node ensure-users.js
     startCommand: npm start
     envVars:
       - key: NODE_ENV
