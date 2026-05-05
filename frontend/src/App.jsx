@@ -361,6 +361,7 @@ function DashboardPage() {
   const { user } = useAuth();
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [recalculating, setRecalculating] = useState(false);
 
   useEffect(() => {
     loadStats();
@@ -374,6 +375,20 @@ function DashboardPage() {
       console.error('Failed to load stats:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleRecalculatePrices = async () => {
+    if (!confirm('Recalculate all item prices with correct exchange rates? This will update unit prices and total prices for all items.')) return;
+    setRecalculating(true);
+    try {
+      const response = await api.post('/maintenance/recalculate-prices');
+      alert(`✅ Success!\n\nItems updated: ${response.data.summary.itemsUpdated}\nGroups updated: ${response.data.summary.groupsUpdated}`);
+      loadStats();
+    } catch (error) {
+      alert('Failed to recalculate prices: ' + (error.response?.data?.error || error.message));
+    } finally {
+      setRecalculating(false);
     }
   };
 
@@ -392,12 +407,22 @@ function DashboardPage() {
           <h2 className="text-4xl font-bold gradient-text">Dashboard</h2>
           <p className="text-gray-600 mt-1">Welcome back, {stats?.user?.name || 'User'}</p>
         </div>
-        <a
-          href="/tenders"
-          className="btn-primary"
-        >
-          + New Tender
-        </a>
+        <div className="flex gap-2">
+          <button
+            onClick={handleRecalculatePrices}
+            disabled={recalculating}
+            className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 disabled:opacity-50 text-sm font-medium"
+            title="Recalculate all item prices with correct exchange rates"
+          >
+            {recalculating ? '⏳ Recalculating...' : '🔄 Fix Prices'}
+          </button>
+          <a
+            href="/tenders"
+            className="btn-primary"
+          >
+            + New Tender
+          </a>
+        </div>
       </div>
 
       {/* Analytics Cards */}

@@ -17,6 +17,7 @@ const statsRoutes = require('./routes/stats');
 const usersRoutes = require('./routes/users');
 const seedRoutes = require('./routes/seed');
 const yasbellaRoutes = require('./routes/yasbella');
+const maintenanceRoutes = require('./routes/maintenance');
 
 const { errorHandler } = require('./middleware/errorHandler');
 const { authenticate } = require('./middleware/auth');
@@ -88,6 +89,7 @@ app.use('/api/audit', authenticate, auditRoutes);
 app.use('/api/stats', authenticate, statsRoutes);
 app.use('/api/users', authenticate, usersRoutes);
 app.use('/api/yasbella', authenticate, yasbellaRoutes);
+app.use('/api/maintenance', maintenanceRoutes);
 app.use('/api/seed', seedRoutes); // TEMPORARY - Remove after seeding production
 
 // Debug: show groups with their originalGroupId
